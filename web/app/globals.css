@@ -1,0 +1,287 @@
+@import "tailwindcss";
+@import "./themes.css";
+
+/* ── Site theme ─────────────────────────────────────────────────────────────
+   Edit the hex values below to change the entire site palette.
+   Tailwind utilities (bg-surface, text-accent, border-accent, etc.) and CSS
+   var() references (var(--color-accent), etc.) are all generated from here.
+   ────────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* layout / chrome */
+  --color-background:     #141618;
+  --color-nav:            #16181c;
+  --color-surface:        #1e2228;
+  --color-surface-raised: #252830;
+  --color-surface-hover:  #2d3039;
+  /* primary accent (gold) */
+  --color-accent:         #f0c040;
+  --color-accent-hover:   #f5cb4a;
+  /* content panels used in Sortie / Odyssey detail views */
+  --color-panel:          #141618;
+  --color-panel-alt:      #1e2228;
+  --color-row-even:       #1e2228;
+  --color-row-odd:        #141618;
+  --color-row-alt:        #141618;
+  --color-chip:           #252830;
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  background: var(--color-background);
+}
+body {
+  background: transparent;
+  color: #e8e8e8;
+  font-family: Arial, Helvetica, sans-serif;
+  /* Subtle drop shadow on ALL text. Costs nothing visually for crisp panels
+     and adds a hard edge that keeps text legible whenever any ambient art
+     leaks through the translucent surfaces. */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+/* ── Muted text legibility shift ────────────────────────────────────────────
+   The default Tailwind gray scale runs too dim against the translucent
+   panels we ship. Shift each muted tier one step brighter so labels and
+   secondary text stay readable. We deliberately leave gray-100/200 alone
+   (already bright) and gray-700+ alone (intentional "barely there" empty
+   states). Use !important to win against Tailwind v4's utility cascade.
+   ─────────────────────────────────────────────────────────────────────── */
+.text-gray-300 { color: #e5e7eb !important; }  /* was ~d1d5db */
+.text-gray-400 { color: #d1d5db !important; }  /* was ~9ca3af - biggest win */
+.text-gray-500 { color: #9ca3af !important; }  /* was ~6b7280 */
+.text-gray-600 { color: #7d8593 !important; }  /* was ~4b5563 */
+
+/* Dark text on accent buttons inherits body's text-shadow and gets a black
+   halo that looks awful on the light fill. */
+.text-gray-900 { text-shadow: none !important; }
+
+/* ── Page transition animations ─────────────────────────────────────────────
+   `PageTransition` wraps {children} in layout.tsx with key={pathname}, so
+   every route change remounts the inner div and replays these animations.
+
+   Two layers:
+   1. .page-transition - wrapper fades in (opacity only, no translate) so the
+      NavBar doesn't bounce. Fast (350ms) to stay in sync with the bg crossfade.
+   2. Direct children of .page-transition get a slight upward slide-and-fade
+      with a small per-child stagger. This makes the content "land" rather
+      than snap. Uses nth-child so it works for any page layout.
+
+   prefers-reduced-motion disables both.
+   ─────────────────────────────────────────────────────────────────────── */
+@keyframes page-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes page-rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.page-transition {
+  animation: page-fade-in 350ms ease-out;
+}
+.page-transition > * {
+  animation: page-rise-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+/* Tiny stagger so sections cascade in rather than landing at once. We cap at
+   a handful of children so deeply-nested page roots don't pile up delays. */
+.page-transition > *:nth-child(1) { animation-delay:   0ms; }
+.page-transition > *:nth-child(2) { animation-delay:  60ms; }
+.page-transition > *:nth-child(3) { animation-delay: 120ms; }
+.page-transition > *:nth-child(4) { animation-delay: 180ms; }
+.page-transition > *:nth-child(n+5) { animation-delay: 220ms; }
+
+/* Tab-content swap inside a report (RunTabs / EncounterView). A keyed wrapper
+   replays this whenever the active tab changes, so tab content fades + lifts in
+   instead of hard-cutting. Ends at transform:none so no containing block lingers. */
+@keyframes ff-tab-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.ff-tab {
+  animation: ff-tab-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition,
+  .page-transition > *,
+  .ff-tab {
+    animation: none !important;
+  }
+}
+
+/* ── Profile themes (pro/supporter feature) ──────────────────────────────────
+   Applied as a wrapper class on /user/[username] for supporters.
+   Overrides the CSS custom properties used by Tailwind utilities.
+   ────────────────────────────────────────────────────────────────────────── */
+.theme-dusk {
+  --color-accent:       #b06aff;
+  --color-accent-hover: #bf80ff;
+}
+.theme-teal {
+  --color-accent:       #2dd4bf;
+  --color-accent-hover: #5eead4;
+}
+.theme-crimson {
+  --color-accent:       #f87171;
+  --color-accent-hover: #fca5a5;
+}
+
+/* ── Translucent panels ─────────────────────────────────────────────────────
+   Override Tailwind's generated `bg-<surface>` utilities so the background
+   art bleeds through every panel. backdrop-blur keeps text legible by
+   smearing whatever art sits behind the panel. Comes after the @import so
+   these rules win cascade against Tailwind's own bg-* utilities (same
+   specificity, later wins).
+
+   If you ever need a fully-opaque variant (e.g., a modal), use an arbitrary
+   bg-[#1e2228] class instead of bg-surface.
+   ─────────────────────────────────────────────────────────────────────── */
+.bg-nav           { background-color: rgba(22, 24, 28, 0.88); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%); }
+.bg-surface       { background-color: rgba(30, 34, 40, 0.88); backdrop-filter: blur(16px) saturate(125%); -webkit-backdrop-filter: blur(16px) saturate(125%); }
+.bg-surface-raised{ background-color: rgba(37, 40, 48, 0.90); backdrop-filter: blur(16px) saturate(125%); -webkit-backdrop-filter: blur(16px) saturate(125%); }
+.bg-surface-hover { background-color: rgba(45, 48, 57, 0.92); backdrop-filter: blur(16px) saturate(125%); -webkit-backdrop-filter: blur(16px) saturate(125%); }
+.bg-panel         { background-color: rgba(20, 22, 24, 0.88); backdrop-filter: blur(16px) saturate(125%); -webkit-backdrop-filter: blur(16px) saturate(125%); }
+.bg-panel-alt     { background-color: rgba(30, 34, 40, 0.84); backdrop-filter: blur(14px) saturate(120%); -webkit-backdrop-filter: blur(14px) saturate(120%); }
+.bg-row-even      { background-color: rgba(30, 34, 40, 0.82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.bg-row-odd       { background-color: rgba(20, 22, 24, 0.82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.bg-row-alt       { background-color: rgba(20, 22, 24, 0.82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.bg-chip          { background-color: rgba(37, 40, 48, 0.90); }
+
+/* Subtle inner highlight + outer shadow so panels feel like glass tiles on
+   the art rather than flat sheets. */
+.bg-surface,
+.bg-surface-raised,
+.bg-panel,
+.bg-panel-alt {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 1px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* ── Custom scrollbars ──────────────────────────────────────────────────────
+   The OS-default scrollbar (bright gray on Windows) clashes with the dark
+   translucent panels. Replace it with a thin, low-contrast pill: transparent
+   track so the background art still bleeds through, faint white-alpha thumb
+   that brightens on hover. Applied site-wide via the universal selector so
+   any new scroll container (tables, modals, code blocks) picks it up
+   automatically.
+
+   Two layers for cross-browser coverage:
+     * Firefox honours scrollbar-width / scrollbar-color
+     * Chromium / WebKit honour the ::-webkit-scrollbar-* pseudo-elements
+   The padding-box / transparent-border trick on the thumb makes the pill
+   appear narrower than the track without changing layout reserved width.
+   ─────────────────────────────────────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.38) rgba(0, 0, 0, 0.25);
+}
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+*::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.25);
+}
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.32);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(240, 192, 64, 0.6);
+}
+*::-webkit-scrollbar-thumb:active {
+  background-color: rgba(240, 192, 64, 0.8);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ── Splash loader (ported from desktop) ─────────────────────────────────── */
+.splash-stage {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.splash-translate {
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: splash-translate 1.6s infinite both;
+}
+@keyframes splash-translate {
+  0%, 7.5%  { transform: translateY(0); }
+  28.125%   { transform: translateY(-14px); }
+  46%       { transform: translateY(0); }
+  55%       { transform: translateY(-4px); }
+  64%       { transform: translateY(0); }
+  72%       { transform: translateY(-1.5px); }
+  81.25%    { transform: translateY(0); }
+  100%      { transform: translateY(0); }
+}
+.splash-scale {
+  width: 104px;
+  height: 104px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: splash-scale 1.6s infinite both;
+}
+@keyframes splash-scale {
+  0%      { transform: scale(1);    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  7.5%    { transform: scale(0.88); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  25%     { transform: scale(1.14); animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
+  81.25%  { transform: scale(1);    animation-timing-function: linear; }
+  100%    { transform: scale(1); }
+}
+.splash-rotate {
+  display: block;
+  width: 104px;
+  height: 104px;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.4));
+  animation: splash-rotate 1.6s infinite both;
+  transform-origin: center center;
+}
+@keyframes splash-rotate {
+  0%, 7.5%      { transform: rotate(0deg); animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+  81.25%, 100%  { transform: rotate(1080deg); }
+}
+.splash-dots {
+  display: inline-block;
+  margin-left: 1px;
+  letter-spacing: 1px;
+}
+.splash-dots > span {
+  display: inline-block;
+  opacity: 0;
+}
+.splash-dots > span:nth-child(1) { animation: splash-dot-1 1.4s infinite both; }
+.splash-dots > span:nth-child(2) { animation: splash-dot-2 1.4s infinite both; }
+.splash-dots > span:nth-child(3) { animation: splash-dot-3 1.4s infinite both; }
+@keyframes splash-dot-1 {
+  0%,   21.43% { opacity: 0; }
+  21.44%, 100% { opacity: 1; }
+}
+@keyframes splash-dot-2 {
+  0%,   39.29% { opacity: 0; }
+  39.30%, 100% { opacity: 1; }
+}
+@keyframes splash-dot-3 {
+  0%,   57.14% { opacity: 0; }
+  57.15%, 100% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .splash-translate, .splash-scale, .splash-rotate,
+  .splash-dots > span { animation: none; opacity: 1; }
+}

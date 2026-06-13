@@ -1,0 +1,198 @@
+/* ── Styx theme system ───────────────────────────────────────────────────────
+   data-theme-driven palettes (set document.documentElement.dataset.theme).
+   Shared by the desktop app, web app, and share viewer (all import globals.css,
+   which imports this). Each theme overrides the runtime CSS vars; the glass
+   surface classes + .styx-bg backdrop below read those vars, so one attribute
+   swap recolors everything. Modeled on the LesserEvil WebUI theme architecture.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* Dawn - cool twilight navy + lantern-amber accent. Was the default Gnosis
+   theme before the Nahida green-themed rebrand; kept available as a theme
+   choice. */
+:root[data-theme="dawn"] {
+  --color-background:   #121a28;
+  --color-accent:       #e8a24a;
+  --color-accent-hover: #f0b265;
+
+  --glass-nav:            rgba(18, 26, 40, 0.85);
+  --glass-surface:        rgba(28, 38, 56, 0.85);
+  --glass-surface-raised: rgba(36, 48, 70, 0.85);
+  --glass-surface-hover:  rgba(46, 60, 84, 0.88);
+  --glass-panel:          rgba(22, 31, 48, 0.85);
+  --glass-panel-alt:      rgba(36, 48, 70, 0.82);
+  --glass-row-even:       rgba(36, 48, 70, 0.80);
+  --glass-row-odd:        rgba(22, 31, 48, 0.74);
+  --glass-chip:           rgba(36, 48, 70, 0.85);
+
+  --bg-glow:      rgba(232, 162, 74, 0.22);
+  --bg-dim:       rgba(14, 22, 38, 0.62);
+  --bg-wallpaper: url('/bg-default.webp?v=1');
+  --glass-blur:   18px;
+}
+
+/* Styx (retired) - warm charcoal glass + gold, over the Styx art. Kept so any
+   stored data-theme="styx" still renders correctly; not advertised as a choice. */
+:root[data-theme="styx"] {
+  --color-background:   #141618;
+  --color-accent:       #f2b03a;
+  --color-accent-hover: #f6bf52;
+
+  --glass-nav:            rgba(27, 24, 21, 0.90);
+  --glass-surface:        rgba(37, 34, 30, 0.86);
+  --glass-surface-raised: rgba(45, 41, 35, 0.90);
+  --glass-surface-hover:  rgba(53, 48, 41, 0.92);
+  --glass-panel:          rgba(25, 22, 19, 0.86);
+  --glass-panel-alt:      rgba(37, 34, 30, 0.82);
+  --glass-row-even:       rgba(37, 34, 30, 0.80);
+  --glass-row-odd:        rgba(20, 18, 16, 0.72);
+  --glass-chip:           rgba(45, 41, 35, 0.85);
+
+  --bg-glow:      rgba(242, 176, 58, 0.12);
+  --bg-dim:       rgba(13, 11, 9, 0.46);
+  --bg-wallpaper: url('/StyxBackground.webp?v=2');
+  --glass-blur:   18px;
+}
+
+/* Gnosis (default) - Jade Temple palette: deep, chromatic emerald base +
+   warm-gold accent over the Nahida wallpaper. The saturated jade greens
+   give the glass panels real chroma against the wallpaper instead of
+   reading as near-black voids; the gold accent (complementary half of the
+   wheel) pops sharply against the green field and echoes Nahida's gold
+   accessory trim.
+
+   The bare :root selector pins this as the no-attribute fallback so any
+   unmarked page (web app at first load, share viewer, etc.) lands on
+   Gnosis. Both selectors must stay in sync. */
+:root,
+:root[data-theme="gnosis"] {
+  --color-background:   #1a2b22;
+  --color-accent:       #f0c062;
+  --color-accent-hover: #f5d088;
+
+  --glass-nav:            rgba(22, 38, 30, 0.88);
+  --glass-surface:        rgba(30, 52, 40, 0.86);
+  --glass-surface-raised: rgba(40, 68, 54, 0.86);
+  --glass-surface-hover:  rgba(48, 82, 66, 0.90);
+  --glass-panel:          rgba(26, 46, 36, 0.86);
+  --glass-panel-alt:      rgba(40, 68, 54, 0.84);
+  --glass-row-even:       rgba(34, 60, 46, 0.80);
+  --glass-row-odd:        rgba(26, 46, 36, 0.74);
+  --glass-chip:           rgba(40, 68, 54, 0.86);
+
+  --bg-glow:      rgba(240, 192, 98, 0.25);
+  --bg-dim:       rgba(30, 80, 55, 0.55);
+  --bg-wallpaper: url('/bg-meadow.jpg?v=3');
+  --glass-blur:   18px;
+}
+
+/* Legacy alias - old saved data-theme="meadow" attributes still render the
+   gnosis palette. Migration in App.tsx rewrites the localStorage value
+   on first run, but this keeps any unmigrated viewer (share links, etc.)
+   visually correct. */
+:root[data-theme="meadow"] {
+  --color-background:   #1a2b22;
+  --color-accent:       #f0c062;
+  --color-accent-hover: #f5d088;
+
+  --glass-nav:            rgba(22, 38, 30, 0.88);
+  --glass-surface:        rgba(30, 52, 40, 0.86);
+  --glass-surface-raised: rgba(40, 68, 54, 0.86);
+  --glass-surface-hover:  rgba(48, 82, 66, 0.90);
+  --glass-panel:          rgba(26, 46, 36, 0.86);
+  --glass-panel-alt:      rgba(40, 68, 54, 0.84);
+  --glass-row-even:       rgba(34, 60, 46, 0.80);
+  --glass-row-odd:        rgba(26, 46, 36, 0.74);
+  --glass-chip:           rgba(40, 68, 54, 0.86);
+
+  --bg-glow:      rgba(240, 192, 98, 0.25);
+  --bg-dim:       rgba(30, 80, 55, 0.55);
+  --bg-wallpaper: url('/bg-meadow.jpg?v=3');
+  --glass-blur:   18px;
+}
+
+/* LesserEvil - crimson on charcoal, dimmed art (LesserEvil "crimson"). */
+:root[data-theme="crimson"] {
+  --color-background:   #0f0f11;
+  --color-accent:       #c44545;
+  --color-accent-hover: #d65a5a;
+
+  --glass-nav:            rgba(18, 18, 21, 0.85);
+  --glass-surface:        rgba(27, 27, 31, 0.85);
+  --glass-surface-raised: rgba(33, 33, 38, 0.85);
+  --glass-surface-hover:  rgba(40, 40, 46, 0.88);
+  --glass-panel:          rgba(23, 23, 27, 0.85);
+  --glass-panel-alt:      rgba(33, 33, 38, 0.82);
+  --glass-row-even:       rgba(33, 33, 38, 0.80);
+  --glass-row-odd:        rgba(23, 23, 27, 0.74);
+  --glass-chip:           rgba(33, 33, 38, 0.85);
+
+  --bg-glow:      rgba(165, 44, 44, 0.20);
+  --bg-dim:       rgba(23, 23, 28, 0.80);
+  --bg-wallpaper: url('/bg-overlay.jpg?v=2');
+  --glass-blur:   18px;
+}
+
+/* Minimal - flat near-opaque dark, gold accent, no wallpaper. */
+:root[data-theme="minimal"] {
+  --color-background:   #141618;
+  --color-accent:       #f2b03a;
+  --color-accent-hover: #f6bf52;
+
+  --glass-nav:            rgba(20, 20, 23, 0.97);
+  --glass-surface:        rgba(24, 24, 28, 0.97);
+  --glass-surface-raised: rgba(32, 32, 37, 0.97);
+  --glass-surface-hover:  rgba(40, 40, 46, 0.97);
+  --glass-panel:          rgba(20, 20, 24, 0.97);
+  --glass-panel-alt:      rgba(30, 30, 35, 0.97);
+  --glass-row-even:       rgba(30, 30, 35, 0.97);
+  --glass-row-odd:        rgba(22, 22, 26, 0.97);
+  --glass-chip:           rgba(32, 32, 37, 0.97);
+
+  --bg-glow:      rgba(242, 176, 58, 0.06);
+  --bg-dim:       rgba(15, 15, 17, 0.85);
+  --bg-wallpaper: none;
+  --glass-blur:   2px;
+}
+
+/* ── Glass surface utilities (override Tailwind's opaque token utilities) ─────
+   These come after the Tailwind import (globals.css imports this file last), so
+   they win the cascade and recolor live with the active theme's vars. */
+.bg-nav            { background-color: var(--glass-nav);            backdrop-filter: blur(var(--glass-blur)) saturate(140%); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%); }
+.bg-surface        { background-color: var(--glass-surface);        backdrop-filter: blur(var(--glass-blur)) saturate(135%); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(135%); }
+.bg-surface-raised { background-color: var(--glass-surface-raised); backdrop-filter: blur(var(--glass-blur)) saturate(135%); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(135%); }
+.bg-surface-hover  { background-color: var(--glass-surface-hover); }
+.bg-panel          { background-color: var(--glass-panel);          backdrop-filter: blur(var(--glass-blur)) saturate(135%); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(135%); }
+.bg-panel-alt      { background-color: var(--glass-panel-alt); }
+.bg-row-even       { background-color: var(--glass-row-even); }
+.bg-row-odd        { background-color: var(--glass-row-odd); }
+.bg-chip           { background-color: var(--glass-chip); }
+
+.bg-surface, .bg-surface-raised, .bg-panel, .bg-panel-alt {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 24px rgba(0, 0, 0, 0.30);
+}
+
+/* ── Ambient backdrop layer ──────────────────────────────────────────────────
+   A single fixed element behind the app. Wallpaper (blurred) + dim wash + glow,
+   all per-theme via the vars above. Minimal sets --bg-wallpaper:none → flat. */
+.styx-bg {
+  position: fixed; inset: 0; z-index: -10; pointer-events: none;
+  background-color: var(--color-background);
+  overflow: hidden;
+}
+.styx-bg::before {
+  content: ''; position: absolute; inset: 0;
+  background-image: var(--bg-wallpaper);
+  background-size: cover; background-position: center top; background-repeat: no-repeat;
+}
+/* Wallpaper fit modes (set via data-bgfit on the root). Default above = cover. */
+:root[data-bgfit="contain"] .styx-bg::before { background-size: contain;   background-position: center; }
+:root[data-bgfit="right"]   .styx-bg::before { background-size: auto 100%; background-position: right center; }
+:root[data-bgfit="left"]    .styx-bg::before { background-size: auto 100%; background-position: left center; }
+:root[data-bgfit="center"]  .styx-bg::before { background-size: cover;      background-position: center center; }
+.styx-bg::after {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(1100px 460px at 50% -12%, var(--bg-glow), transparent 70%),
+    linear-gradient(rgba(0, 0, 0, var(--styx-user-dim, 0)), rgba(0, 0, 0, var(--styx-user-dim, 0))),
+    linear-gradient(var(--bg-dim), var(--bg-dim));
+}

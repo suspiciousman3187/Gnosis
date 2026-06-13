@@ -1,0 +1,50 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# build output
+.next/
+out/
+dist/
+build/
+target/
+*.tsbuildinfo
+
+# env / secrets
+.env
+.env.*
+!.env.*.example
+*.pem
+*.key
+
+# vercel
+.vercel
+
+# IDE / OS
+.DS_Store
+.vscode/
+.idea/
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# addon runtime data (player run JSON written here)
+Gnosis/data/
+Gnosis/*config*.json
+Gnosis/*_jobs.json
+Gnosis/*.partial
+
+# LE-derived zone maps (~176MB, 873 files). Self-hosters drop them in
+# from LesserEvil-Release/maps/; see web/lib/zoneMaps.ts for the resolver.
+web/public/maps/zones/
+
+# internal dev infra - never ship to deploy mirror
+scripts/
+web/scripts/
+web/supabase/
+desktop/scripts/
+web/anonymize.ts

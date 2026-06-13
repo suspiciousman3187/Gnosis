@@ -1,0 +1,291 @@
+/* Reuse the web app's full stylesheet (Tailwind import, @theme palette, custom
+   panel/scrollbar/animation classes) so the desktop UI is pixel-identical to
+   the web UI. @source tells Tailwind v4 to also scan the shared components and
+   lib for utility class names, since they live outside this app's tree. */
+@import "../../web/app/globals.css";
+
+@source "../../web/components/**/*.{ts,tsx}";
+@source "../../web/lib/**/*.{ts,tsx}";
+@source "./**/*.{ts,tsx}";
+
+/* Theme palettes, glass surfaces, and the .styx-bg backdrop are centralized in
+   web/app/themes.css (imported above via globals.css) and driven by the
+   data-theme attribute set in App.tsx. */
+
+/* Smooth view changes: the keyed main container replays this on every section /
+   report switch, so navigating fades + lifts in instead of snapping. The `to`
+   keyframe ends at `transform: none` (not translateY(0)) and we avoid
+   will-change so no lingering transform/containing-block is left behind - that
+   would re-anchor fixed overlays (e.g. the Share modal) to this wrapper. */
+@keyframes ff-view-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+.ff-view { animation: ff-view-in 750ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ff-view { animation: none; }
+}
+
+/* Overlay HP bar fill - animate width + background-color so HP drops don't
+   snap. The addon emits HP updates ~1Hz; a 400ms ease-out interpolates each
+   discrete change into a smooth motion without dragging visibly behind the
+   next update. Applied to both the focus row's big bar and the dropdown
+   mini bars. Reduced-motion users get instant updates. */
+.hp-bar-fill {
+  transition: width 400ms ease-out, background-color 400ms ease-out;
+}
+/* Damage contribution bar fill - the amber width-based bar behind each
+   player row. Same cadence as hp-bar-fill so damage % shifts interpolate
+   smoothly when a hit lands instead of stepping in 1Hz increments. */
+.dmg-bar-fill {
+  transition: width 400ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hp-bar-fill, .dmg-bar-fill { transition: none; }
+}
+
+/* Party-member row fade-in. Replays when a new key mounts (a player deals
+   damage for the first time and joins the list). Existing players don't
+   re-trigger because their key (player name) is stable across renders.
+   Duration + travel are tuned to be VISIBLE - the original 240ms / 4px
+   was too subtle and read as a snap. */
+@keyframes player-row-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.player-row-in { animation: player-row-in 380ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .player-row-in { animation: none; }
+}
+
+/* Focus mob row fade-up. Replays whenever the focused mob ENTITY changes
+   (the wrapper is keyed by mob id, NOT kill_seq, so a live mob dying and
+   transitioning to its own killed-snapshot does NOT replay - the hp-bar-fill
+   transition just smoothly drops the bar to 0 in-place, then the "Killed"
+   label appears). New mob rises into the slot from a few pixels below. */
+@keyframes focus-mob-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.focus-mob-in { animation: focus-mob-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .focus-mob-in { animation: none; }
+}
+
+/* Loader overlay - transparent so the app background (.styx-bg) shows
+   through; the stale content underneath is hidden by the parent render
+   branch, so we don't need to paint over it. Cross-fades out via the
+   --exiting modifier when the new content is ready. */
+.splash-overlay {
+  z-index: 10;
+  opacity: 1;
+  transition: opacity 400ms ease-out;
+  pointer-events: auto;
+}
+.splash-overlay--exiting { opacity: 0; pointer-events: none; }
+
+/* Loading screen splash. 1.6s loop: anticipation hold → 3 fast revolutions
+   (1080°) decelerating, with squash-pop scale, hop + bounce land, and a glow
+   burst. Each transform property runs on its OWN nested element so it can
+   carry its own easing curve - combining all three into one keyframe set
+   would force a single timing function across rotation, scale, and translate
+   and flatten the storyboard. Dots loop on a desynced 1.4s. */
+
+.splash-stage {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Outer: Y translate (hop + bounce land) */
+.splash-translate {
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: splash-translate 1.6s infinite both;
+}
+@keyframes splash-translate {
+  0%, 7.5%  { transform: translateY(0); }
+  28.125%   { transform: translateY(-14px); }  /* peak hop */
+  46%       { transform: translateY(0); }      /* first land */
+  55%       { transform: translateY(-4px); }   /* bounce 1 */
+  64%       { transform: translateY(0); }
+  72%       { transform: translateY(-1.5px); } /* bounce 2 (smaller) */
+  81.25%    { transform: translateY(0); }
+  100%      { transform: translateY(0); }
+}
+
+/* Middle: scale (squash-pop with back-ease settle) */
+.splash-scale {
+  width: 104px;
+  height: 104px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: splash-scale 1.6s infinite both;
+}
+@keyframes splash-scale {
+  0%      { transform: scale(1);    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  7.5%    { transform: scale(0.88); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  25%     { transform: scale(1.14); animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); } /* back-ease easeOut */
+  81.25%  { transform: scale(1);    animation-timing-function: linear; }
+  100%    { transform: scale(1); }
+}
+
+/* Inner: rotation (3 full revs, cubic-ease-out across the whole spin) */
+.splash-rotate {
+  display: block;
+  width: 104px;
+  height: 104px;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.4));
+  animation: splash-rotate 1.6s infinite both;
+  transform-origin: center center;
+}
+@keyframes splash-rotate {
+  0%, 7.5%      { transform: rotate(0deg); animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+  81.25%, 100%  { transform: rotate(1080deg); }
+}
+
+/* Typewriter dots - proper "Loading. → Loading.. → Loading... → Loading"
+   stagger. All three dots run the same 1.4s timeline with NO delay; each
+   has its own keyframes that hold opacity 0 until its stagger keyTime,
+   then snap to 1 for the rest of the cycle. When the loop restarts, all
+   three reset to 0 together - that's the empty-state at the start of the
+   next typewriter pass. */
+.splash-dots {
+  display: inline-block;
+  margin-left: 1px;
+  letter-spacing: 1px;
+}
+.splash-dots > span {
+  display: inline-block;
+  opacity: 0;
+}
+.splash-dots > span:nth-child(1) { animation: splash-dot-1 1.4s infinite both; }
+.splash-dots > span:nth-child(2) { animation: splash-dot-2 1.4s infinite both; }
+.splash-dots > span:nth-child(3) { animation: splash-dot-3 1.4s infinite both; }
+
+/* Stagger times as percentages of the 1.4s loop:
+     0.30s → 21.43%   (dot 1 lights up)
+     0.55s → 39.29%   (dot 2 lights up)
+     0.80s → 57.14%   (dot 3 lights up)
+   Each dot snaps from 0 → 1 over a 0.01% sliver (effectively instant) so
+   the look is a hard step on, not a fade. The keyframe set ends at 100%
+   { opacity: 1 } and CSS animations loop by going back to 0% which is 0,
+   producing the visible "all reset" frame at cycle wraparound. */
+@keyframes splash-dot-1 {
+  0%,   21.43% { opacity: 0; }
+  21.44%, 100% { opacity: 1; }
+}
+@keyframes splash-dot-2 {
+  0%,   39.29% { opacity: 0; }
+  39.30%, 100% { opacity: 1; }
+}
+@keyframes splash-dot-3 {
+  0%,   57.14% { opacity: 0; }
+  57.15%, 100% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-translate, .splash-scale, .splash-rotate,
+  .splash-dots > span { animation: none; opacity: 1; }
+}
+
+.splash-translate--cheer {
+  animation: cheer-bounce 3s infinite both;
+}
+@keyframes cheer-bounce {
+  0%      { transform: translateY(6px);   animation-timing-function: cubic-bezier(0.5, 0, 0.5, 1); }
+  4%      { transform: translateY(-32px); animation-timing-function: cubic-bezier(0.5, 0, 0.5, 1); }
+  12%     { transform: translateY(-32px); animation-timing-function: cubic-bezier(0.5, 0, 0.5, 1); }
+  18%     { transform: translateY(6px);   animation-timing-function: cubic-bezier(0.5, 0, 0.5, 1); }
+  22%     { transform: translateY(-6px);  animation-timing-function: cubic-bezier(0.4, 0, 0.4, 1); }
+  28%     { transform: translateY(4px);   animation-timing-function: cubic-bezier(0.33, 0, 0.33, 1); }
+  41%     { transform: translateY(-10px); animation-timing-function: cubic-bezier(0.33, 0, 0.33, 1); }
+  54%     { transform: translateY(4px);   animation-timing-function: cubic-bezier(0.33, 0, 0.33, 1); }
+  67%     { transform: translateY(-10px); animation-timing-function: cubic-bezier(0.33, 0, 0.33, 1); }
+  80%     { transform: translateY(4px);   animation-timing-function: cubic-bezier(0.33, 0, 0.33, 1); }
+  93%     { transform: translateY(-10px); animation-timing-function: cubic-bezier(0.5, 0, 0.5, 1); }
+  100%    { transform: translateY(6px); }
+}
+
+.splash-scale--cheer {
+  animation: cheer-squash 3s infinite both;
+}
+@keyframes cheer-squash {
+  0%      { transform: scale(1.20, 0.80); animation-timing-function: cubic-bezier(0.5, 0, 0.5, 1); }
+  4%      { transform: scale(0.88, 1.18); animation-timing-function: cubic-bezier(0.5, 0, 0.5, 1); }
+  12%     { transform: scale(0.92, 1.12); animation-timing-function: cubic-bezier(0.5, 0, 0.5, 1); }
+  18%     { transform: scale(1.20, 0.80); animation-timing-function: cubic-bezier(0.5, 0, 0.5, 1); }
+  22%     { transform: scale(0.96, 1.06); animation-timing-function: cubic-bezier(0.4, 0, 0.4, 1); }
+  28%     { transform: scale(1.10, 0.90); animation-timing-function: cubic-bezier(0.33, 0, 0.33, 1); }
+  41%     { transform: scale(0.94, 1.06); animation-timing-function: cubic-bezier(0.33, 0, 0.33, 1); }
+  54%     { transform: scale(1.10, 0.90); animation-timing-function: cubic-bezier(0.33, 0, 0.33, 1); }
+  67%     { transform: scale(0.94, 1.06); animation-timing-function: cubic-bezier(0.33, 0, 0.33, 1); }
+  80%     { transform: scale(1.10, 0.90); animation-timing-function: cubic-bezier(0.33, 0, 0.33, 1); }
+  93%     { transform: scale(0.94, 1.06); animation-timing-function: cubic-bezier(0.5, 0, 0.5, 1); }
+  100%    { transform: scale(1.20, 0.80); }
+}
+
+.splash-rotate--cheer {
+  animation: cheer-wiggle 3s ease-in-out infinite both;
+}
+@keyframes cheer-wiggle {
+  0%   { transform: rotate(-5deg); }
+  13%  { transform: rotate(5deg); }
+  22%  { transform: rotate(-3deg); }
+  41%  { transform: rotate(2deg); }
+  67%  { transform: rotate(-2deg); }
+  93%  { transform: rotate(2deg); }
+  100% { transform: rotate(-5deg); }
+}
+
+.confetti-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--c-size, 8px);
+  height: var(--c-size, 8px);
+  background: var(--c-color, #f0c062);
+  border-radius: var(--c-radius, 0);
+  transform: translate(-50%, -50%) rotate(0deg);
+  opacity: 0;
+  animation: confetti-burst var(--c-duration, 1400ms) cubic-bezier(0.15, 0.7, 0.4, 1) forwards;
+}
+@keyframes confetti-burst {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg) scale(0.4);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--c-tx, 0px)), calc(-50% + var(--c-ty, 120px))) rotate(var(--c-rot, 360deg)) scale(1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-translate--cheer, .splash-scale--cheer, .splash-rotate--cheer { animation: none; }
+  .confetti-piece { animation: none; opacity: 0; }
+}

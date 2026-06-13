@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/retention-sweep",
+      "schedule": "0 4 * * *"
+    }
+  ]
+}
