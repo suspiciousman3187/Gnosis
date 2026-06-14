@@ -99,7 +99,7 @@ export default function UpdateBanner({ dataDir }: { dataDir: string }) {
           ? { label: 'Update available', tooltip: `New version v${latestDesktop} available. Click to recheck.`, cls: updateFoundCls }
           : desktopState.kind === 'none'
             ? { label: 'Up to date', tooltip: `You're running the latest version. Click to recheck.`, cls: upToDateCls }
-            : { label: 'Check now', tooltip: 'Check for desktop app updates', cls: checkNowCls };
+            : { label: 'Check now', tooltip: 'Check for Viewer updates', cls: checkNowCls };
 
     const addonBadge = addonChecking
       ? { label: 'Checking…', tooltip: 'Checking for addon updates…', cls: checkingCls }
@@ -121,7 +121,7 @@ export default function UpdateBanner({ dataDir }: { dataDir: string }) {
         <div className="flex items-stretch gap-5 min-w-0">
           <div className="min-w-0 flex flex-col justify-center">
             <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold flex items-center gap-1.5">
-              Gnosis
+              Viewer
               <button
                 type="button"
                 onClick={checkDesktop}
@@ -209,7 +209,7 @@ export default function UpdateBanner({ dataDir }: { dataDir: string }) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm font-semibold text-accent">
-                Gnosis update available: v{installedVersion} → v{state.version}
+                Viewer update available: v{installedVersion} → v{state.version}
               </div>
               {state.notes && (
                 <div className="text-[11px] text-gray-300 mt-1.5 max-h-20 overflow-y-auto whitespace-pre-wrap border-l-2 border-white/10 pl-2">
@@ -237,7 +237,7 @@ export default function UpdateBanner({ dataDir }: { dataDir: string }) {
       return (
         <div className="bg-row-odd border border-accent/50 rounded-lg px-4 py-3">
           <div className="flex items-center justify-between gap-3 mb-2">
-            <div className="text-sm font-semibold text-accent">Downloading Gnosis update…</div>
+            <div className="text-sm font-semibold text-accent">Downloading Viewer update…</div>
             <div className="text-[11px] font-mono text-gray-400 shrink-0">
               {fmtBytes(state.downloaded)}{state.total ? ` / ${fmtBytes(state.total)}` : ''}{pct != null ? ` · ${pct}%` : ''}
             </div>
@@ -260,7 +260,7 @@ export default function UpdateBanner({ dataDir }: { dataDir: string }) {
       return (
         <div className="bg-row-odd border border-rose-500/50 rounded-lg px-4 py-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-rose-200">Gnosis update check failed</div>
+            <div className="text-sm font-semibold text-rose-200">Viewer update check failed</div>
             <div className="text-[11px] text-rose-300/80 font-mono mt-1 break-all">{state.message}</div>
           </div>
           <button onClick={dismissError} className="text-rose-300 hover:text-rose-100 text-lg leading-none shrink-0">×</button>

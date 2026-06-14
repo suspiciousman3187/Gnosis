@@ -127,18 +127,18 @@ export default async function DownloadPage() {
               <li className="flex gap-4">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 border border-accent/50 text-accent font-bold text-xs flex items-center justify-center">2</span>
                 <div className="space-y-2">
-                  <div className="font-semibold text-accent text-base">Download &amp; install the Local App</div>
+                  <div className="font-semibold text-accent text-base">Download &amp; install the Viewer</div>
                   <div className="text-gray-300 text-[13px]">
-                    Download the local app and run the <code className="px-1 py-0.5 bg-black/40 rounded text-[12px] font-mono">installer.exe</code> to set up and install the local application for viewing logs.
+                    Download the Viewer and run the <code className="px-1 py-0.5 bg-black/40 rounded text-[12px] font-mono">installer.exe</code> to set up and install it for viewing logs.
                   </div>
                 </div>
               </li>
               <li className="flex gap-4">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 border border-accent/50 text-accent font-bold text-xs flex items-center justify-center">3</span>
                 <div className="space-y-2">
-                  <div className="font-semibold text-accent text-base">Configure your Gnosis data folder location in the local App</div>
+                  <div className="font-semibold text-accent text-base">Configure your Gnosis data folder location in the Viewer</div>
                   <div className="text-gray-300 text-[13px]">
-                    Open the local app and go to <span className="text-gray-100 font-medium">Settings</span>, then set the <span className="text-gray-100 font-medium">Data folder</span> to where you extracted the Gnosis addon, usually <code className="px-1 py-0.5 bg-black/40 rounded text-[12px] font-mono">Windower/addons/Gnosis/data/</code>.
+                    Open the Viewer and go to <span className="text-gray-100 font-medium">Settings</span>, then set the <span className="text-gray-100 font-medium">Data folder</span> to where you extracted the Gnosis addon, usually <code className="px-1 py-0.5 bg-black/40 rounded text-[12px] font-mono">Windower/addons/Gnosis/data/</code>.
                   </div>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -153,7 +153,7 @@ export default async function DownloadPage() {
                 <div className="space-y-2">
                   <div className="font-semibold text-accent text-base">You&apos;re ready to go!</div>
                   <div className="text-gray-300 text-[13px]">
-                    The Gnosis app should now be connected ingame and you should be ready to start logging! The default tracking mode is <span className="text-gray-100 font-medium">Encounter</span>, but you can set different types of tracking behavior at the bottom bar. Enjoy!
+                    The Gnosis Viewer should now be connected ingame and you should be ready to start logging! The default tracking mode is <span className="text-gray-100 font-medium">Encounter</span>, but you can set different types of tracking behavior at the bottom bar. Enjoy!
                   </div>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img

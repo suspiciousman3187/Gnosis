@@ -1,17 +1,17 @@
 {
-    "version":  "0.0.0",
+    "version":  "0.0.1",
     "notes":  " ",
-    "pub_date":  "2026-06-14T09:18:06Z",
+    "pub_date":  "2026-06-14T22:33:50Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRWhDa0pXczk2b1ZRdGk4Mi9SQmNwWVRkZXM1a3lwc2ZZV2lVVlI1VVZhRWcvVGk3bEZYSW5aZTBNZEtGR2ZYb0ZIbUtoUnQzeGV1UGFnK016dFFnRXhwcVBwY21NR2d3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgxNDI4Njg1CWZpbGU6R25vc2lzXzAuMC4wX3g2NC1zZXR1cC5leGUKK3NTTTRmeWY3aEN3aGsydDduK2FzMzVoOWZQY2VpMWZhMUxNU2VUbjJrdGRYQWgrdlJwN2RMUzI0bUNiM1plakIvQWtLeEtXcTB2N1M0bkgvcUtMQnc9PQo=",
-                                             "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.0/Gnosis_0.0.0_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRWhDa0pXczk2b1VyWDJOUEF2b3pXcWx1WGZnRDhBV3dxc3FNazdIaHNMck01cVpMdVNXbXdLZU44RGZLMUxmN0dXbVhQNXFCajQ4dWE5K01SeFVqRWdLb1MzMk9iZlE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgxNDc2NDI5CWZpbGU6R25vc2lzXzAuMC4xX3g2NC1zZXR1cC5leGUKUFVHWGxyWnkvSUxIVFc0QmQ4TVNNdERrZ0cwakhrdTNvWUhtQUwvWFRwZnZKTDYwMFhQVkxJL2FXTVRoUDdjOXdNeVhvWTFGZmZmVkFJNDV4ZHA0RGc9PQo=",
+                                             "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.1/Gnosis_0.0.1_x64-setup.exe"
                                          }
                   },
     "addon":  {
-                  "version":  "0.0.0",
-                  "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.0/Gnosis-addon-0.0.0.zip",
-                  "sha256":  "0178b18c0a851a10c998b4879842f8bc803813f4e1a0f833b5d1b222b2fb6bc4",
+                  "version":  "0.0.1",
+                  "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.1/Gnosis-addon-0.0.1.zip",
+                  "sha256":  "0b4f9dd189ad978213ded835425682c9b03125b4f7deb0c16afb2b1bd514c02c",
                   "notes":  " "
               }
 }

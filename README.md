@@ -10,4 +10,4 @@ Tracking and analytics tool for FFXI with optional live DPS meter overlay and we
 
 ## How to Install
 
-Download the Windower addon + desktop app and follow the quick install guide at **[gnosis-xi.com/download](https://gnosis-xi.com/download)**.
+Download the Windower Addon + Viewer and follow the quick install guide at **[gnosis-xi.com/download](https://gnosis-xi.com/download)**.

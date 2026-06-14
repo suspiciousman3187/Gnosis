@@ -47,7 +47,7 @@ export default function OverlayView({
   if (!inTauri) {
     return (
       <div className="space-y-6">
-        <p className="text-gray-500 text-sm">The live overlay is only available in the desktop app.</p>
+        <p className="text-gray-500 text-sm">The live overlay is only available in the Viewer.</p>
       </div>
     );
   }

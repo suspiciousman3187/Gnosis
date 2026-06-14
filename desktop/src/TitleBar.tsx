@@ -51,7 +51,7 @@ export default function TitleBar({ dataDir = '' }: { dataDir?: string }) {
       <div data-tauri-drag-region className="flex items-center gap-1.5 px-3 text-xs">
         <span className="font-bold text-accent tracking-wide">GNOSIS</span>
         <span className="text-gray-500 font-medium">
-          <span className="text-gray-600">·</span> App v{appVersion || '-'}
+          <span className="text-gray-600">·</span> Viewer v{appVersion || '-'}
           <span className="text-gray-700 mx-1.5">|</span>
           Addon {addonVersion ? `v${addonVersion}` : '-'}
         </span>

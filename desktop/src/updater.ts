@@ -76,7 +76,7 @@ export function getState(): UpdateState { return current; }
 
 export async function checkForUpdates(opts: { respectSkip?: boolean; minCheckingMs?: number } = {}): Promise<void> {
   if (!inTauri) {
-    emit({ kind: 'error', message: 'updater is only available in the desktop app' });
+    emit({ kind: 'error', message: 'updater is only available in the Viewer' });
     return;
   }
   if (current.kind === 'checking' || current.kind === 'downloading' || current.kind === 'installing') return;

@@ -522,7 +522,7 @@ function UpdatesCard({ dataDir }: { dataDir: string }) {
     <>
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-sm text-gray-200">Check for updates on startup</div>
+          <div className="text-sm text-gray-200">Check For Updates On Startup</div>
           <div className="text-[11px] text-gray-500">When enabled, Gnosis quietly checks for both desktop + addon updates on launch. Disable to check manually.</div>
         </div>
         <button
@@ -536,7 +536,7 @@ function UpdatesCard({ dataDir }: { dataDir: string }) {
       </div>
       <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5 gap-3">
         <div className="min-w-0">
-          <div className="text-sm text-gray-200">Desktop app</div>
+          <div className="text-sm text-gray-200">Viewer</div>
           <div className="text-[11px] text-gray-500 font-mono">{version || '-'}</div>
           {statusLine && <div className="text-[11px] text-accent mt-1 truncate">{statusLine}</div>}
         </div>
@@ -550,7 +550,7 @@ function UpdatesCard({ dataDir }: { dataDir: string }) {
       </div>
       <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5 gap-3">
         <div className="min-w-0">
-          <div className="text-sm text-gray-200">Windower addon</div>
+          <div className="text-sm text-gray-200">Windower Addon</div>
           <div className="text-[11px] text-gray-500 font-mono">
             {installedAddonVersion ? `v${installedAddonVersion}` : '-'} {addonDir ? <span className="text-gray-600">· {addonDir}</span> : null}
           </div>
@@ -600,7 +600,10 @@ function DisplayLanguageRow() {
   ];
   return (
     <div>
-      <div className="text-sm text-gray-200 mb-1">Display Language</div>
+      <div className="text-sm text-gray-200 mb-1 flex items-center gap-2">
+        <span>Display Language</span>
+        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">Experimental</span>
+      </div>
       <div className="text-[11px] text-gray-500 leading-snug mb-3">
         Translates spell, weapon skill, item, buff, and zone names at view time using bundled
         FFXI resource tables. Mob names are NOT translated (the game client emits them in its own language).
@@ -635,11 +638,9 @@ function SilentModeRow() {
     <div>
       <div className="flex items-center justify-between">
         <div className="min-w-0 pr-4">
-          <div className="text-sm text-gray-200">Silent Mode on Minimize</div>
+          <div className="text-sm text-gray-200">Silent Mode On Minimize</div>
           <div className="text-[11px] text-gray-500 leading-snug">
-            When you minimize the main window, the renderer is destroyed (frees ~1 GB of memory) and a tray
-            icon stays in the system tray. Click the tray icon or right-click for the menu to restore. Tracking
-            and log saving keep running in the addon. Restoring takes 2-4 seconds.
+            Collapses to System Tray on Minimize. Lowers memory usage.
           </div>
         </div>
         <button
@@ -654,11 +655,9 @@ function SilentModeRow() {
       {enabled && (
         <div className="mt-4 pt-4 border-t border-white/[0.06] flex items-center justify-between">
           <div className="min-w-0 pr-4">
-            <div className="text-sm text-gray-200">Also Hide Overlay</div>
+            <div className="text-sm text-gray-200">Hide Overlay In Silent Mode</div>
             <div className="text-[11px] text-gray-500 leading-snug">
-              By default, the overlay stays visible during Silent Mode (keeps Live combat readout running). With
-              this on, the overlay is hidden alongside the main window — frees the WebView2 process tree for
-              maximum memory savings (~50 MB instead of ~290 MB). Re-show via tray menu or the Overlay tab.
+              Also hide Overlay in Silent Mode, reduces memory usage further.
             </div>
           </div>
           <button

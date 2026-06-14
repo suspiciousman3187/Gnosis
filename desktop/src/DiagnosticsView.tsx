@@ -526,7 +526,7 @@ export default function DiagnosticsView({ content }: { content: LoadedContent | 
   const softReload = async () => {
     const ok = await confirmDialog({
       title: 'Soft reload renderer',
-      message: 'Drops the entire document and reinitializes the app from scratch. Frees Chromium-internal caches (compositor layers, paint records, image decode, Skia, IPC buffers) that JS GC can\'t reach.\n\nYou will lose your current view/scroll position. The data on disk is untouched.\n\nContinue?',
+      message: 'Drops the entire document and reinitializes the Viewer from scratch. Frees Chromium-internal caches (compositor layers, paint records, image decode, Skia, IPC buffers) that JS GC can\'t reach.\n\nYou will lose your current view/scroll position. The data on disk is untouched.\n\nContinue?',
       confirmLabel: 'Reload',
     });
     if (!ok) return;

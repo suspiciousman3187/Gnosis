@@ -185,7 +185,7 @@ export default function SettingsForm({ initialUsername, initialAvatarUrl }: { in
           <div>
             <h2 className="font-semibold text-sm text-gray-400 uppercase tracking-wide">API Token</h2>
             <p className="text-gray-200 text-sm mt-1">
-              Connect your Gnosis app with your account using the token generated below. Encounters can still be shared without an account with limited features.
+              Connect your Gnosis Viewer with your account using the token generated below. Encounters can still be shared without an account with limited features.
             </p>
           </div>
 

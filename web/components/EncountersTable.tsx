@@ -184,7 +184,7 @@ export default function EncountersTable({ rows }: { rows: ShareUpload[] }) {
           <div className="text-center py-16 text-gray-400">
             <p className="text-lg">No shared encounters yet.</p>
             <p className="text-sm mt-2 text-gray-400">
-              Open an encounter in the Gnosis desktop app and click <span className="text-accent">Share</span> to upload it here.
+              Open an encounter in the Gnosis Viewer and click <span className="text-accent">Share</span> to upload it here.
             </p>
           </div>
         ) : (

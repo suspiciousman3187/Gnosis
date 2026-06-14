@@ -32,7 +32,7 @@ export interface TrackerPrefs {
 }
 
 export const DEFAULT_TRACKER_PREFS: TrackerPrefs = {
-  mode: 'off',
+  mode: 'fight',
   idleTimeout: 30,
   lightweight: false,
   disableMovement: true,
