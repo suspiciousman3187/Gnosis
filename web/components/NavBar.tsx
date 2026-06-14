@@ -19,7 +19,7 @@ function buildItems(pathname: string, isAdmin: boolean): NavItem[] {
   const isActive = (prefix: string) => pathname === prefix || pathname.startsWith(prefix + '/');
   const items: NavItem[] = [
     { href: '/my/encounters',  label: 'ENCOUNTERS', active: isActive('/my/encounters') || isActive('/my/sortie') },
-    { href: '/',           label: 'DOWNLOAD',   active: false },
+    { href: '/download',   label: 'DOWNLOAD',   active: isActive('/download') },
     { href: '/',           label: 'ABOUT',      active: false },
     { href: DISCORD_URL,   label: 'DISCORD',    active: false, external: true },
   ];
