@@ -1,8 +1,8 @@
+![Gnosis encounter hub](web/public/getting-started-tracking-modes.png)
+
 # Gnosis
 
 Tracking and analytics tool for FFXI with optional live DPS meter overlay and web view.
-
-![Gnosis encounter hub](web/public/getting-started-tracking-modes.png)
 
 [![Website](https://img.shields.io/badge/website-gnosis--xi.com-10b981?style=flat-square)](https://gnosis-xi.com)
 [![GitHub downloads](https://img.shields.io/github/downloads/suspiciousman3187/Gnosis/total?style=flat-square&color=10b981&label=downloads)](https://github.com/suspiciousman3187/Gnosis/releases)
