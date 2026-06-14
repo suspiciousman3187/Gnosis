@@ -1,4 +1,4 @@
-![Gnosis encounter hub](web/public/getting-started-tracking-modes.png)
+<img src="web/public/getting-started-tracking-modes.png" alt="Gnosis encounter hub" width="100%">
 
 # Gnosis
 
