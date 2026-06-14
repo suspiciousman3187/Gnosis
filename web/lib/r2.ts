@@ -50,13 +50,13 @@ export async function r2GetBuffer(key: string): Promise<ArrayBuffer> {
 }
 
 export async function r2PresignPut(key: string, opts: { ttlSeconds: number; contentType?: string; maxBytes?: number }): Promise<string> {
+  void opts.maxBytes;
   const cmd = new PutObjectCommand({
     Bucket: BUCKET,
     Key: key,
     ContentType: opts.contentType ?? 'application/gzip',
-    ContentLength: opts.maxBytes,
   });
-  return getSignedUrl(client(), cmd, { expiresIn: opts.ttlSeconds, unhoistableHeaders: new Set(['content-length']) });
+  return getSignedUrl(client(), cmd, { expiresIn: opts.ttlSeconds });
 }
 
 export async function r2Delete(key: string): Promise<void> {
