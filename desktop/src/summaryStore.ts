@@ -23,6 +23,7 @@ const loots = new Map<string, LootEncounterSummary>();
 function isStaleLoot(path: string, loot: LootEncounterSummary): boolean {
   if (kindFromName(path) === 'sortie') {
     if (!Array.isArray(loot.enemies) || loot.enemies.length === 0) return true;
+    if (loot.enemies.every(e => (e.damageTaken ?? 0) === 0)) return true;
   }
   return false;
 }

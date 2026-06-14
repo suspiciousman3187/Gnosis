@@ -1,7 +1,8 @@
 
 import type { LootEncounterSummary } from './dropAggregator';
 import type { EncounterDrop } from './encounter';
-import type { KillLogEntry, DropLogEntry } from './types';
+import type { ActionLogEntry, KillLogEntry, DropLogEntry, PartyMember, RawBattleMessage } from './types';
+import { deriveEnemiesFromActionLog } from './sortieEnemies';
 
 const SORTIE_ZONE = { id: 290, name: "Outer Ra'Kaznar [U2]/[U3]" } as const;
 
@@ -15,7 +16,7 @@ function num(v: unknown): number {
   return 0;
 }
 
-function enemiesFromKills(
+export function enemiesFromKills(
   killLog: KillLogEntry[],
   bossReports: Record<string, { fightDurationSeconds?: number; fightStartElapsed?: number }> | null | undefined,
 ): LootEncounterSummary['enemies'] {
@@ -72,6 +73,20 @@ function synthSortie(path: string, ts: number, data: any): LootEncounterSummary 
     : [];
 
   const killLog: KillLogEntry[] = Array.isArray(data.killLog) ? data.killLog as KillLogEntry[] : [];
+  const actionLog: ActionLogEntry[] | null = Array.isArray(data.actionLog) ? data.actionLog as ActionLogEntry[] : null;
+  const party: PartyMember[] | null = Array.isArray(data.party) ? data.party as PartyMember[] : null;
+  const battleMsgRaw: RawBattleMessage[] | null = Array.isArray(data.battleMsgRaw) ? data.battleMsgRaw as RawBattleMessage[] : null;
+
+  const derived = deriveEnemiesFromActionLog(actionLog, killLog, party, battleMsgRaw);
+  const enemies: LootEncounterSummary['enemies'] = derived.length > 0
+    ? derived.filter((e): e is typeof e & { id: number } => e.id != null).map(e => ({
+        name: e.name,
+        id: e.id,
+        firstSeen: e.firstSeen ?? 0,
+        killedAt: e.killedAt ?? 0,
+        damageTaken: e.damageTaken ?? 0,
+      }))
+    : enemiesFromKills(killLog, (data && typeof data === 'object' ? data.bossReports : null) as Record<string, { fightDurationSeconds?: number; fightStartElapsed?: number }> | null);
 
   return {
     path,
@@ -81,7 +96,7 @@ function synthSortie(path: string, ts: number, data: any): LootEncounterSummary 
     durationSeconds: sumAreaTimes(data.areaTimes),
     killLog,
     dropLog,
-    enemies: enemiesFromKills(killLog, (data && typeof data === 'object' ? data.bossReports : null) as Record<string, { fightDurationSeconds?: number; fightStartElapsed?: number }> | null),
+    enemies,
   };
 }
 

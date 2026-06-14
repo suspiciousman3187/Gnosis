@@ -1109,6 +1109,7 @@ windower.register_event('action', function(act)
     end
     if enc.live_only or lite then return end
     ff_log_item_use_event(enc.item_use_log, enc.start_os, act, { party_jobs = jobs, area = enc.zone_name })
+    ff_log_action_start(enc.action_log, enc.start_os, act, { party_jobs = jobs })
     ff_log_action_interrupt(enc.action_log, enc.start_os, act, { party_jobs = jobs })
 end)
 

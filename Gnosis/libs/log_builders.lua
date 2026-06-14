@@ -433,6 +433,39 @@ local function resolve_interrupted_action(category, action_id)
     return nil, nil
 end
 
+function ff_log_action_start(action_log, run_start_time, act, opts)
+    if not action_log or not run_start_time or not act or not act.actor_id then return false end
+    if not FF_START_CATEGORIES[act.category] then return false end
+    if act.param and act.param > 10000 then return false end
+    opts = opts or {}
+    local actor_mob = windower.ffxi.get_mob_by_id(act.actor_id)
+    local pname = actor_mob and actor_mob.name
+    if not pname then return false end
+    if opts.party_jobs and not opts.party_jobs[pname] then return false end
+
+    local action_id = act.param
+    local detail, atype = resolve_interrupted_action(act.category, action_id)
+    detail = detail or 'Casting'
+
+    local t1 = act.targets and act.targets[1]
+    local target_id = t1 and t1.id
+
+    local entry = {
+        elapsed  = math.floor(os.difftime(os.time(), run_start_time)),
+        playerId = act.actor_id,
+        player   = pname,
+        type     = atype or 'spell',
+        name     = detail,
+        category = act.category,
+        param    = action_id,
+        phase    = 'start',
+        from     = (opts.party_jobs and opts.party_jobs[pname]) and 'player' or nil,
+        targets  = target_id and { { id = target_id, mob = '', damage = 0, result = 'land' } } or {},
+    }
+    table.insert(action_log, entry)
+    return true
+end
+
 function ff_log_action_interrupt(action_log, run_start_time, act, opts)
     if not run_start_time or not act or not act.actor_id then return false end
     if not FF_START_CATEGORIES[act.category] then return false end

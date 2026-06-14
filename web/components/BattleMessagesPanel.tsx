@@ -8,6 +8,7 @@ import {
   type BattleMessageCategory,
 } from '@/lib/battleMessages';
 import { actionMessageText } from '@/lib/actionMessages';
+import { buffName } from '@/lib/statusEffects';
 
 const CATEGORY_LABELS: Record<BattleMessageCategory, string> = {
   death:            'Deaths',
@@ -27,6 +28,7 @@ const CATEGORY_LABELS: Record<BattleMessageCategory, string> = {
   dot_tick:         'DoT ticks',
   sp_ability:       'SP abilities',
   recast_ready:     'Recast ready',
+  skill_up:         'Skill up',
   misc:             'Misc',
 };
 
@@ -48,6 +50,7 @@ const CATEGORY_COLOR: Record<BattleMessageCategory, string> = {
   dot_tick:         'text-violet-300',
   sp_ability:       'text-fuchsia-300',
   recast_ready:     'text-sky-300',
+  skill_up:         'text-lime-300',
   misc:             'text-gray-300',
 };
 
@@ -133,6 +136,10 @@ export default function BattleMessagesPanel({
                 const meta = BATTLE_MESSAGE_DICT[m.msgId];
                 const raw = actionMessageText(m.msgId);
                 const label = meta?.label ?? raw ?? '?';
+                const isBuffMsg = meta?.category === 'buff_gain' || meta?.category === 'buff_wear';
+                const dataCell = isBuffMsg && m.data
+                  ? <span className="text-emerald-200">{buffName(m.data)}</span>
+                  : <span className="text-gray-500">{m.data ?? '-'}</span>;
                 return (
                   <tr key={i} className="border-b border-white/[0.04] last:border-0">
                     <td className="py-1 text-right font-mono text-gray-400">{fmtTime(m.elapsed)}</td>
@@ -140,7 +147,7 @@ export default function BattleMessagesPanel({
                     <td className="py-1 pl-3 text-gray-200 truncate max-w-md" title={raw ?? undefined}>{label}</td>
                     <td className="py-1 pl-3 text-gray-300 truncate max-w-[10rem]">{idName(m.actorId)}</td>
                     <td className="py-1 pl-3 text-gray-300 truncate max-w-[10rem]">{idName(m.targetId)}</td>
-                    <td className="py-1 text-right font-mono text-gray-500">{m.data ?? '-'}</td>
+                    <td className="py-1 text-right font-mono">{dataCell}</td>
                   </tr>
                 );
               })}

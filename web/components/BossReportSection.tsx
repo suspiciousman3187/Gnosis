@@ -213,6 +213,7 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
     };
     for (const e of actionLog) {
       if (e.from === 'boss') continue;
+      if (e.phase === 'start') continue;
       if (PLACEHOLDER_CAST_NAMES.has(e.name)) continue; // drop unresolved cat-8 "Spell" dummies (old runs)
       const inFightWindow = start != null && end != null && e.elapsed >= start && e.elapsed <= end;
       const isBossAction = targetsBoss(e);
@@ -255,7 +256,7 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
   })();
 
   const debuffsByPlayer = (() => {
-    type DebuffRow = { elapsed: number; action: string | null; status: string | null; statusId?: number; resisted?: boolean };
+    type DebuffRow = { elapsed: number; action: string | null; status: string | null; statusId?: number; resisted?: boolean; immunobreak?: boolean };
     const map: Record<string, { events: DebuffRow[] }> = {};
     const start = report.fightStartElapsed;
     const end = start != null ? start + report.fightDurationSeconds : null;
@@ -292,9 +293,10 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
       const onBoss = tgts.filter(t => t.mob === name);
       if (onBoss.length === 0) continue;
       const resisted = onBoss.every(t => t.result === 'resist' || t.result === 'miss');
+      const immunobreak = onBoss.some(t => (t.bitFlags ?? 0) & 0x08);
       const rec = (map[e.player] ??= { events: [] });
       const covered = rec.events.some(ev => ev.action === e.name && Math.abs(ev.elapsed - e.elapsed) <= 1);
-      if (!covered) rec.events.push({ elapsed: e.elapsed, action: e.name, status: null, resisted });
+      if (!covered) rec.events.push({ elapsed: e.elapsed, action: e.name, status: null, resisted, immunobreak });
     }
     for (const e of actionLog ?? []) {
       if (e.from === 'boss' || !isAbsorbOrDrain(e)) continue;
@@ -550,10 +552,17 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                   const healingRows = playerActions
                     .filter(e => !targetsBossEntry(e) && isHealSpell(e))
                     .sort((a, b) => a.elapsed - b.elapsed);
+                  const ENFEEBLE_NAME_RE = /^(Bind|Gravity|Sleep|Slow|Paralyze|Silence|Blind|Bio|Dia|Poison|Addle|Frazzle|Distract|Inundation|Burn|Frost|Choke|Rasp|Shock|Drown|Aspir|Drain|Stun|Tranquil Heart|Threnody|Carol|Madrigal|Etude|Minuet|March|Mambo|Lullaby|Finale|Elegy|Requiem|Virelai|Pining Nocturne|Pastoral)/i;
+                  const isLikelyEnfeebleByName = (e: ActionLogEntry) => isEnfeebleSpell(e) || ENFEEBLE_NAME_RE.test(e.name);
                   const buffRows = playerActions
-                    .filter(e => !targetsBossEntry(e) && !isHealSpell(e)
-                      && !isJobAbility(e) && !isAutoAttack(e) && !isRanged(e)
-                      && !isWeaponSkill(e) && !isMagicBurst(e) && !isEnfeebleSpell(e))
+                    .filter(e => {
+                      const tgts = e.targets ?? (e.mob ? [{ mob: e.mob, damage: e.damage ?? 0, result: e.result ?? 'hit' as const }] : []);
+                      const hasResolvedTarget = tgts.some(t => t.mob && t.mob.length > 0);
+                      if (!hasResolvedTarget) return false;
+                      return !targetsBossEntry(e) && !isHealSpell(e)
+                        && !isJobAbility(e) && !isAutoAttack(e) && !isRanged(e)
+                        && !isWeaponSkill(e) && !isMagicBurst(e) && !isLikelyEnfeebleByName(e);
+                    })
                     .sort((a, b) => a.elapsed - b.elapsed);
                   // HP damage only - an MP/TP drain's `damage` field is the
                   // siphoned resource, not HP, so it must not inflate the total.
@@ -727,8 +736,14 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                         titleColor="text-fuchsia-400"
                         summary={(() => {
                           const evs = playerDebuffs?.events ?? [];
-                          const resisted = evs.filter(e => e.resisted).length;
-                          return resisted > 0 ? `${evs.length - resisted} landed · ${resisted} resisted` : `${evs.length} applied`;
+                          const ib = evs.filter(e => e.immunobreak).length;
+                          const resisted = evs.filter(e => e.resisted && !e.immunobreak).length;
+                          const landed = evs.length - resisted - ib;
+                          const parts: string[] = [];
+                          if (landed > 0) parts.push(`${landed} landed`);
+                          if (ib > 0) parts.push(`${ib} IB`);
+                          if (resisted > 0) parts.push(`${resisted} resisted`);
+                          return parts.length > 0 ? parts.join(' · ') : `${evs.length} applied`;
                         })()}
                         colSpan={3}
                         isEmpty={!playerDebuffs || playerDebuffs.events.length === 0}
@@ -744,12 +759,14 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                           <tr key={i} className="border-b border-white/[0.04] last:border-0">
                             <td className="py-1 pl-2 pr-3 text-right text-gray-400 font-mono">{fmtFightTime(ev.elapsed, report.fightStartElapsed)}</td>
                             <td className="py-1 pr-3 text-fuchsia-200">{ev.action ?? <span className="text-gray-400">-</span>}{gearCell(ev.action, ev.elapsed)}</td>
-                            <td className={`py-1 pr-2 truncate ${ev.resisted ? 'text-rose-400' : ev.status?.startsWith('−') ? 'text-teal-300' : 'text-rose-300'}`}>
-                              {ev.resisted
-                                ? 'resisted'
-                                : ev.status
-                                  ? <span className="inline-flex items-center gap-1.5"><BuffIcon id={ev.statusId} />{ev.status}</span>
-                                  : <span className="text-gray-400">-</span>}
+                            <td className={`py-1 pr-2 truncate ${ev.immunobreak ? 'text-amber-300' : ev.resisted ? 'text-rose-400' : ev.status?.startsWith('−') ? 'text-teal-300' : 'text-rose-300'}`}>
+                              {ev.immunobreak
+                                ? <span className="inline-flex items-center gap-1.5"><span className="text-[9px] font-bold uppercase tracking-wide px-1 py-0.5 rounded bg-amber-500/15 border border-amber-500/40">IB</span>Immunobreak!</span>
+                                : ev.resisted
+                                  ? 'resisted'
+                                  : ev.status
+                                    ? <span className="inline-flex items-center gap-1.5"><BuffIcon id={ev.statusId} />{ev.status}</span>
+                                    : <span className="text-gray-400">-</span>}
                             </td>
                           </tr>
                         ))}

@@ -19,8 +19,11 @@ function categoryToType(cat: number): CanonicalActionType {
     case 3:  return 'ws';
     case 4:  return 'spell';
     case 6:  return 'ja';
+    case 7:  return 'ws';
     case 8:  return 'spell';
+    case 9:  return 'unknown';
     case 11: return 'mob_ability';
+    case 12: return 'ranged';
     case 13: return 'ja';
     case 14: return 'ja';
     case 15: return 'ja';

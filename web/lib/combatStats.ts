@@ -31,6 +31,7 @@ export function statsForEnemy(actionLog: ActionLogEntry[] | null | undefined, mo
 
   for (const e of actionLog ?? []) {
     if (e.elapsed < start || e.elapsed > end) continue;
+    if (e.phase === 'start') continue;
     if (e.from === 'boss') {
       if (e.player !== mobName || !isAutoAttack(e)) continue;
       // Per-instance: only this entity's auto-attacks. Legacy entries without

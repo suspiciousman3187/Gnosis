@@ -5,7 +5,7 @@ import GearSets from '@/components/GearSets';
 import DeathReport from '@/components/DeathReport';
 import FightsPanel from '@/components/FightsPanel';
 import type { EncounterEnemy } from '@/lib/encounter';
-import { deriveSortieEnemies } from '@/lib/sortieEnemies';
+import { deriveEnemiesFromActionLog } from '@/lib/sortieEnemies';
 import { makeGearIndex } from '@/lib/gearLookup';
 import type { RunRecord, PartyMember, ActionLogEntry } from '@/lib/types';
 import { SORTIE_DURATION } from './sortie/SortieHelpers';
@@ -15,6 +15,11 @@ import { combatStatsFromActionLog } from '@/lib/combatStats';
 import { recordToEncounter } from '@/lib/recordToEncounter';
 import ActionTimelineTab, { BuffsPanel } from '@/components/ActionTimelineTab';
 import JourneyTab from '@/components/JourneyTab';
+import DisablingDebuffsPanel from '@/components/DisablingDebuffsPanel';
+import BattleMessagesPanel from '@/components/BattleMessagesPanel';
+import JobExtendedPanel from '@/components/JobExtendedPanel';
+import EffectLogPanel from '@/components/EffectLogPanel';
+import { buildIdNameMap } from '@/lib/idNameResolver';
 
 import { JOB_ICONS, mainJobKey } from '@/components/JobIcon';
 export { JOB_ICONS, mainJobKey };
@@ -94,14 +99,17 @@ export default function RunTabs({ run: r, isAdmin = false, header, preTabContent
   // moved into the new Status tab to match generic encounter chrome.
   const hasSelfBuffs = !!r.gearByPlayer && Object.values(r.gearByPlayer).some(g => g?.buffLog && g.buffLog.length > 0);
   const hasPartyBuffs = Array.isArray(r.buff_log) && r.buff_log.length > 0;
-  const hasStatus = hasPartyBuffs || hasSelfBuffs;
+  const hasBattleMessages = Array.isArray(r.battle_msg_raw) && r.battle_msg_raw.length > 0;
+  const hasJobExtended = Array.isArray(r.job_extended_log) && r.job_extended_log.length > 0;
+  const hasEffects = Array.isArray(r.effect_log) && r.effect_log.length > 0;
+  const hasStatus = hasPartyBuffs || hasSelfBuffs || hasBattleMessages || hasJobExtended || hasEffects;
   const gearIndex = useMemo(() => makeGearIndex(r.gearLog, r.gearByPlayer), [r.gearLog, r.gearByPlayer]);
 
   const hasDeaths = Array.isArray(r.death_log) && r.death_log.length > 0;
 
   const sortieEnemies = useMemo<EncounterEnemy[]>(
-    () => deriveSortieEnemies(r.action_log ?? null, r.kill_log ?? null, r.party ?? null),
-    [r.action_log, r.kill_log, r.party],
+    () => deriveEnemiesFromActionLog(r.action_log ?? null, r.kill_log ?? null, r.party ?? null, r.battle_msg_raw ?? null),
+    [r.action_log, r.kill_log, r.party, r.battle_msg_raw],
   );
   const hasFights = sortieEnemies.length > 0;
 
@@ -138,6 +146,20 @@ export default function RunTabs({ run: r, isAdmin = false, header, preTabContent
 
   const [groundSector, setGroundSector] = useState<'A'|'B'|'C'|'D'>('A');
   const [basementSector, setBasementSector] = useState<'E'|'F'|'G'|'H'>('E');
+  const [focusEnemy, setFocusEnemy] = useState<{ name: string; id?: number; spawnSeq?: number; token: number } | null>(null);
+  const enemyByName = useMemo(() => {
+    const m = new Map<string, { id?: number; spawnSeq?: number }>();
+    for (const e of sortieEnemies) {
+      if (m.has(e.name)) continue;
+      m.set(e.name, { id: e.id, spawnSeq: e.spawnSeq });
+    }
+    return m;
+  }, [sortieEnemies]);
+  const jumpToFight = (name: string) => {
+    const hit = enemyByName.get(name);
+    selectTab('fights');
+    setFocusEnemy({ name, id: hit?.id, spawnSeq: hit?.spawnSeq, token: (focusEnemy?.token ?? 0) + 1 });
+  };
 
   const runDurationSeconds = useMemo(() => {
     const at = r.area_times;
@@ -154,6 +176,15 @@ export default function RunTabs({ run: r, isAdmin = false, header, preTabContent
     () => recordToEncounter(r, { enemies: sortieEnemies, durationSeconds: runDurationSeconds, zoneName: 'Outer Ra\'Kaznar' }),
     [r, sortieEnemies, runDurationSeconds],
   );
+  const idNameMap = useMemo(() => buildIdNameMap({
+    playerIds:   enc.playerIds,
+    party:       enc.party,
+    actionLog:   enc.actionLog,
+    killLog:     enc.killLog,
+    partyHpLog:  enc.partyHpLog,
+    buffLog:     enc.buffLog,
+    petLog:      enc.petLog,
+  }), [enc.playerIds, enc.party, enc.actionLog, enc.killLog, enc.partyHpLog, enc.buffLog, enc.petLog]);
   return (
     <div className="space-y-6">
       {/* Header + tabs unified panel - mirrors EncounterView's chrome so
@@ -199,12 +230,20 @@ export default function RunTabs({ run: r, isAdmin = false, header, preTabContent
       {preTabContent}
 
       <div key={active} className="ff-tab">
-      {active === 'overview' && <SortieOverview r={r} runDurationSeconds={runDurationSeconds} />}
+      {active === 'overview' && (
+        <SortieOverview
+          r={r}
+          runDurationSeconds={runDurationSeconds}
+          onJumpToFight={hasFights ? jumpToFight : undefined}
+          fightableNames={hasFights ? new Set(enemyByName.keys()) : undefined}
+        />
+      )}
 
 
       {active === 'deaths' && (
         <div className="space-y-4">
           <DeathReport deathLog={enc.deathLog} actionLog={enc.actionLog} partyHpLog={enc.partyHpLog} />
+          <DisablingDebuffsPanel buffLog={enc.buffLog} durationSeconds={enc.durationSeconds} />
         </div>
       )}
 
@@ -248,16 +287,23 @@ export default function RunTabs({ run: r, isAdmin = false, header, preTabContent
         ]);
         for (const n of partyNames) bossSet.delete(n);
         return (
-          <BuffsPanel
-            buffLog={enc.buffLog ?? []}
-            bossSet={bossSet}
-            party={enc.party}
-            actionLog={enc.actionLog ?? []}
-            zoneLog={r.zone_log ?? null}
-            countdown
-            durationSeconds={enc.durationSeconds}
-            gearByPlayer={enc.gearByPlayer}
-          />
+          <div className="space-y-6">
+            {(hasPartyBuffs || hasSelfBuffs) && (
+              <BuffsPanel
+                buffLog={enc.buffLog ?? []}
+                bossSet={bossSet}
+                party={enc.party}
+                actionLog={enc.actionLog ?? []}
+                zoneLog={r.zone_log ?? null}
+                countdown
+                durationSeconds={enc.durationSeconds}
+                gearByPlayer={enc.gearByPlayer}
+              />
+            )}
+            <BattleMessagesPanel raw={enc.battleMsgRaw} nameMap={idNameMap} />
+            <JobExtendedPanel entries={enc.jobExtendedLog} />
+            <EffectLogPanel entries={enc.effectLog} />
+          </div>
         );
       })()}
 
@@ -305,6 +351,7 @@ export default function RunTabs({ run: r, isAdmin = false, header, preTabContent
           itemUseLog={enc.itemUseLog}
           gearIndex={gearIndex}
           enemyHistory={enemyHistory}
+          focusEnemy={focusEnemy}
         />
       )}
 

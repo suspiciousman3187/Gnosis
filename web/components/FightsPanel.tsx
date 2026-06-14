@@ -90,6 +90,7 @@ export interface FightsPanelProps {
   itemUseLog: ItemUseLogEntry[] | null;
   gearIndex: GearIndex;
   enemyHistory?: Map<string, EnemyHistoryStats>;
+  focusEnemy?: { name: string; id?: number; spawnSeq?: number; token: number } | null;
 }
 
 type FightInstance = { id?: number; spawnSeq?: number; firstSeen: number; killedAt: number | null; damage: number };
@@ -116,7 +117,7 @@ function fmtPbDelta(delta: number): string {
 export default function FightsPanel({
   enemies, actionLog, killLog, party, jobMap, durationSeconds: dur, encounterId,
   bossHpLog, partyHpLog, partyMpLog, partyTpLog, skillchainLog, buffLog,
-  gearByPlayer, itemUseLog, gearIndex, enemyHistory,
+  gearByPlayer, itemUseLog, gearIndex, enemyHistory, focusEnemy,
 }: FightsPanelProps) {
   const [groupByName, setGroupByName] = useState(false);
   const [openFights, setOpenFights] = useState<Set<string>>(new Set());
@@ -328,6 +329,48 @@ export default function FightsPanel({
     return n;
   });
 
+  useEffect(() => {
+    if (!focusEnemy) return;
+    const matches = fightGroups.filter(g => g.name === focusEnemy.name);
+    if (matches.length === 0) return;
+    const targetId = focusEnemy.id;
+    const targetSeq = focusEnemy.spawnSeq ?? 1;
+    setOpenFights(s => {
+      const n = new Set(s);
+      for (const g of matches) {
+        const onlyInst = g.instances[0];
+        const gKey = (g.count === 1 && onlyInst?.id != null)
+          ? `${g.name}|${onlyInst.id}|${onlyInst.spawnSeq ?? 1}`
+          : g.name;
+        n.add(gKey);
+        if (g.count > 1 && targetId != null) {
+          n.add(`${g.name}|${targetId}|${targetSeq}`);
+        }
+      }
+      return n;
+    });
+    let cancelled = false;
+    const tryScroll = (attempt: number) => {
+      if (cancelled) return;
+      const escName = CSS.escape(focusEnemy.name);
+      const sel = targetId != null
+        ? `[data-fight-name="${escName}"][data-fight-id="${targetId}"][data-fight-seq="${targetSeq}"]`
+        : `[data-fight-name="${escName}"]`;
+      let el = document.querySelector(sel) as HTMLElement | null;
+      if (!el && targetId != null) {
+        el = document.querySelector(`[data-fight-name="${escName}"]`) as HTMLElement | null;
+      }
+      if (!el) {
+        if (attempt < 10) setTimeout(() => tryScroll(attempt + 1), 50);
+        return;
+      }
+      el.style.scrollMarginTop = '80px';
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    const t = setTimeout(() => tryScroll(0), 80);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [focusEnemy?.token, focusEnemy?.name, focusEnemy?.id, focusEnemy?.spawnSeq, fightGroups]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const showPb = !!enemyHistory && enemyHistory.size > 0;
 
   if (fightGroups.length === 0) {
@@ -444,7 +487,11 @@ export default function FightsPanel({
           const ekDelta = (!groupByName && groupKillTime != null && pbBest != null) ? groupKillTime - pbBest : null;
           const gbnDelta = (groupByName && avgKillTime != null && pbBest != null) ? avgKillTime - pbBest : null;
           return (
-            <div key={groupKey}>
+            <div
+              key={groupKey}
+              data-fight-name={g.name}
+              {...(!multi && onlyInst?.id != null ? { 'data-fight-id': onlyInst.id, 'data-fight-seq': onlyInst.spawnSeq ?? 1 } : {})}
+            >
               <button
                 onClick={() => toggleFight(groupKey)}
                 className={`w-full grid grid-cols-[22px_1fr_auto] ${
@@ -603,7 +650,13 @@ export default function FightsPanel({
                         ? Math.max(0, dw.last - dw.first)
                         : Math.max(0, inst.killedAt - inst.firstSeen);
                     return (
-                      <div key={instKey} className="border-b border-white/10 last:border-0">
+                      <div
+                        key={instKey}
+                        data-fight-name={g.name}
+                        data-fight-id={inst.id ?? ''}
+                        data-fight-seq={seq}
+                        className="border-b border-white/10 last:border-0"
+                      >
                         <button
                           onClick={() => toggleFight(instKey)}
                           className="w-full grid grid-cols-[18px_1fr_auto] sm:grid-cols-[18px_1fr_110px_110px_140px] gap-3 items-center px-4 py-2.5 text-xs hover:bg-white/[0.03] transition-colors text-left"

@@ -185,7 +185,7 @@ export interface ActionLogEntry {
   damage?: number;
   result?: 'hit' | 'miss' | 'land' | 'resist' | 'burst';
   castTimeMs?: number;
-  phase?: 'interrupt';
+  phase?: 'interrupt' | 'start';
   interrupted?: boolean;
 }
 

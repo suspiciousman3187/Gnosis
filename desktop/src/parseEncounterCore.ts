@@ -2,7 +2,8 @@ import type { Encounter, EncounterDrop, EncounterEnemy } from '@/lib/encounter';
 import type { LootEncounterSummary } from '@/lib/dropAggregator';
 import { playerMetricsForEncounter, type EncounterMetrics } from '@/lib/combatStats';
 import { classify, mobNamesFromLootSummary, itemNamesFromLootSummary } from '@/lib/contentRegistry';
-import { deriveSortieEnemies } from '@/lib/sortieEnemies';
+import { deriveEnemiesFromActionLog } from '@/lib/sortieEnemies';
+import { enemiesFromKills } from '@/lib/contentLootSynth';
 import type { RunRecord } from '@/lib/types';
 import type { EncSummary } from './App';
 
@@ -125,9 +126,17 @@ export function parseEncounterText(
     })();
     const enemiesArr: EncounterEnemy[] = (() => {
       if (Array.isArray(e.enemies) && e.enemies.length > 0) return e.enemies;
-      if (isSortiePath(path)) {
-        const r = e as unknown as RunRecord;
-        return deriveSortieEnemies(r.action_log ?? null, r.kill_log ?? null, r.party ?? null);
+      const r = e as unknown as RunRecord;
+      const isSortie = isSortiePath(path);
+      const actionLog = isSortie ? (r.action_log ?? null) : (e.actionLog ?? null);
+      const killLog   = isSortie ? (r.kill_log ?? null)   : (e.killLog ?? null);
+      const party     = isSortie ? (r.party ?? null)      : (e.party ?? null);
+      const battleMsgRaw = isSortie ? (r.battle_msg_raw ?? null) : (e.battleMsgRaw ?? null);
+      const derived = deriveEnemiesFromActionLog(actionLog, killLog, party, battleMsgRaw);
+      if (derived.length > 0) return derived;
+      if (isSortie && Array.isArray(killLog) && killLog.length > 0) {
+        const bossReports = (e as unknown as { bossReports?: Record<string, { fightDurationSeconds?: number; fightStartElapsed?: number }> }).bossReports ?? null;
+        return enemiesFromKills(killLog, bossReports);
       }
       return [];
     })();

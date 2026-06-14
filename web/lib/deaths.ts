@@ -60,6 +60,7 @@ export function buildDeathReports(
 
     for (const e of log) {
       if (e.elapsed < lo || e.elapsed > hi) continue;
+      if (e.phase === 'start') continue;
       if (e.from === 'boss' || e.from === 'enemy') {
         for (const t of targetsOf(e)) {
           if (t.mob !== player) continue;

@@ -168,6 +168,7 @@ function GearSetsBody({ gearLog, stateSets, actionLog, partyTpLog, countdown, he
     const targetsOf = (a: ActionLogEntry) => a.targets ?? (a.mob ? [{ mob: a.mob, damage: a.damage ?? 0, result: a.result ?? 'hit' as const }] : []);
     const actByKey = new Map<string, ActionLogEntry[]>();
     for (const a of actionLog) {
+      if (a.phase === 'start') continue;
       const k = `${a.player}|${a.name}`;
       const arr = actByKey.get(k); if (arr) arr.push(a); else actByKey.set(k, [a]);
     }

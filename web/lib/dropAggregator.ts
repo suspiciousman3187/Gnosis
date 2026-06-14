@@ -167,9 +167,15 @@ export function aggregateLoot(
   const itemIdOf = new Map<string, number>();
 
   const NO_SOURCE = '(no source)';
+  const CROSS_BOX_DROP_WINDOW = 5;
+  const seenDropKey = new Map<string, number>();
   let dropCount = 0;
   for (const enc of passed) {
     for (const d of enc.dropLog) {
+      const dropKey = `${enc.ts}:${d.name}:${d.source ?? ''}:${d.itemId ?? 0}`;
+      const prevElapsed = seenDropKey.get(dropKey);
+      if (prevElapsed != null && Math.abs(d.elapsed - prevElapsed) <= CROSS_BOX_DROP_WINDOW) continue;
+      seenDropKey.set(dropKey, d.elapsed);
       dropCount += d.count ?? 1;
       if (d.itemId != null && !itemIdOf.has(d.name)) itemIdOf.set(d.name, d.itemId);
       const drec: DropRecord = {

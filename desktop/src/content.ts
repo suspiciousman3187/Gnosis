@@ -3,6 +3,7 @@ import type { RunRecord, CharacterGear, PartyMember } from '@/lib/types';
 import type { Encounter } from '@/lib/encounter';
 import type { LootEncounterSummary } from '@/lib/dropAggregator';
 import { parsedToRecord } from './adapt';
+import { mergeEncountersAcrossBoxes, mergeRunRecords } from './mergeEncounters';
 
 export type ContentKind = 'sortie' | 'encounter';
 
@@ -181,7 +182,12 @@ function gearViewOf(c: LoadedContent): GearView {
 }
 
 export function mergeContents(contents: LoadedContent[]): LoadedContent {
-  if (contents.length <= 1) return contents[0];
+  if (contents.length === 0) throw new Error('mergeContents: empty contents');
+  if (contents.length === 1) return contents[0];
+  const kinds = new Set(contents.map(c => c.kind));
+  if (kinds.size > 1) {
+    console.warn(`[mergeContents] mixed kinds in group (${[...kinds].join(',')}); using majority kind only.`);
+  }
   const rep = [...contents].sort((a, b) => gearViewOf(b).actionLen - gearViewOf(a).actionLen)[0];
   const gearByPlayer: Record<string, CharacterGear> = {};
   let n = 0;
@@ -206,10 +212,15 @@ export function mergeContents(contents: LoadedContent[]): LoadedContent {
     (party ?? []).map(p => (selfJobs[p.name] ? { ...p, ...selfJobs[p.name] } : p));
 
   if (rep.kind === 'encounter') {
-    return { kind: 'encounter', encounter: { ...rep.encounter, party: patchParty(rep.encounter.party), gearByPlayer } };
+    const encounters: Encounter[] = [];
+    for (const c of contents) if (c.kind === 'encounter') encounters.push(c.encounter);
+    const merged = encounters.length > 1 ? mergeEncountersAcrossBoxes(encounters) : rep.encounter;
+    return { kind: 'encounter', encounter: { ...merged, party: patchParty(merged.party), gearByPlayer } };
   }
-  const rec = rep.record as unknown as { party?: PartyMember[] };
-  return { ...rep, record: { ...rep.record, party: patchParty(rec.party), gearByPlayer } } as LoadedContent;
+  const records: RunRecord[] = [];
+  for (const c of contents) if (c.kind === 'sortie') records.push(c.record);
+  const mergedRec = records.length > 1 ? mergeRunRecords(records) : rep.record;
+  return { kind: 'sortie', record: { ...mergedRec, party: patchParty(mergedRec.party), gearByPlayer } };
 }
 
 export function groupMultiboxPaths(

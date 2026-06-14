@@ -18,7 +18,6 @@ import DisablingDebuffsPanel from '@/components/DisablingDebuffsPanel';
 import BattleMessagesPanel from '@/components/BattleMessagesPanel';
 import JobExtendedPanel from '@/components/JobExtendedPanel';
 import EffectLogPanel from '@/components/EffectLogPanel';
-import ProcsPanel from '@/components/ProcsPanel';
 import GainsPanel from '@/components/GainsPanel';
 import FightsPanel from '@/components/FightsPanel';
 import { makeGearIndex } from '@/lib/gearLookup';
@@ -83,17 +82,22 @@ const jobName = (id?: number) => (id != null && JOB_BY_ID[id]) ? JOB_BY_ID[id] :
 const ratePerHour = (total: number, durationSec: number) =>
   durationSec > 0 ? Math.round((total / durationSec) * 3600) : 0;
 
-function EnemyGroup({ name, items, total, killed }: {
+function EnemyGroup({ name, items, total, killed, onSelect }: {
   name: string;
   items: { e: EncounterEnemy; ka: number | null }[];
   total: number;
   killed: number;
+  onSelect?: (name: string, id?: number, spawnSeq?: number) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const linkClass = onSelect ? 'cursor-pointer hover:bg-accent/[0.08] hover:text-accent transition-colors' : '';
   if (items.length === 1) {
     const { e, ka } = items[0];
     return (
-      <div className="flex items-center gap-2 text-sm py-1 border-b border-white/[0.05] last:border-0">
+      <div
+        onClick={onSelect ? () => onSelect(name, e.id, e.spawnSeq) : undefined}
+        className={`flex items-center gap-2 text-sm py-1 border-b border-white/[0.05] last:border-0 ${linkClass}`}
+      >
         <span className="text-gray-200 truncate">{e.name}</span>
         {ka != null ? (
           <span className="text-[10px] font-mono text-emerald-300/70 shrink-0">{mmss(ka)}</span>
@@ -116,7 +120,11 @@ function EnemyGroup({ name, items, total, killed }: {
       {open && (
         <div className="pl-5 pb-1">
           {items.map(({ e, ka }, i) => (
-            <div key={`${e.id ?? ''}-${e.firstSeen}-${i}`} className="flex items-center gap-2 text-xs py-0.5">
+            <div
+              key={`${e.id ?? ''}-${e.firstSeen}-${i}`}
+              onClick={onSelect ? () => onSelect(name, e.id, e.spawnSeq) : undefined}
+              className={`flex items-center gap-2 text-xs py-0.5 ${linkClass}`}
+            >
               <span className="text-gray-400 shrink-0">#{i + 1}</span>
               {ka != null ? (
                 <span className="text-emerald-300/80 shrink-0">killed {mmss(ka)}</span>
@@ -190,7 +198,20 @@ function KpiSegment({ label, value, tone = 'text-gray-100', sub }: { label: stri
 
 export default function EncounterView({ enc: encInput, headerAction, enemyHistory }: { enc: Encounter; headerAction?: ReactNode; enemyHistory?: Map<string, import('@/components/FightsPanel').EnemyHistoryStats> }) {
   const enc = useMemo(() => reconcileSelfName(encInput), [encInput]);
-  const party = enc.party ?? [];
+  const party = useMemo(() => {
+    const raw = enc.party ?? [];
+    const seen = new Set<string>();
+    const out: typeof raw = [];
+    for (const p of raw) {
+      const key = p.id != null
+        ? `id:${p.id}`
+        : `name:${p.name}|${p.mainJob}${p.mainLevel}/${p.subJob}${p.subLevel}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(p);
+    }
+    return out;
+  }, [enc.party]);
   const partyNames = useMemo(() => new Set(party.map(p => p.name)), [party]);
   const taggedPetNames = useMemo(() => buildPetNameSet(enc.actionLog), [enc.actionLog]);
   const enemies = useMemo(
@@ -203,6 +224,11 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
   const metrics = useMemo(() => playerMetricsForEncounter(enc), [enc]);
 
   const [active, setActive] = useState<Tab>('overview');
+  const [focusEnemy, setFocusEnemy] = useState<{ name: string; id?: number; spawnSeq?: number; token: number } | null>(null);
+  const jumpToFight = (name: string, id?: number, spawnSeq?: number) => {
+    setActive('combat');
+    setFocusEnemy({ name, id, spawnSeq, token: (focusEnemy?.token ?? 0) + 1 });
+  };
   const activeTabRef = React.useRef<HTMLButtonElement | null>(null);
   React.useEffect(() => {
     activeTabRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -215,13 +241,6 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
     return enc.buffLog.some(b => b.buffId && ids.has(b.buffId) && b.kind === 'gain');
   }, [enc.buffLog]);
   const hasBattleMessages = Array.isArray(enc.battleMsgRaw) && enc.battleMsgRaw.length > 0;
-  const hasProcs = useMemo(() => {
-    if (!Array.isArray(enc.actionLog)) return false;
-    for (const a of enc.actionLog) {
-      for (const t of a.targets ?? []) if (t.bitFlags) return true;
-    }
-    return false;
-  }, [enc.actionLog]);
   const idNameMap = useMemo(() => buildIdNameMap({
     playerIds:   enc.playerIds,
     party:       enc.party,
@@ -448,7 +467,7 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
                 ) : (
                   <div>
                     {enemyGroups.map(g => (
-                      <EnemyGroup key={g.name} name={g.name} items={g.items} total={g.total} killed={g.killed} />
+                      <EnemyGroup key={g.name} name={g.name} items={g.items} total={g.total} killed={g.killed} onSelect={jumpToFight} />
                     ))}
                   </div>
                 )}
@@ -490,6 +509,7 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
             itemUseLog={enc.itemUseLog}
             gearIndex={gearIndex}
             enemyHistory={enemyHistory}
+            focusEnemy={focusEnemy}
           />
         )}
 
@@ -509,13 +529,12 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
           />
         )}
 
-        {active === 'deaths' && (deaths > 0 || (enc.buffLog && enc.buffLog.length > 0) || (enc.battleMsgRaw && enc.battleMsgRaw.length > 0) || (enc.jobExtendedLog && enc.jobExtendedLog.length > 0) || (enc.effectLog && enc.effectLog.length > 0) || hasProcs) && (
+        {active === 'deaths' && (deaths > 0 || (enc.buffLog && enc.buffLog.length > 0) || (enc.battleMsgRaw && enc.battleMsgRaw.length > 0) || (enc.jobExtendedLog && enc.jobExtendedLog.length > 0) || (enc.effectLog && enc.effectLog.length > 0)) && (
           <div className="space-y-6">
             {deaths > 0 && (
               <DeathReport deathLog={enc.deathLog} actionLog={enc.actionLog} partyHpLog={enc.partyHpLog} />
             )}
             <DisablingDebuffsPanel buffLog={enc.buffLog} durationSeconds={enc.durationSeconds} />
-            <ProcsPanel actionLog={enc.actionLog} />
             <BattleMessagesPanel raw={enc.battleMsgRaw} nameMap={idNameMap} />
             <JobExtendedPanel entries={enc.jobExtendedLog} />
             <EffectLogPanel entries={enc.effectLog} />

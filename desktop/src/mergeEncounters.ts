@@ -1,4 +1,5 @@
 import type { Encounter, EncounterEnemy, EncounterDrop } from '@/lib/encounter';
+import type { RunRecord, GearStateVariant } from '@/lib/types';
 
 type WithElapsed = { elapsed: number };
 type ShiftableLog<T extends WithElapsed> = T[] | null | undefined;
@@ -21,17 +22,36 @@ function maxNum(a: number | undefined | null, b: number | undefined | null): num
 }
 
 function unionEnemies(parts: (EncounterEnemy[] | null | undefined)[], deltas: number[]): EncounterEnemy[] {
-  const out: EncounterEnemy[] = [];
+  const all: EncounterEnemy[] = [];
   for (let i = 0; i < parts.length; i++) {
     const arr = parts[i] ?? [];
     const d = deltas[i];
     for (const e of arr) {
-      out.push({
+      all.push({
         ...e,
         firstSeen: (e.firstSeen ?? 0) + d,
         killedAt: e.killedAt != null ? e.killedAt + d : null,
       });
     }
+  }
+  const byEntity = new Map<string, EncounterEnemy>();
+  for (const e of all) {
+    if (e.id == null) continue;
+    const key = `${e.name}#${e.id}`;
+    const existing = byEntity.get(key);
+    if (!existing) { byEntity.set(key, e); continue; }
+    const merged: EncounterEnemy = {
+      ...existing,
+      firstSeen: Math.min(existing.firstSeen ?? Infinity, e.firstSeen ?? Infinity),
+      killedAt: existing.killedAt ?? e.killedAt ?? null,
+      damageTaken: Math.max(existing.damageTaken ?? 0, e.damageTaken ?? 0),
+    };
+    byEntity.set(key, merged);
+  }
+  const out: EncounterEnemy[] = [...byEntity.values()];
+  for (const e of all) {
+    if (e.id != null) continue;
+    out.push(e);
   }
   out.sort((a, b) => (a.firstSeen ?? 0) - (b.firstSeen ?? 0));
   const seqCounter = new Map<string, number>();
@@ -71,8 +91,11 @@ export function mergeEncountersForCharacter(parts: Encounter[]): Encounter {
     const out: Encounter['party'] = [];
     for (const e of sorted) {
       for (const m of e.party ?? []) {
-        if (seen.has(m.name)) continue;
-        seen.add(m.name);
+        const key = m.id != null
+          ? `id:${m.id}`
+          : `name:${m.name}|${m.mainJob}${m.mainLevel}/${m.subJob}${m.subLevel}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
         out.push(m);
       }
     }
@@ -115,9 +138,19 @@ export function mergeEncountersForCharacter(parts: Encounter[]): Encounter {
     return any ? { xp, cp, ep, lp } : null;
   })();
 
+  const stateSetsMerged: Record<string, GearStateVariant[]> = {};
+  for (const e of sorted) {
+    for (const [player, variants] of Object.entries(e.stateSets ?? {})) {
+      if (!(player in stateSetsMerged) && Array.isArray(variants)) {
+        stateSetsMerged[player] = variants;
+      }
+    }
+  }
+
   const merged: Encounter = {
     id: `enc_merged_${mergedStart}`,
     source: first.source,
+    language: first.language,
     segmentation: first.segmentation,
     zoneId: first.zoneId,
     zoneName: first.zoneName,
@@ -156,7 +189,7 @@ export function mergeEncountersForCharacter(parts: Encounter[]): Encounter {
     currencyEnd:      last.currencyEnd ?? null,
     keyItemLog:       shiftAndConcat(sorted.map(e => e.keyItemLog), deltas),
     gearLog:          shiftAndConcat(sorted.map(e => e.gearLog), deltas),
-    stateSets:        first.stateSets ?? null,
+    stateSets:        Object.keys(stateSetsMerged).length > 0 ? stateSetsMerged : (first.stateSets ?? null),
     localCharacter:   first.localCharacter ?? null,
     gearByPlayer:     first.gearByPlayer ?? null,
     combatStats:      null,
@@ -167,6 +200,179 @@ export function mergeEncountersForCharacter(parts: Encounter[]): Encounter {
   };
 
   return merged;
+}
+
+const CROSS_BOX_DEDUP_WINDOW_SEC = 1.5;
+
+function dedupByElapsed<T extends { elapsed: number }>(
+  arr: T[] | null | undefined,
+  keyFn: (e: T) => string,
+): T[] | null {
+  if (!arr || arr.length === 0) return null;
+  const sorted = [...arr].sort((a, b) => a.elapsed - b.elapsed);
+  const lastByKey = new Map<string, number>();
+  const out: T[] = [];
+  for (const e of sorted) {
+    const k = keyFn(e);
+    const prev = lastByKey.get(k);
+    if (prev != null && e.elapsed - prev <= CROSS_BOX_DEDUP_WINDOW_SEC) continue;
+    lastByKey.set(k, e.elapsed);
+    out.push(e);
+  }
+  return out;
+}
+
+function concatLogs<T>(arrs: (T[] | null | undefined)[]): T[] | null {
+  const out: T[] = [];
+  let any = false;
+  for (const a of arrs) {
+    if (!a) continue;
+    any = true;
+    for (const e of a) out.push(e);
+  }
+  return any ? out : null;
+}
+
+export function mergeEncountersAcrossBoxes(parts: Encounter[]): Encounter {
+  if (parts.length === 0) throw new Error('mergeEncountersAcrossBoxes: empty');
+  if (parts.length === 1) return parts[0];
+  const merged = mergeEncountersForCharacter(parts);
+  return {
+    ...merged,
+    battleMsgRaw: dedupByElapsed(merged.battleMsgRaw,
+      m => `${m.msgId}:${m.actorId ?? 0}:${m.targetId ?? 0}:${m.data ?? 0}`),
+    buffLog: dedupByElapsed(merged.buffLog,
+      b => `${b.target}:${b.buffId}:${b.kind}`),
+    actionLog: dedupByElapsed(merged.actionLog,
+      a => `${a.playerId ?? 0}:${a.player}:${a.category ?? 0}:${a.param ?? 0}:${a.phase ?? ''}:${a.targets?.[0]?.id ?? 0}`),
+    killLog: dedupByElapsed(merged.killLog,
+      k => `${k.id ?? 0}:${k.name}`),
+    deathLog: dedupByElapsed(merged.deathLog,
+      d => `${d.player}`),
+    skillchainLog: dedupByElapsed(merged.skillchainLog,
+      s => `${s.closer}:${s.mob}:${s.sc}`),
+    itemUseLog: dedupByElapsed(merged.itemUseLog,
+      i => `${i.player}:${i.item}`),
+    jobExtendedLog: dedupByElapsed(merged.jobExtendedLog ?? null,
+      j => `${j.jobId}:${j.isSubJob}:${j.rawHex ?? ''}`),
+    effectLog: dedupByElapsed(merged.effectLog ?? null,
+      e => `${e.entityId}:${e.effectNum}:${e.type}:${e.status}`),
+    petLog: dedupByElapsed(merged.petLog,
+      p => `${p.owner}:${p.pet}`),
+    bossHpLog: dedupByElapsed(merged.bossHpLog,
+      h => `${h.id ?? 0}:${h.name ?? ''}:${h.hpp}`),
+    partyHpLog: dedupByElapsed(merged.partyHpLog,
+      h => `${h.player}`),
+    partyMpLog: dedupByElapsed(merged.partyMpLog,
+      h => `${h.player}`),
+    partyTpLog: dedupByElapsed(merged.partyTpLog,
+      h => `${h.player}`),
+    dropLog: dedupByElapsed(merged.dropLog,
+      d => `${d.name}:${d.source ?? ''}:${d.by ?? ''}:${d.itemId ?? 0}`),
+  };
+}
+
+export function mergeRunRecords(parts: RunRecord[]): RunRecord {
+  if (parts.length === 0) throw new Error('mergeRunRecords: empty');
+  if (parts.length === 1) return parts[0];
+
+  const rep = [...parts].sort((a, b) =>
+    (b.action_log?.length ?? 0) - (a.action_log?.length ?? 0)
+  )[0];
+
+  const playerIds: Record<string, number> = {};
+  for (const p of parts) {
+    for (const [name, id] of Object.entries(p.playerIds ?? {})) {
+      if (!(name in playerIds)) playerIds[name] = id;
+    }
+  }
+  const party_max_hp: Record<string, number> = {};
+  for (const p of parts) {
+    for (const [name, v] of Object.entries(p.party_max_hp ?? {})) {
+      party_max_hp[name] = Math.max(party_max_hp[name] ?? 0, v);
+    }
+  }
+  const party_max_mp: Record<string, number> = {};
+  for (const p of parts) {
+    for (const [name, v] of Object.entries(p.party_max_mp ?? {})) {
+      party_max_mp[name] = Math.max(party_max_mp[name] ?? 0, v);
+    }
+  }
+
+  const partyMerged = (() => {
+    const seen = new Set<string>();
+    const out: RunRecord['party'] = [];
+    for (const p of parts) {
+      for (const m of p.party ?? []) {
+        const key = m.id != null
+          ? `id:${m.id}`
+          : `name:${m.name}|${m.mainJob}${m.mainLevel}/${m.subJob}${m.subLevel}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(m);
+      }
+    }
+    return out;
+  })();
+
+  return {
+    ...rep,
+    party: partyMerged,
+    playerIds: Object.keys(playerIds).length > 0 ? playerIds : (rep.playerIds ?? null),
+    party_max_hp: Object.keys(party_max_hp).length > 0 ? party_max_hp : (rep.party_max_hp ?? null),
+    party_max_mp: Object.keys(party_max_mp).length > 0 ? party_max_mp : (rep.party_max_mp ?? null),
+    action_log: dedupByElapsed(concatLogs(parts.map(p => p.action_log)),
+      a => `${a.playerId ?? 0}:${a.player}:${a.category ?? 0}:${a.param ?? 0}:${a.phase ?? ''}:${a.targets?.[0]?.id ?? 0}`),
+    buff_log: dedupByElapsed(concatLogs(parts.map(p => p.buff_log)),
+      b => `${b.target}:${b.buffId}:${b.kind}`),
+    battle_msg_raw: dedupByElapsed(concatLogs(parts.map(p => p.battle_msg_raw)),
+      m => `${m.msgId}:${m.actorId ?? 0}:${m.targetId ?? 0}:${m.data ?? 0}`),
+    kill_log: dedupByElapsed(concatLogs(parts.map(p => p.kill_log)),
+      k => `${k.id ?? 0}:${k.name}`),
+    death_log: dedupByElapsed(concatLogs(parts.map(p => p.death_log)),
+      d => `${d.player}`),
+    skillchain_log: dedupByElapsed(concatLogs(parts.map(p => p.skillchain_log)),
+      s => `${s.closer}:${s.mob}:${s.sc}`),
+    item_use_log: dedupByElapsed(concatLogs(parts.map(p => p.item_use_log)),
+      i => `${i.player}:${i.item}`),
+    pet_log: dedupByElapsed(concatLogs(parts.map(p => p.pet_log)),
+      p => `${p.owner}:${p.pet}`),
+    job_extended_log: dedupByElapsed(concatLogs(parts.map(p => p.job_extended_log)),
+      j => `${j.jobId}:${j.isSubJob}:${j.rawHex ?? ''}`),
+    effect_log: dedupByElapsed(concatLogs(parts.map(p => p.effect_log)),
+      e => `${e.entityId}:${e.effectNum}:${e.type}:${e.status}`),
+    party_hp_log: dedupByElapsed(concatLogs(parts.map(p => p.party_hp_log)),
+      h => `${h.player}`),
+    party_mp_log: dedupByElapsed(concatLogs(parts.map(p => p.party_mp_log)),
+      h => `${h.player}`),
+    party_tp_log: dedupByElapsed(concatLogs(parts.map(p => p.party_tp_log)),
+      h => `${h.player}`),
+    position_log: concatLogs(parts.map(p => p.position_log)),
+    boss_hp_log: dedupByElapsed(concatLogs(parts.map(p => p.boss_hp_log)),
+      h => `${h.id ?? 0}:${h.name ?? ''}:${h.hpp}`),
+    drop_log: dedupByElapsed(concatLogs(parts.map(p => p.drop_log)),
+      d => `${d.name}:${d.source ?? ''}:${d.by ?? ''}:${d.itemId ?? 0}`),
+    zone_log: dedupByElapsed(concatLogs(parts.map(p => p.zone_log)),
+      z => `${z.area}`),
+    chest_log: dedupByElapsed(concatLogs(parts.map(p => p.chest_log)),
+      c => `${c.area}:${c.npcId ?? 0}:${c.name ?? ''}`),
+    mini_nm_log: dedupByElapsed(concatLogs(parts.map(p => p.mini_nm_log)),
+      m => `${m.name}:${m.sector}`),
+    defeated_bosses: (() => {
+      const seen = new Set<string>();
+      for (const p of parts) for (const b of p.defeated_bosses ?? []) seen.add(b);
+      return [...seen];
+    })(),
+    boss_reports: (() => {
+      const merged: NonNullable<RunRecord['boss_reports']> = {};
+      for (const p of parts) {
+        for (const [name, report] of Object.entries(p.boss_reports ?? {})) {
+          if (!(name in merged)) merged[name] = report;
+        }
+      }
+      return Object.keys(merged).length > 0 ? merged : (rep.boss_reports ?? null);
+    })(),
+  };
 }
 
 export type MergeValidation =

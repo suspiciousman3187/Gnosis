@@ -40,16 +40,34 @@ const BOSS_GROUPS: { label: string; bosses: string[] }[] = [
   { label: 'Aminon',       bosses: ['Aminon'] },
 ];
 
-export default function SortieOverview({ r, runDurationSeconds }: { r: RunRecord; runDurationSeconds: number }) {
+export default function SortieOverview({ r, runDurationSeconds, onJumpToFight, fightableNames }: {
+  r: RunRecord;
+  runDurationSeconds: number;
+  onJumpToFight?: (name: string) => void;
+  fightableNames?: Set<string>;
+}) {
+  const partyDeduped = (() => {
+    const seen = new Set<string>();
+    const out: typeof r.party = [];
+    for (const p of r.party ?? []) {
+      const key = p.id != null
+        ? `id:${p.id}`
+        : `name:${p.name}|${p.mainJob}${p.mainLevel}/${p.subJob}${p.subLevel}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(p);
+    }
+    return out;
+  })();
   return (
     <div className="space-y-6">
       <div className="grid sm:grid-cols-2 gap-6">
-        {r.party?.length > 0 ? (
+        {partyDeduped.length > 0 ? (
           <section className="bg-row-even border border-white/10 rounded-xl p-5">
             <h2 className="font-semibold text-sm text-gray-400 uppercase tracking-wide mb-3">Party Composition</h2>
             <table className="w-full">
               <tbody>
-                {r.party.map((p) => {
+                {partyDeduped.map((p) => {
                   const jobKey = p.mainJob.toLowerCase();
                   return (
                     <tr key={p.name} className="border-b border-white/[0.06] last:border-0">
@@ -140,8 +158,15 @@ export default function SortieOverview({ r, runDurationSeconds }: { r: RunRecord
                             ? (r.aminon?.fightDurationSeconds ?? null)
                             : (r.boss_reports?.[boss]?.fightDurationSeconds ?? null))
                         : null;
+                      const canJump = !!(onJumpToFight && defeated && fightableNames?.has(boss));
                       return (
-                        <div key={boss} className="flex items-center gap-2 text-sm">
+                        <div
+                          key={boss}
+                          onClick={canJump ? () => onJumpToFight!(boss) : undefined}
+                          className={`flex items-center gap-2 text-sm rounded px-1 -mx-1 ${
+                            canJump ? 'cursor-pointer hover:bg-accent/[0.08] hover:text-accent transition-colors' : ''
+                          }`}
+                        >
                           <StatusIcon done={defeated} />
                           <span className={defeated ? 'text-white' : 'text-gray-400'}>{boss}</span>
                           {fightSecs != null && fightSecs > 0 && (

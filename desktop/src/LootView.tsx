@@ -497,6 +497,8 @@ export default function LootView({ paths, entries: entriesProp, activityEntries,
     if (tab !== 'recent') return [];
     const q = (filters.query ?? '').toLowerCase();
     const grouped = new Map<string, RecentDropRow>();
+    const CROSS_BOX_DROP_WINDOW = 5;
+    const seenDropEvent = new Map<string, number>();
     for (const e of entries) {
       if (filters.zones && filters.zones.size > 0 && !(e.zone && filters.zones.has(e.zone))) continue;
       if (filters.startTs != null && e.ts < filters.startTs) continue;
@@ -505,6 +507,10 @@ export default function LootView({ paths, entries: entriesProp, activityEntries,
         if (d.type === 'temporary') continue;
         const source = d.source ?? null;
         if (q && !d.name.toLowerCase().includes(q) && !(source && source.toLowerCase().includes(q))) continue;
+        const eventKey = `${e.ts}|${d.name}|${source ?? ''}|${d.itemId ?? 0}`;
+        const prevElapsed = seenDropEvent.get(eventKey);
+        if (prevElapsed != null && Math.abs((d.elapsed ?? 0) - prevElapsed) <= CROSS_BOX_DROP_WINDOW) continue;
+        seenDropEvent.set(eventKey, d.elapsed ?? 0);
         const key = `${e.path}|${d.name}|${source ?? ''}`;
         const absTs = e.ts + (d.elapsed ?? 0);
         const existing = grouped.get(key);

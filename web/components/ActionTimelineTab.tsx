@@ -247,6 +247,25 @@ function EventDot({
     ? Math.min((entry.castTimeMs / 1000) * pxPerSec, 320)
     : 0;
   const isInterrupted = entry.phase === 'interrupt' || entry.interrupted === true;
+  const isStart = entry.phase === 'start';
+
+  if (isStart) {
+    const startDot = (RENDER_META[cat] ?? RENDER_META.ws).dot;
+    const size = DOT_SIZE - 4;
+    return (
+      <div
+        className={`absolute rounded-full cursor-default transition-transform hover:scale-150 border-2 ${startDot} bg-transparent ${dimmed ? 'opacity-30' : 'opacity-70'}`}
+        style={{
+          left: left - size / 2,
+          top: (ROW_HEIGHT - size) / 2,
+          width: size,
+          height: size,
+        }}
+        onMouseEnter={() => onHover(entry)}
+        onMouseLeave={onLeave}
+      />
+    );
+  }
 
   if (isInterrupted) {
     const size = DOT_SIZE + 4;
@@ -512,9 +531,47 @@ const PlayerRow = React.memo(function PlayerRow({
 
 // ── Hovered event info bar ────────────────────────────────────────────────────
 
-function HoverInfo({ entry, fightStart }: { entry: ActionLogEntry | null; fightStart?: number }) {
+import { createStore, type Store } from '@/lib/createStore';
+
+type HoverEntry = ActionLogEntry | null;
+
+type HpTipKind = 'boss-hp' | 'player-hp' | 'player-mp' | 'player-tp';
+type HpTipState = { hpp: number; sec: number; left: number; top: number; boxW: number; kind: HpTipKind; label: string } | null;
+
+function HpTip({ store }: { store: Store<HpTipState> }) {
+  const hpTip = store.useStore();
+  if (!hpTip) return null;
+  return (
+    <div
+      className="pointer-events-none absolute z-20 -translate-x-1/2"
+      style={{
+        left: Math.min(Math.max(hpTip.left, 70), hpTip.boxW - 70),
+        top: hpTip.top + 14,
+      }}
+    >
+      <div className="w-0 h-0 mx-auto border-x-[6px] border-x-transparent border-b-[6px] border-b-black/90" />
+      <div className="rounded-md bg-black/90 border border-white/15 px-3 py-2 shadow-lg whitespace-nowrap flex items-center gap-3">
+        <span className={`text-sm font-semibold ${
+          hpTip.kind === 'boss-hp' ? 'text-rose-300'
+          : hpTip.kind === 'player-hp' ? 'text-emerald-300'
+          : hpTip.kind === 'player-mp' ? 'text-sky-300'
+          : 'text-amber-300'
+        }`}>
+          {hpTip.kind === 'player-tp' ? Math.round(hpTip.hpp * 30) : `${hpTip.hpp}%`}
+          {' '}
+          {hpTip.kind === 'player-mp' ? 'MP' : hpTip.kind === 'player-tp' ? 'TP' : 'HP'}
+        </span>
+        <span className="text-xs text-gray-400">{hpTip.label}</span>
+        <span className="text-xs text-gray-400 font-mono">{fmt(hpTip.sec)} into fight</span>
+      </div>
+    </div>
+  );
+}
+
+function HoverInfo({ store, fightStart }: { store: Store<HoverEntry>; fightStart?: number }) {
+  const entry = store.useStore();
   const enemyTerm = useEnemyTerm();
-  const wrapperCls = "min-h-10 flex flex-wrap items-center gap-4 px-3 py-2 text-xs border border-white/10 rounded-lg";
+  const wrapperCls = "h-16 overflow-hidden flex flex-wrap items-center gap-4 px-3 py-2 text-xs border border-white/10 rounded-lg";
 
   if (!entry) {
     return (
@@ -566,6 +623,7 @@ function HoverInfo({ entry, fightStart }: { entry: ActionLogEntry | null; fightS
   }
 
   const isInterrupted = entry.phase === 'interrupt' || entry.interrupted === true;
+  const isStart = entry.phase === 'start';
   const hasCrit = tgts.some(t => t.crit === true);
   const showBurst = tgts.some(t => t.result === 'burst');
   const showResist = tgts.some(t => t.result === 'resist');
@@ -574,7 +632,7 @@ function HoverInfo({ entry, fightStart }: { entry: ActionLogEntry | null; fightS
     : null;
 
   return (
-    <div className="min-h-10 flex flex-wrap items-center gap-4 px-3 py-2 text-xs border border-white/10 rounded-lg">
+    <div className="h-16 overflow-hidden flex flex-wrap items-center gap-4 px-3 py-2 text-xs border border-white/10 rounded-lg">
       <span className={`font-bold font-mono ${nameColor} ${isInterrupted ? 'line-through opacity-70' : ''}`}>{entry.name}</span>
       {entry.castTimeMs != null && entry.castTimeMs > 0 && (
         <span className="font-mono text-sky-300/70">~{(entry.castTimeMs / 1000).toFixed(1)}s</span>
@@ -582,9 +640,12 @@ function HoverInfo({ entry, fightStart }: { entry: ActionLogEntry | null; fightS
       {isInterrupted && (
         <span className="font-semibold text-rose-400 uppercase text-[10px] tracking-wide">Interrupted</span>
       )}
-      <span className="text-gray-400">{entry.player} → {targetSummary}</span>
+      {isStart && (
+        <span className="font-semibold text-sky-300 uppercase text-[10px] tracking-wide">Starting</span>
+      )}
+      <span className="text-gray-400">{entry.player}{isStart ? '' : ` → ${targetSummary}`}</span>
       <span className="text-gray-400/70">{typeLabel}</span>
-      {!isInterrupted && (
+      {!isInterrupted && !isStart && (
         <span className={`font-semibold ${resultColor}`}>{allMiss ? 'MISS' : 'HIT'}</span>
       )}
       {dmg > 0 && (
@@ -1004,6 +1065,7 @@ export function BuffsPanel({ buffLog: rawBuffLog, bossSet, party, actionLog, zon
   const SELF_WINDOW = 6;
   const selfCasts = new Map<string, { player: string; elapsed: number }[]>();
   for (const a of actionLog) {
+    if (a.phase === 'start') continue;
     if (a.from === 'boss') continue;
     if (!isJobAbility(a) && !isSpell(a)) continue;
     const key = a.name.toLowerCase();
@@ -1548,6 +1610,7 @@ export function MagicBurstsPanel({ actionLog, party, countdown }: { actionLog: A
   type Agg = { caster: string; count: number; damage: number; spells: Map<string, number>; list: Burst[] };
   const byCaster = new Map<string, Agg>();
   for (const e of actionLog) {
+    if (e.phase === 'start') continue;
     if (!partyNames.has(e.player)) continue;
     const tgts = getTargets(e);
     if (!isMagicBurst(e) && !tgts.some(t => t.result === 'burst')) continue;
@@ -1672,6 +1735,7 @@ export function CuresPanel({ actionLog, party, countdown }: { actionLog: ActionL
   type Agg = { healer: string; casts: number; healed: number; spells: Map<string, number>; list: Cast[] };
   const byHealer = new Map<string, Agg>();
   for (const e of actionLog) {
+    if (e.phase === 'start') continue;
     if (!CURE_RE.test(e.name)) continue;
     if (!partyNames.has(e.player)) continue;
     const tgts = getTargets(e);
@@ -1794,6 +1858,7 @@ export function JobAbilitiesPanel({ actionLog, party, zoneLog, countdown }: { ac
   type Agg = { player: string; casts: number; abilities: Map<string, number>; list: Use[] };
   const byPlayer = new Map<string, Agg>();
   for (const e of actionLog) {
+    if (e.phase === 'start') continue;
     if (!isJobAbility(e) || e.from === 'boss') continue;
     if (!partyNames.has(e.player)) continue;
     const tgts = getTargets(e);
@@ -2141,7 +2206,8 @@ export function BossActionTimeline({
   const [enabledCats, setEnabledCats] = useState<Set<RenderCat>>(
     () => new Set<RenderCat>(),
   );
-  const [hovered, setHovered] = useState<ActionLogEntry | null>(null);
+  const hoverStore = useMemo(() => createStore<HoverEntry>(null), []);
+  const hpTipStore = useMemo(() => createStore<HpTipState>(null), []);
 
   const unifiedBuffLog = useMemo(
     () => consolidateBuffLog(buffLog, gearByPlayer),
@@ -2204,9 +2270,6 @@ export function BossActionTimeline({
     showBossHp && showPlayerHp && !showPlayerMp && !showPlayerTp;
   // Boss-HP-curve hover tooltip
   const tlRef = useRef<HTMLDivElement | null>(null);
-  type HpTipKind = 'boss-hp' | 'player-hp' | 'player-mp' | 'player-tp';
-  type HpTipState = { hpp: number; sec: number; left: number; top: number; boxW: number; kind: HpTipKind; label: string } | null;
-  const [hpTip, setHpTip] = useState<HpTipState>(null);
   const hpTipPending = useRef<HpTipState>(null);
   const hpTipRaf = useRef<number | null>(null);
   const scheduleHpTip = useCallback((v: HpTipState) => {
@@ -2214,19 +2277,17 @@ export function BossActionTimeline({
     if (hpTipRaf.current != null) return;
     hpTipRaf.current = requestAnimationFrame(() => {
       hpTipRaf.current = null;
-      setHpTip(hpTipPending.current);
+      hpTipStore.set(hpTipPending.current);
     });
-  }, []);
-  // Leave events flush immediately - they're rare (one per row exit) and
-  // delaying a clear by a frame would leave a stale tooltip floating.
+  }, [hpTipStore]);
   const clearHpTip = useCallback(() => {
     if (hpTipRaf.current != null) {
       cancelAnimationFrame(hpTipRaf.current);
       hpTipRaf.current = null;
     }
     hpTipPending.current = null;
-    setHpTip(null);
-  }, []);
+    hpTipStore.set(null);
+  }, [hpTipStore]);
   useEffect(() => () => {
     if (hpTipRaf.current != null) cancelAnimationFrame(hpTipRaf.current);
   }, []);
@@ -2382,8 +2443,8 @@ export function BossActionTimeline({
     return map;
   }, [fight, allPlayers, partyHpLog, partyMpLog, partyTpLog, showPlayerHp, showPlayerMp, showPlayerTp, scheduleHpTip, clearHpTip]);
 
-  const onEntryHover = useCallback((e: ActionLogEntry) => setHovered(e), []);
-  const onEntryLeave = useCallback(() => setHovered(null), []);
+  const onEntryHover = useCallback((e: ActionLogEntry) => hoverStore.set(e), [hoverStore]);
+  const onEntryLeave = useCallback(() => hoverStore.set(null), [hoverStore]);
 
   if (!fight) return null;
 
@@ -2509,7 +2570,7 @@ export function BossActionTimeline({
         </div>
       )}
 
-      <HoverInfo entry={hovered} fightStart={fight.fightStartElapsed} />
+      <HoverInfo store={hoverStore} fightStart={fight.fightStartElapsed} />
 
       <div ref={tlRef} className="relative border border-white/10 rounded-xl overflow-hidden">
         <div className="flex items-center gap-4 px-4 py-2 border-b border-white/[0.08] text-xs text-gray-400">
@@ -2591,31 +2652,7 @@ export function BossActionTimeline({
           </div>
         </div>
 
-        {hpTip && (
-          <div
-            className="pointer-events-none absolute z-20 -translate-x-1/2"
-            style={{
-              left: Math.min(Math.max(hpTip.left, 70), hpTip.boxW - 70),
-              top: hpTip.top + 14,
-            }}
-          >
-            <div className="w-0 h-0 mx-auto border-x-[6px] border-x-transparent border-b-[6px] border-b-black/90" />
-            <div className="rounded-md bg-black/90 border border-white/15 px-3 py-2 shadow-lg whitespace-nowrap flex items-center gap-3">
-              <span className={`text-sm font-semibold ${
-                hpTip.kind === 'boss-hp' ? 'text-rose-300'
-                : hpTip.kind === 'player-hp' ? 'text-emerald-300'
-                : hpTip.kind === 'player-mp' ? 'text-sky-300'
-                : 'text-amber-300'
-              }`}>
-                {hpTip.kind === 'player-tp' ? Math.round(hpTip.hpp * 30) : `${hpTip.hpp}%`}
-                {' '}
-                {hpTip.kind === 'player-mp' ? 'MP' : hpTip.kind === 'player-tp' ? 'TP' : 'HP'}
-              </span>
-              <span className="text-xs text-gray-400">{hpTip.label}</span>
-              <span className="text-xs text-gray-400 font-mono">{fmt(hpTip.sec)} into fight</span>
-            </div>
-          </div>
-        )}
+        <HpTip store={hpTipStore} />
       </div>
     </div>
   );

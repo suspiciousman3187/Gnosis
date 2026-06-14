@@ -19,6 +19,7 @@ export type BattleMessageCategory =
   | 'dot_tick'
   | 'sp_ability'
   | 'recast_ready'
+  | 'skill_up'
   | 'misc';
 
 export interface BattleMessageMeta {
@@ -71,18 +72,35 @@ export const BATTLE_MESSAGE_DICT: Record<number, BattleMessageMeta> = {
   51:  { category: 'shadow_absorb',   label: 'images shielded' },
 
   28787: { category: 'interrupt',     label: 'casting interrupted' },
+  16:    { category: 'interrupt',     label: 'casting interrupted' },
 
   21:  { category: 'cannot_use',      label: 'cannot move' },
   49:  { category: 'cannot_use',      label: 'cannot use ability' },
   71:  { category: 'cannot_use',      label: 'ability not ready' },
+  5:   { category: 'cannot_use',      label: 'unable to see target' },
+  17:  { category: 'cannot_use',      label: 'cannot cast spells now' },
+  48:  { category: 'cannot_use',      label: 'spell cannot be cast on target' },
+  88:  { category: 'cannot_use',      label: 'cannot use job ability' },
+  94:  { category: 'cannot_use',      label: 'must wait longer' },
+  90:  { category: 'cannot_use',      label: 'unable to use weapon skill' },
+  192: { category: 'cannot_use',      label: 'not enough TP' },
+  219: { category: 'cannot_use',      label: 'cannot see target' },
 
   86:  { category: 'out_of_range',    label: 'too far away' },
+  4:   { category: 'out_of_range',    label: 'out of range' },
+  154: { category: 'out_of_range',    label: 'out of range' },
+  313: { category: 'out_of_range',    label: 'out of range (spell blocked)' },
 
   102: { category: 'sp_ability',      label: 'uses special ability' },
 
   279: { category: 'dot_tick',        label: 'drown tick' },
   280: { category: 'dot_tick',        label: 'burn tick' },
   281: { category: 'dot_tick',        label: 'poison tick' },
+
+  563: { category: 'death',           label: 'destroys' },
+
+  38:  { category: 'skill_up',        label: 'skill rises' },
+  53:  { category: 'skill_up',        label: 'skill level up' },
 };
 
 export function classifyBattleMessage(m: RawBattleMessage): BattleMessageMeta | null {
