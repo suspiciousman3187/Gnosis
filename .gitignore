@@ -48,3 +48,6 @@ web/scripts/
 web/supabase/
 desktop/scripts/
 web/anonymize.ts
+
+.vercel
+.env*
