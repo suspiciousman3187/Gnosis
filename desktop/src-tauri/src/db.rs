@@ -48,6 +48,7 @@ impl Db {
 
 fn open_for_dir(data_dir: &str) -> rusqlite::Result<Db> {
     let mut p = PathBuf::from(data_dir);
+    let _ = std::fs::create_dir_all(&p);
     p.push("gnosis_index.db");
     let conn = Connection::open(&p)?;
     let db = Db { path: p, conn };

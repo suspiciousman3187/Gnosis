@@ -43,6 +43,7 @@ import { showOverlay, hideOverlay, setOverlayClickthrough } from './overlay';
 import { getCheckOnStartupEnabled } from './updater';
 import StartupUpdateCheck from './StartupUpdateCheck';
 import UpdateBannerDemo from './UpdateBannerDemo';
+import WelcomeWizard, { isFtueCompleted } from './WelcomeWizard';
 import DialogHost from '@/components/DialogHost';
 import TooltipHost from '@/components/TooltipHost';
 import { startMemoryMonitor, setMonitorSection } from './memoryMonitor';
@@ -112,8 +113,19 @@ export default function App() {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+  const [ftueDone, setFtueDone] = useState<boolean>(() => !inTauri || isFtueCompleted());
   if (demoHash === '#updater-demo') {
     return <UpdateBannerDemo onClose={() => { window.location.hash = ''; }} />;
+  }
+  if (!ftueDone) {
+    return (
+      <WelcomeWizard
+        onComplete={(picked: string) => {
+          try { localStorage.setItem('ff_data_dir', picked); } catch { /* ignore */ }
+          setFtueDone(true);
+        }}
+      />
+    );
   }
   return <AppMain />;
 }

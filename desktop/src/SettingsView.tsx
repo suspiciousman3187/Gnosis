@@ -13,6 +13,7 @@ import { emitTokenChanged } from './useAdminStatus';
 import { useDisplayLanguage, setDisplayLanguage } from '@/lib/displayLanguage';
 import type { DisplayLanguage } from '@/lib/translate';
 import { useSilentModeOnMinimize, setSilentModeOnMinimize, useSilentModeHideOverlay, setSilentModeHideOverlay } from './silentMode';
+import { clearFtueCompletion } from './WelcomeWizard';
 
 async function pickDataFolder(currentDir: string): Promise<string | null> {
   try {
@@ -113,6 +114,16 @@ export default function SettingsView({
             <span className="text-[11px] text-gray-600 mt-1 block">
               Where Gnosis writes its reports. Encounters and content runs in this folder appear under Home.
             </span>
+            <button
+              type="button"
+              onClick={() => {
+                clearFtueCompletion();
+                window.location.reload();
+              }}
+              className="mt-2 text-[11px] text-accent/80 hover:text-accent underline underline-offset-2 transition-colors"
+            >
+              Replay welcome wizard
+            </button>
           </label>
 
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
