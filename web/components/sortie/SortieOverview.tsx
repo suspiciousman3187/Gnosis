@@ -91,7 +91,8 @@ export default function SortieOverview({ r, runDurationSeconds, onJumpToFight, f
 
         {(() => {
           const maxZoneGalli = Array.isArray(r.zone_log) ? Math.max(0, ...r.zone_log.map((z) => z.galli ?? 0)) : 0;
-          const displayGalli = r.gallimaufry && r.gallimaufry > 0 && r.gallimaufry < 200000 ? r.gallimaufry : maxZoneGalli;
+          const recordGalli = r.gallimaufry && r.gallimaufry > 0 && r.gallimaufry < 200000 ? r.gallimaufry : 0;
+          const displayGalli = Math.max(recordGalli, maxZoneGalli);
           const DROP_LABELS: { key: keyof SortieDrops; label: string }[] = [
             { key: 'oldCasePlus1', label: 'Old Case +1' },
             { key: 'oldCase',      label: 'Old Case' },

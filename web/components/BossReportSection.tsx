@@ -32,6 +32,7 @@ interface PlayerSecondaryStats {
   meleeCritAverage?:{ avg: number; count: number };
   wsAccuracy?:      { pct: number; count: number };
   wsAverage?:       { avg: number; count: number };
+  wsAvgTp?:         { avg: number; count: number };
   wsPerSecond?:     { value: number; count: number };
   rangedAccuracy?:  { pct: number; count: number };
   rangedCritRate?:  { pct: number; count: number };
@@ -96,6 +97,7 @@ function PlayerStatsPanel({ stats }: { stats: PlayerSecondaryStats | undefined }
       {stats.rangedCritRate  && <StatTile label="Ranged Crit" value={`${stats.rangedCritRate.pct.toFixed(2)}%`} count={stats.rangedCritRate.count} unit="shots" color="text-sky-400" />}
       {stats.wsAccuracy      && <StatTile label="Weaponskill Accuracy"  value={`${stats.wsAccuracy.pct.toFixed(2)}%`} count={stats.wsAccuracy.count} color="text-sky-400" />}
       {stats.wsAverage       && <StatTile label="Weaponskill Average"   value={stats.wsAverage.avg.toLocaleString()}  count={stats.wsAverage.count}  color="text-amber-400" />}
+      {stats.wsAvgTp         && <StatTile label="Avg. TP At Weaponskill" value={Math.round(stats.wsAvgTp.avg).toLocaleString()} count={stats.wsAvgTp.count} color="text-amber-300" />}
       {stats.wsPerSecond     && <StatTile label="Weaponskill Frequency" value={`${(stats.wsPerSecond.value * 60).toFixed(2)} /min`} count={stats.wsPerSecond.count} color="text-amber-400" />}
       {stats.accuracy        && <StatTile label="Auto Accuracy" value={`${stats.accuracy.pct.toFixed(2)}%`} count={stats.accuracy.count} color="text-sky-400" />}
       {stats.critRate        && <StatTile label="Crit Rate"     value={`${stats.critRate.pct.toFixed(2)}%`} count={stats.critRate.count} color="text-sky-400" />}
@@ -602,11 +604,12 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                   const tpSeries: PartyTpEntry[] = (partyTpLog ?? [])
                     .filter(t => t.player === entry.name)
                     .sort((a, b) => a.elapsed - b.elapsed);
-                  const tpAtWsTime = (elapsed: number): number | null => {
+                  const tpForWs = (ws: ActionLogEntry): number | null => {
+                    if (typeof ws.tp === 'number') return ws.tp;
                     if (tpSeries.length === 0) return null;
                     let bestIdx = -1;
                     for (let i = 0; i < tpSeries.length; i++) {
-                      if (tpSeries[i].elapsed <= elapsed) bestIdx = i; else break;
+                      if (tpSeries[i].elapsed <= ws.elapsed) bestIdx = i; else break;
                     }
                     if (bestIdx < 0) return null;
                     for (let i = bestIdx; i >= 0; i--) {
@@ -614,6 +617,15 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                     }
                     return null;
                   };
+                  const wsTpSamples: number[] = [];
+                  for (const e of damageDealtRows) {
+                    if (!isWeaponSkill(e)) continue;
+                    const t = tpForWs(e);
+                    if (t != null) wsTpSamples.push(t);
+                  }
+                  const wsAvgTp = wsTpSamples.length > 0
+                    ? { avg: wsTpSamples.reduce((s, n) => s + n, 0) / wsTpSamples.length, count: wsTpSamples.length }
+                    : undefined;
                   // The ⚙ that reveals this player's gear snapshot for a cast.
                   const gearCell = (n: string | null | undefined, el: number) => {
                     if (!gearIndex || !n) return null;
@@ -622,7 +634,7 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                   };
                   return (
                   <div className="ml-6 mt-2 mb-3 pl-3 border-l border-white/10 space-y-3">
-                    <PlayerStatsPanel stats={perPlayer[entry.name]} />
+                    <PlayerStatsPanel stats={wsAvgTp ? { ...perPlayer[entry.name], wsAvgTp } : perPlayer[entry.name]} />
                     {totalBossDmg > 0 && dmgSegments.length > 0 && (
                       <DamageSpread segments={dmgSegments} />
                     )}
@@ -665,7 +677,7 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                           const isGeomancy = spellCast && (e.name.startsWith('Geo-') || e.name.startsWith('Indi-'));
                           const result = (spellCast && hpDmg === 0 && rawResult === 'hit' && !isGeomancy && !drain) ? 'resist' : rawResult;
                           const isMiss = result === 'miss' || result === 'resist';
-                          const tp = isWeaponSkill(e) ? tpAtWsTime(e.elapsed) : null;
+                          const tp = isWeaponSkill(e) ? tpForWs(e) : null;
                           return (
                             <tr key={i} className="border-b border-white/[0.04] last:border-0">
                               <td className="py-1 pl-2 pr-3 text-right text-gray-400 font-mono">{fmtFightTime(e.elapsed, report.fightStartElapsed)}</td>

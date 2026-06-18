@@ -187,6 +187,7 @@ export interface ActionLogEntry {
   castTimeMs?: number;
   phase?: 'interrupt' | 'start';
   interrupted?: boolean;
+  tp?: number;
 }
 
 export interface SortieDrops {

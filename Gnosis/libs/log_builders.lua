@@ -380,6 +380,10 @@ function ff_log_action_event(action_log, skillchain_log, run_start_time, act, op
             targets    = targets_arr,
         }
         if cast_time_ms and cast_time_ms > 0 then entry.castTimeMs = cast_time_ms end
+        if atype == 'ws' and opts.party_tp and party_jobs[pname] then
+            local tp_val = opts.party_tp[pname]
+            if type(tp_val) == 'number' then entry.tp = tp_val end
+        end
         table.insert(action_log, entry)
         if ff_live_state_mark_engaged then
             if from == 'player' then

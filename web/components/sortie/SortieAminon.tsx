@@ -7,6 +7,7 @@ import { M as ACTION_MSG, swingsOf } from '@/lib/combatStats';
 import { BossReportSection } from '@/lib/reportShared';
 import type { GearIndex } from '@/lib/gearLookup';
 import { StatRow, formatDuration, fmtFightTime } from './SortieHelpers';
+import { synthesizeAminonReport, isSynthesizedAminon } from '@/lib/aminonSynth';
 
 function AbsorbTpPanel({ actionLog, fightDurationSeconds, fightStartElapsed, bossHpLog }: { actionLog: ActionLogEntry[] | null; fightDurationSeconds: number; fightStartElapsed?: number; bossHpLog: BossHpEntry[] | null }) {
   const [tab, setTab] = useState<'absorb' | 'ws'>('absorb');
@@ -477,36 +478,44 @@ function AminonSummaryPanel({ run, mode, fightSeconds }: { run: RunRecord; mode:
 }
 
 export default function SortieAminon({ r, jobMap, gearIndex }: { r: RunRecord; jobMap: Record<string, string>; gearIndex: GearIndex }) {
-  if (!r.aminon) {
+  const aminon = r.aminon ?? synthesizeAminonReport(r);
+  if (!aminon) {
     return (
       <div className="bg-row-even border border-white/10 rounded-xl p-12 text-center text-gray-400 text-sm">
-        No Aminon data for this run.
+        No Aminon engagement found in this run.
       </div>
     );
   }
-  const aminonKilled = r.aminon.killed !== false;
+  const aminonKilled = aminon.killed !== false;
+  const reconstructed = isSynthesizedAminon(aminon);
   return (
     <div className="space-y-4">
+      {reconstructed && (
+        <div className="w-full rounded-xl border border-amber-700/50 bg-amber-950/30 px-5 py-2.5 text-center">
+          <span className="text-amber-200 text-xs font-bold uppercase tracking-wide">Reconstructed from raw action log</span>
+          <span className="text-amber-300/70 text-[11px] ml-2">(addon didn&apos;t flag the fight; Corsair rolls + hardmode detection unavailable)</span>
+        </div>
+      )}
       {!aminonKilled && (
         <div className="w-full rounded-xl border border-red-700/50 bg-red-950/40 px-5 py-3 text-center">
           <span className="text-red-300 text-base font-bold uppercase tracking-wide">Wipe</span>
         </div>
       )}
 
-      <AminonSummaryPanel run={r} mode={r.aminon.mode} fightSeconds={r.aminon.fightDurationSeconds} />
+      <AminonSummaryPanel run={r} mode={aminon.mode} fightSeconds={aminon.fightDurationSeconds} />
 
       <BossReportSection
         name="Aminon"
-        displayName={r.aminon.mode === 'hardmode' ? 'Aminon (Hard Mode)' : 'Aminon'}
-        report={r.aminon}
+        displayName={aminon.mode === 'hardmode' ? 'Aminon (Hard Mode)' : 'Aminon'}
+        report={aminon}
         jobMap={jobMap}
         hideKillTime
         itemUseLog={r.item_use_log?.filter(u => u.area === 'Aminon') ?? null}
-        corsairRolls={r.aminon.rolls}
+        corsairRolls={aminon.rolls}
         actionLog={r.action_log}
         party={r.party ?? []}
         bossReports={r.boss_reports}
-        aminon={r.aminon}
+        aminon={aminon}
         bossHpLog={r.boss_hp_log ?? null}
         partyHpLog={r.party_hp_log ?? null}
         partyMpLog={r.party_mp_log ?? null}
@@ -516,7 +525,7 @@ export default function SortieAminon({ r, jobMap, gearIndex }: { r: RunRecord; j
         gearByPlayer={r.gearByPlayer ?? null}
         gearIndex={gearIndex}
         middleSlot={
-          <AbsorbTpPanel actionLog={r.action_log} fightDurationSeconds={r.aminon.fightDurationSeconds} fightStartElapsed={r.aminon.fightStartElapsed} bossHpLog={r.boss_hp_log} />
+          <AbsorbTpPanel actionLog={r.action_log} fightDurationSeconds={aminon.fightDurationSeconds} fightStartElapsed={aminon.fightStartElapsed} bossHpLog={r.boss_hp_log} />
         }
       />
     </div>

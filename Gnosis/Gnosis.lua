@@ -1757,6 +1757,7 @@ windower.register_event('action', function(act)
             end,
             pet_ids          = sortie_enc.pet_ids,
             pet_names        = sortie_enc.pet_names_seen,
+            party_tp         = last_party_tp,
         })
     end
 

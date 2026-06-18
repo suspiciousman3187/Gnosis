@@ -1085,6 +1085,7 @@ windower.register_event('action', function(act)
                 relabel_outsider = cfg.track_outsiders and assign_outsider_label or nil,
                 pet_ids          = enc.pet_ids,
                 pet_names        = enc.pet_names_seen,
+                party_tp         = enc.last_party_tp,
             })
             -- Native combat stats (replaces the external Parse addon); the desktop
             -- live view consumes these via the periodic ff_ipc_send_combat stream.
