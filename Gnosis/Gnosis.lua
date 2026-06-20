@@ -1451,27 +1451,26 @@ windower.register_event('incoming chunk', function(id, data, modified, injected,
         local packet = packets.parse('incoming', data)
         if packet then
             local pid = packet['ID']
-            -- Only log IDs in the plausible treasure container range
-            if pid >= 21000100 and pid <= 21000270 then
-                -- Dedup by raw NPC ID (IDs are unique per chest)
+            local canonical = math.floor(pid / 0x10000) * 0x10000 + 0x7000 + (pid % 0x1000)
+            if canonical >= 21000193 and canonical <= 21000243 then
                 local already_found = false
                 for _, existing in ipairs(opened_chests) do
-                    if existing == pid then
+                    if existing == canonical then
                         already_found = true
                         break
                     end
                 end
                 if not already_found then
-                    table.insert(opened_chests, pid)
+                    table.insert(opened_chests, canonical)
                     if sortie_start_time then
                         local elapsed = math.floor(os.difftime(os.time(), sortie_start_time))
                         table.insert(sortie_enc.chest_log, {
-                            npcId   = pid,
+                            npcId   = canonical,
                             area    = current_area or 'Unknown',
                             elapsed = elapsed,
                         })
                     end
-                    gn_chat(('Chest opened: ID #%d'):format(pid))
+                    gn_chat(('Chest opened: ID #%d'):format(canonical))
                 end
             end
         end

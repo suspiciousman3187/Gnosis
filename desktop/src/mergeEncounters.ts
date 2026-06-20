@@ -202,7 +202,7 @@ export function mergeEncountersForCharacter(parts: Encounter[]): Encounter {
   return merged;
 }
 
-const CROSS_BOX_DEDUP_WINDOW_SEC = 1.5;
+const CROSS_BOX_DEDUP_WINDOW_SEC = 3;
 
 function dedupByElapsed<T extends { elapsed: number }>(
   arr: T[] | null | undefined,

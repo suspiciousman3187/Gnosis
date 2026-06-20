@@ -69,7 +69,9 @@ export const CHEST_IDS: Record<number, ChestIdEntry> = {
   21000243: { type: 'Coffer', name: 'Aurum Basement' },
 };
 
-/** Resolve a raw NPC packet ID to chest type and name. Returns null for unknown IDs. */
 export function resolveChestId(npcId: number): ChestIdEntry | null {
-  return CHEST_IDS[npcId] ?? null;
+  if (CHEST_IDS[npcId]) return CHEST_IDS[npcId];
+  const zoneBase = Math.floor(npcId / 0x10000) * 0x10000;
+  const canonical = zoneBase + 0x7000 + (npcId % 0x1000);
+  return CHEST_IDS[canonical] ?? null;
 }

@@ -9,6 +9,22 @@ import type { GearIndex } from '@/lib/gearLookup';
 import { StatRow, formatDuration, fmtFightTime } from './SortieHelpers';
 import { synthesizeAminonReport, isSynthesizedAminon } from '@/lib/aminonSynth';
 
+const ACTION_DEDUP_WINDOW_SEC = 3;
+function dedupActionLog(log: ActionLogEntry[] | null | undefined): ActionLogEntry[] | null {
+  if (!log || log.length === 0) return log ?? null;
+  const sorted = [...log].sort((a, b) => a.elapsed - b.elapsed);
+  const lastByKey = new Map<string, number>();
+  const out: ActionLogEntry[] = [];
+  for (const e of sorted) {
+    const k = `${e.playerId ?? 0}:${e.player}:${e.category ?? 0}:${e.param ?? 0}:${e.phase ?? ''}:${e.targets?.[0]?.id ?? 0}`;
+    const prev = lastByKey.get(k);
+    if (prev != null && e.elapsed - prev <= ACTION_DEDUP_WINDOW_SEC) continue;
+    lastByKey.set(k, e.elapsed);
+    out.push(e);
+  }
+  return out;
+}
+
 function AbsorbTpPanel({ actionLog, fightDurationSeconds, fightStartElapsed, bossHpLog }: { actionLog: ActionLogEntry[] | null; fightDurationSeconds: number; fightStartElapsed?: number; bossHpLog: BossHpEntry[] | null }) {
   const [tab, setTab] = useState<'absorb' | 'ws'>('absorb');
   const [open, setOpen] = useState(false);
@@ -105,6 +121,14 @@ function AbsorbTpPanel({ actionLog, fightDurationSeconds, fightStartElapsed, bos
     return best;
   };
   const fmtGap = (s: number) => s < 60 ? `${s}s` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const hpColor = (hp: number | null): string => {
+    if (hp == null) return 'text-gray-400';
+    if (hp >= 80) return 'text-emerald-400';
+    if (hp >= 60) return 'text-lime-300';
+    if (hp >= 40) return 'text-amber-300';
+    if (hp >= 20) return 'text-orange-400';
+    return 'text-rose-400';
+  };
   const fightMin = fightDurationSeconds > 0 ? fightDurationSeconds / 60 : 0;
   const rows = Array.from(perPlayer.entries())
     .map(([player, r]) => ({ player, ...r, perMin: fightMin > 0 ? r.casts / fightMin : 0 }))
@@ -342,7 +366,7 @@ function AbsorbTpPanel({ actionLog, fightDurationSeconds, fightStartElapsed, bos
                       onClick={() => toggleCast(key)}
                     >
                       <td className={`py-1.5 text-right font-mono text-xs pr-3 ${row.overlap ? 'text-orange-400 font-bold' : 'text-gray-400'}`}>{fmtFightTime(row.elapsed, fightStartElapsed)}</td>
-                      <td className="py-1.5 px-3 text-right font-mono text-gray-400">{row.hpp != null ? `${row.hpp}%` : '-'}</td>
+                      <td className={`py-1.5 px-3 text-right font-mono ${hpColor(row.hpp)}`}>{row.hpp != null ? `${row.hpp}%` : '-'}</td>
                       <td className="py-1.5 px-3 text-white">
                         <span className="text-gray-400 text-xs mr-1.5">{isOpen ? '▾' : '▸'}</span>{row.player}
                         {row.overlap && <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-orange-400">⚠ overlap</span>}
@@ -478,7 +502,8 @@ function AminonSummaryPanel({ run, mode, fightSeconds }: { run: RunRecord; mode:
 }
 
 export default function SortieAminon({ r, jobMap, gearIndex }: { r: RunRecord; jobMap: Record<string, string>; gearIndex: GearIndex }) {
-  const aminon = r.aminon ?? synthesizeAminonReport(r);
+  const dedupedActionLog = dedupActionLog(r.action_log);
+  const aminon = r.aminon ?? synthesizeAminonReport({ ...r, action_log: dedupedActionLog });
   if (!aminon) {
     return (
       <div className="bg-row-even border border-white/10 rounded-xl p-12 text-center text-gray-400 text-sm">
@@ -512,7 +537,7 @@ export default function SortieAminon({ r, jobMap, gearIndex }: { r: RunRecord; j
         hideKillTime
         itemUseLog={r.item_use_log?.filter(u => u.area === 'Aminon') ?? null}
         corsairRolls={aminon.rolls}
-        actionLog={r.action_log}
+        actionLog={dedupedActionLog}
         party={r.party ?? []}
         bossReports={r.boss_reports}
         aminon={aminon}
@@ -525,7 +550,7 @@ export default function SortieAminon({ r, jobMap, gearIndex }: { r: RunRecord; j
         gearByPlayer={r.gearByPlayer ?? null}
         gearIndex={gearIndex}
         middleSlot={
-          <AbsorbTpPanel actionLog={r.action_log} fightDurationSeconds={aminon.fightDurationSeconds} fightStartElapsed={aminon.fightStartElapsed} bossHpLog={r.boss_hp_log} />
+          <AbsorbTpPanel actionLog={dedupedActionLog} fightDurationSeconds={aminon.fightDurationSeconds} fightStartElapsed={aminon.fightStartElapsed} bossHpLog={r.boss_hp_log} />
         }
       />
     </div>

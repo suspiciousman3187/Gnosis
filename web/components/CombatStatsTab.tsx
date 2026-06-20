@@ -973,13 +973,14 @@ function PlayerTakenRow({
 }
 
 function PlayerDealtRow({
-  playerName, data, jobLine, totalGroupDmg, durationSeconds,
+  playerName, data, jobLine, totalGroupDmg, durationSeconds, wsTp,
 }: {
   playerName: string;
   data: ParsePlayerCombat;
   jobLine: string;
   totalGroupDmg: number;
   durationSeconds?: number;
+  wsTp?: { avg: number; count: number };
 }) {
   const [open, setOpen] = useState(false);
   const playerDmg = data.total_damage ?? 0;
@@ -1010,7 +1011,7 @@ function PlayerDealtRow({
             style={{ width: `${sharePct}%` }}
           />
         )}
-        <div className="relative hidden sm:grid grid-cols-[minmax(0,1.4fr)_repeat(6,minmax(0,1fr))_24px] gap-2 items-center px-4 py-3">
+        <div className="relative hidden sm:grid grid-cols-[minmax(0,1.4fr)_repeat(7,minmax(0,1fr))_24px] gap-2 items-center px-4 py-3">
           <div className="flex items-center gap-3 min-w-0">
             <JobIcon job={jobLine} size={26} />
             <div className="min-w-0">
@@ -1023,6 +1024,7 @@ function PlayerDealtRow({
           <div className="text-right text-xs font-mono text-gray-300">{wsHits > 0 ? wsPerMin.toFixed(1) : '-'}</div>
           <div className="text-right text-xs font-mono text-amber-300">{wsHits > 0 ? avgWs.toLocaleString() : '-'}</div>
           <div className="text-right text-xs font-mono text-amber-400">{wsMax > 0 ? wsMax.toLocaleString() : '-'}</div>
+          <div className="text-right text-xs font-mono text-amber-300">{wsTp ? Math.round(wsTp.avg).toLocaleString() : '-'}</div>
           <div className="text-right">
             {dps !== null && (
               <div className="text-sm font-mono text-amber-400">{dps.toLocaleString()} <span className="text-[10px] text-amber-400/50">DPS</span></div>
@@ -1660,6 +1662,28 @@ export default function CombatStatsTab({
     return span;
   }, [selectedMob, actionLog, durationSeconds]);
 
+  const wsTpByPlayer = useMemo<Record<string, { avg: number; count: number }>>(() => {
+    const acc: Record<string, { sum: number; count: number }> = {};
+    if (!actionLog) return {};
+    for (const e of actionLog) {
+      if (e.type !== 'ws') continue;
+      if (typeof e.tp !== 'number') continue;
+      if (selectedMob !== '_all_') {
+        const tgts = e.targets ?? (e.mob ? [{ mob: e.mob }] : []);
+        if (!tgts.some(t => t.mob === selectedMob)) continue;
+      }
+      const a = acc[e.player] ?? { sum: 0, count: 0 };
+      a.sum += Math.max(1000, e.tp);
+      a.count += 1;
+      acc[e.player] = a;
+    }
+    const out: Record<string, { avg: number; count: number }> = {};
+    for (const [p, { sum, count }] of Object.entries(acc)) {
+      if (count > 0) out[p] = { avg: sum / count, count };
+    }
+    return out;
+  }, [actionLog, selectedMob]);
+
   const RESERVED_KEYS = new Set([
     'total_damage', 'melee', 'ranged', 'category', 'other', 'defense', 'multi',
   ]);
@@ -1781,13 +1805,14 @@ export default function CombatStatsTab({
           </>
         ) : (
           <>
-            <div className="hidden sm:grid grid-cols-[minmax(0,1.4fr)_repeat(6,minmax(0,1fr))_24px] gap-2 px-4 py-2 border-b border-white/10 text-[10px] uppercase tracking-wide text-gray-400 font-semibold">
+            <div className="hidden sm:grid grid-cols-[minmax(0,1.4fr)_repeat(7,minmax(0,1fr))_24px] gap-2 px-4 py-2 border-b border-white/10 text-[10px] uppercase tracking-wide text-gray-400 font-semibold">
               <div>Player</div>
               <div className="text-right">Accuracy</div>
               <div className="text-right">WS Miss</div>
               <div className="text-right">WS/Min</div>
               <div className="text-right">Avg WS</div>
               <div className="text-right">Max WS</div>
+              <div className="text-right">Avg WS TP</div>
               <div className="text-right">Total DPS</div>
               <div></div>
             </div>
@@ -1799,6 +1824,7 @@ export default function CombatStatsTab({
                 jobLine={jobMap[playerName] ?? ''}
                 totalGroupDmg={totalGroupDmg}
                 durationSeconds={effectiveDuration}
+                wsTp={wsTpByPlayer[playerName]}
               />
             ))}
           </>

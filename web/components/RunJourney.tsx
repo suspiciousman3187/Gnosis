@@ -87,6 +87,21 @@ function categoryOf(area: string): 'ground' | 'sector' | 'boss' | 'aminon' {
   return 'aminon';
 }
 
+function dedupByElapsed<T extends { elapsed: number }>(items: T[] | null, keyOf: (item: T) => string, windowSec = 5): T[] {
+  if (!items || items.length === 0) return items ?? [];
+  const sorted = [...items].sort((a, b) => a.elapsed - b.elapsed);
+  const lastSeen = new Map<string, number>();
+  const out: T[] = [];
+  for (const it of sorted) {
+    const k = keyOf(it);
+    const prev = lastSeen.get(k);
+    if (prev != null && it.elapsed - prev <= windowSec) continue;
+    lastSeen.set(k, it.elapsed);
+    out.push(it);
+  }
+  return out;
+}
+
 export default function RunJourney({ zoneLog, areaTimes, deathLog, chestLog, miniNmLog, dropLog, finalGalli, bossHp, isAdmin = false }: Props) {
   const sorted = [...zoneLog]
     .sort((a, b) => a.elapsed - b.elapsed)
@@ -94,6 +109,12 @@ export default function RunJourney({ zoneLog, areaTimes, deathLog, chestLog, min
       const prev = arr[i - 1];
       return !prev || prev.area !== entry.area || Math.abs(entry.elapsed - prev.elapsed) > 2;
     });
+  const dedupedMiniNm = dedupByElapsed(miniNmLog, n => `${n.name}|${n.sector ?? ''}`);
+  const dedupedDrops = dedupByElapsed(dropLog, d => `${d.name}|${d.area ?? ''}|${d.type ?? ''}`);
+  const dedupedChests = dedupByElapsed(chestLog, c => `${c.npcId ?? ''}|${c.area ?? ''}`);
+  miniNmLog = dedupedMiniNm;
+  dropLog = dedupedDrops;
+  chestLog = dedupedChests;
   const killedBossNames = new Set((miniNmLog ?? []).map(n => n.name));
 
   // Custom segmented-bar tooltip (matches the Journey map's tooltip UI)
@@ -327,7 +348,10 @@ export default function RunJourney({ zoneLog, areaTimes, deathLog, chestLog, min
                       </div>
                     )}
                     {isAdmin && rowChests.map((c, ci) => {
-                      const inChestRange = c.npcId != null && c.npcId >= 21000100 && c.npcId <= 21000270;
+                      const canonical = c.npcId != null
+                        ? Math.floor(c.npcId / 0x10000) * 0x10000 + 0x7000 + (c.npcId % 0x1000)
+                        : null;
+                      const inChestRange = canonical != null && canonical >= 21000193 && canonical <= 21000243;
                       const resolved = c.npcId
                         ? (resolveChestId(c.npcId) ?? (inChestRange ? { type: 'Unknown' as const, name: `#${c.npcId}` } : null))
                         : (c.name ? { type: (c.type ?? 'Chest') as ChestIdEntry['type'], name: c.name } : null);

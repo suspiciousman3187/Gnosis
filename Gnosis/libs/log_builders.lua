@@ -380,9 +380,31 @@ function ff_log_action_event(action_log, skillchain_log, run_start_time, act, op
             targets    = targets_arr,
         }
         if cast_time_ms and cast_time_ms > 0 then entry.castTimeMs = cast_time_ms end
-        if atype == 'ws' and opts.party_tp and party_jobs[pname] then
-            local tp_val = opts.party_tp[pname]
-            if type(tp_val) == 'number' then entry.tp = tp_val end
+        if atype == 'ws' and party_jobs[pname] then
+            local tp_val = nil
+            local me = windower.ffxi.get_player()
+            if me and me.id == act.actor_id and me.vitals and type(me.vitals.tp) == 'number' then
+                tp_val = me.vitals.tp
+            end
+            if tp_val == nil then
+                local pty = windower.ffxi.get_party()
+                if pty then
+                    for _, m in pairs(pty) do
+                        if type(m) == 'table' and m.mob and m.mob.id == act.actor_id and type(m.mob.tp) == 'number' then
+                            tp_val = m.mob.tp
+                            break
+                        end
+                    end
+                end
+            end
+            if tp_val == nil and opts.party_tp then
+                local cached = opts.party_tp[pname]
+                if type(cached) == 'number' then tp_val = cached end
+            end
+            if type(tp_val) == 'number' then
+                if tp_val < 1000 then tp_val = 1000 end
+                entry.tp = tp_val
+            end
         end
         table.insert(action_log, entry)
         if ff_live_state_mark_engaged then

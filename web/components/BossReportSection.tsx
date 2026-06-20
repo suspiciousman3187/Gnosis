@@ -605,7 +605,7 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                     .filter(t => t.player === entry.name)
                     .sort((a, b) => a.elapsed - b.elapsed);
                   const tpForWs = (ws: ActionLogEntry): number | null => {
-                    if (typeof ws.tp === 'number') return ws.tp;
+                    if (typeof ws.tp === 'number') return Math.max(1000, ws.tp);
                     if (tpSeries.length === 0) return null;
                     let bestIdx = -1;
                     for (let i = 0; i < tpSeries.length; i++) {
