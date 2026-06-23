@@ -1,7 +1,6 @@
 import { openExternal } from './library';
-import { useLiveActive } from './multibox';
 
-export type Section = 'home' | 'history' | 'live' | 'activities' | 'loot' | 'trends' | 'compare' | 'overlay' | 'settings' | 'diagnostics';
+export type Section = 'home' | 'history' | 'activities' | 'loot' | 'trends' | 'compare' | 'overlay' | 'settings' | 'diagnostics';
 
 const DISCORD_URL = 'https://discord.com/invite/vSgYvdh8gT';
 const GITHUB_URL = 'https://github.com/suspiciousman3187';
@@ -21,11 +20,6 @@ const ICONS: Record<Section, React.ReactNode> = {
       <line x1="9" y1="12" x2="20" y2="12" />
       <circle cx="5" cy="17" r="1.1" fill="currentColor" stroke="none" />
       <line x1="9" y1="17" x2="20" y2="17" />
-    </svg>
-  ),
-  live: (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 12h4l2.5-7 4 14 2.5-7H21" />
     </svg>
   ),
   // Grid of squares - "activities" = collection / catalog. Matches the rail's
@@ -74,11 +68,10 @@ const ICONS: Record<Section, React.ReactNode> = {
     </svg>
   ),
 };
-const LABELS: Record<Section, string> = { home: 'Home', history: 'History', live: 'Live', activities: 'Activities', loot: 'Loot', trends: 'Trends', compare: 'Compare', overlay: 'Overlay', settings: 'Settings', diagnostics: 'Diag' };
+const LABELS: Record<Section, string> = { home: 'Home', history: 'History', activities: 'Activities', loot: 'Loot', trends: 'Trends', compare: 'Compare', overlay: 'Overlay', settings: 'Settings', diagnostics: 'Diag' };
 const ORDER: Section[] = ['home', 'history', 'loot', 'overlay', 'settings', 'diagnostics'];
 
 export default function NavRail({ section, onSelect, isAdmin = false }: { section: Section; onSelect: (s: Section) => void; isAdmin?: boolean }) {
-  const liveActive = useLiveActive();
   const visibleOrder = isAdmin ? ORDER : ORDER.filter(s => s !== 'diagnostics');
   return (
     <nav className="bg-nav w-16 shrink-0 border-r border-white/10 flex flex-col items-stretch py-2">
@@ -97,9 +90,6 @@ export default function NavRail({ section, onSelect, isAdmin = false }: { sectio
             {on
               ? <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-accent" />
               : <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity" />}
-            {s === 'live' && liveActive && (
-              <span className="absolute top-1.5 right-3 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            )}
             {ICONS[s]}
             <span className="text-[10px] font-medium">{LABELS[s]}</span>
           </button>

@@ -25,7 +25,7 @@ local function rate(metric)
     return math.floor((sum / oldest) * 3600)
 end
 
-windower.register_event('incoming chunk', function(id, org, modi, is_injected, is_blocked)
+windower.register_event('incoming chunk', ff_perf_event('incoming_chunk', function(id, org, modi, is_injected, is_blocked)
     if is_injected or is_blocked then return end
     if id ~= 0x029 and id ~= 0x02D then return end
     local ok, p = pcall(packets.parse, 'incoming', org)
@@ -37,7 +37,7 @@ windower.register_event('incoming chunk', function(id, org, modi, is_injected, i
     elseif msg == 718 or msg == 735 then add('cp', val)
     elseif msg == 809 or msg == 810 then add('ep', val)
     elseif msg == 371 or msg == 372 then add('lp', val) end
-end)
+end))
 
 function ff_points_rates()
     return {

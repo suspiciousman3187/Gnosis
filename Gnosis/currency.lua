@@ -42,13 +42,13 @@ local function update_currency_values_from_packet(packet_id, packet_data)
 end
 
 -- Register packet handlers
-windower.register_event('incoming chunk', function(id, original, modified, injected, blocked)
+windower.register_event('incoming chunk', ff_perf_event('incoming_chunk', function(id, original, modified, injected, blocked)
     if id == 0x118 then
         cur2packet = packets.parse('incoming', original)
         curpackettype = 2
         update_currency_values_from_packet(0x118, cur2packet)
     end
-end)
+end))
 
 -- Function to request currency updates
 function currency.request_update()

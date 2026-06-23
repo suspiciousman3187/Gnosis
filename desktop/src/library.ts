@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { isReportFile, fileTs, DEFAULT_TRACKER_PREFS, type TrackerStatus, type TrackingMode, type TrackerLive, type TrackerPrefs } from './content';
+import { isReportFile, fileTs, DEFAULT_TRACKER_PREFS, type TrackingMode, type TrackerPrefs } from './content';
 
 const joinDir = (dir: string, name: string) => dir.replace(/[\\/]+$/, '') + '\\' + name;
 
@@ -39,32 +39,9 @@ export async function openExternal(url: string): Promise<void> {
   window.open(url, '_blank', 'noopener');
 }
 
-// ── Tracker control bridge ──────────────────────────────────────────────────
-// Read the addon's published state; null if it hasn't been written yet.
-export async function readTrackerStatus(dir: string): Promise<TrackerStatus | null> {
-  try {
-    return JSON.parse(await invoke<string>('read_text_file', { path: joinDir(dir, 'tracker_status.json') })) as TrackerStatus;
-  } catch {
-    return null;
-  }
-}
-
-// Read the live combat snapshot for the overlay; null if not present.
-export async function readTrackerLive(dir: string): Promise<TrackerLive | null> {
-  try {
-    return JSON.parse(await invoke<string>('read_text_file', { path: joinDir(dir, 'tracker_live.json') })) as TrackerLive;
-  } catch {
-    return null;
-  }
-}
-
-// Send a tracking command to the addon. The nonce makes each write a distinct
-// command the addon applies exactly once.
-export async function writeTrackerControl(dir: string, cmd: { mode?: TrackingMode; idleTimeout?: number; lightweight?: boolean; disableMovement?: boolean; wantsLiveCombat?: boolean; trackCurrency?: boolean; action?: 'save' }): Promise<void> {
-  await invoke('write_text_file', {
-    path: joinDir(dir, 'tracker_control.json'),
-    contents: JSON.stringify({ ...cmd, nonce: Date.now() }),
-  });
+export async function writeTrackerControl(_dir: string, cmd: { mode?: TrackingMode; idleTimeout?: number; lightweight?: boolean; disableMovement?: boolean; trackCurrency?: boolean; action?: 'save' }): Promise<void> {
+  if (!inTauri) return;
+  await invoke('ipc_broadcast', { line: JSON.stringify({ t: 'control', ...cmd }) });
 }
 
 export async function readTrackerPrefs(dir: string): Promise<TrackerPrefs> {

@@ -1007,9 +1007,7 @@ function ff_gear_result()
     return gear_log, state_sets
 end
 
--- Local-player gear/state capture - independent of each module's own action
--- handler; only acts while a recorder is active (ff_gear_start..ff_gear_stop).
-windower.register_event('action', function(act)
+ff_register_action_handler(function(act)
     if not _g.active or not act then return end
     local me = windower.ffxi.get_player()
     if not me then return end
@@ -1044,9 +1042,9 @@ windower.register_event('status change', function(new)
     local base = STATUS_LABEL[new]
     if base then _arm_state(base) end
 end)
-windower.register_event('outgoing chunk', function(id, data)
+ff_register_outgoing_chunk_handler(function(id, data)
     if not _g.active or id ~= 0x01A then return end
-    if (data:unpack('H', 0x0A + 1)) == 16 then _arm_state('Ranged') end  -- Category 16 = RA
+    if (data:unpack('H', 0x0A + 1)) == 16 then _arm_state('Ranged') end
 end)
 
 FF_SPAWN_TYPE_MOB = 16
@@ -1151,7 +1149,7 @@ function ff_progression_snapshot(p)
     }
 end
 
-windower.register_event('action', function(act)
+ff_register_action_handler(function(act)
     if act and act.actor_id and FF_START_CATEGORIES[act.category] then
         ff_pending_action_start(act)
     end

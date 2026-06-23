@@ -49,22 +49,6 @@ function _stream_encode(f, v, depth)
     end
 end
 
-function _stream_encode_to_string_coop(tbl)
-    local parts = {}
-    -- Mimic the io.file `:write(s)` API _stream_encode expects.
-    local writer = { write = function(_, s) parts[#parts + 1] = s end }
-    _coop, _enc_check, _slice_start = true, 0, os.clock()
-    local co = coroutine.create(function() _stream_encode(writer, tbl) end)
-    while true do
-        local rok, rerr = coroutine.resume(co)
-        if not rok then _coop = false; return nil, rerr end
-        if coroutine.status(co) == 'dead' then break end
-        coroutine.sleep(0)
-    end
-    _coop = false
-    return table.concat(parts), nil
-end
-
 -- cooperative=true => yield periodically while encoding (caller MUST be running
 -- inside a Windower coroutine, e.g. generate_report or a coroutine.schedule fn).
 function _write_table_streamed(target_path, tbl, cooperative)
@@ -100,6 +84,7 @@ function _write_table_streamed(target_path, tbl, cooperative)
         ok, err = pcall(_stream_encode, f, tbl)
     end
     local _ms_enc = math.floor((os.clock() - _t_enc) * 1000)
+    if ff_perf_record_save then ff_perf_record_save(_ms_enc) end
     local _t_close = os.clock()
     f:close()
     local _ms_close = math.floor((os.clock() - _t_close) * 1000)

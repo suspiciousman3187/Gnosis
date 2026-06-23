@@ -88,38 +88,6 @@ function ff_ipc_send_action(entry)
     ff_ipc_send({ t = 'action', seq = ipc_seq, e = entry })
 end
 
-local _combat_encoding_busy = false
-local LIVE_COMBAT_TOUCH_TTL_SEC = 300
-
-function ff_ipc_send_combat()
-    if not ipc_connected then return end
-    if _combat_encoding_busy then return end
-    local cs = ff_live_combat_stats
-    if type(cs) ~= 'table' or next(cs) == nil then return end
-    local start_ts = ff_live_combat_start
-    local trimmed = cs
-    local touched = ff_cs_touched
-    if type(touched) == 'table' then
-        local now = os.time()
-        trimmed = {}
-        for mob, players in pairs(cs) do
-            local t = touched[mob]
-            if t and (now - t) <= LIVE_COMBAT_TOUCH_TTL_SEC then
-                trimmed[mob] = players
-            end
-        end
-        if next(trimmed) == nil then return end
-    end
-    _combat_encoding_busy = true
-    coroutine.schedule(function()
-        local line, err = _stream_encode_to_string_coop({ t = 'combat', cs = trimmed, start = start_ts })
-        _combat_encoding_busy = false
-        if line then
-            ff_ipc_send_raw_line(line)
-        elseif err then end
-    end, 0)
-end
-
 function ff_ipc_send_live(payload)
     if not ipc_connected or type(payload) ~= 'table' then return end
     ff_ipc_send({ t = 'live', live = payload })
@@ -128,6 +96,32 @@ end
 function ff_ipc_send_kill(entry)
     if not ipc_connected or type(entry) ~= 'table' then return end
     ff_ipc_send({ t = 'kill', kill = entry })
+end
+
+function ff_ipc_send_status(status)
+    if not ipc_connected or type(status) ~= 'table' then return end
+    status.t = 'status'
+    ff_ipc_send(status)
+end
+
+local _rx_partial = ''
+function ff_ipc_drain_inbound(handler)
+    if not ipc_sock or type(handler) ~= 'function' then return 0 end
+    local n = 0
+    for _ = 1, 32 do
+        local line, err, part = ipc_sock:receive('*l')
+        if line then
+            if _rx_partial ~= '' then line = _rx_partial .. line; _rx_partial = '' end
+            n = n + 1
+            local ok, obj = pcall(json.decode, line)
+            if ok and type(obj) == 'table' then pcall(handler, obj) end
+        else
+            if part and part ~= '' then _rx_partial = _rx_partial .. part end
+            if err == 'closed' then ipc_disconnect() end
+            break
+        end
+    end
+    return n
 end
 
 -- Encounter boundary markers so the app knows when a box opens/closes a fight.

@@ -12,6 +12,7 @@ local SPAWN_TYPE_PET = 18
 local CLASS = {}
 local LISTENERS = {}
 local PENDING_JOB = {}
+local _unknown_count = 0
 
 local function _classify_from_mob(mob)
     if type(mob) ~= 'table' then return FF_CLASS_UNKNOWN end
@@ -46,6 +47,7 @@ function ff_entity_classify(pid)
     if result ~= FF_CLASS_UNKNOWN then
         if CLASS[pid] ~= result then
             local prev = CLASS[pid]
+            if prev == FF_CLASS_UNKNOWN then _unknown_count = _unknown_count - 1 end
             CLASS[pid] = result
             _emit_resolved(pid, prev, result)
         end
@@ -61,6 +63,7 @@ function ff_entity_class_observe(pid, mob)
     local result = _classify_from_mob(mob)
     if result ~= FF_CLASS_UNKNOWN then
         local prev = CLASS[pid]
+        if prev == FF_CLASS_UNKNOWN then _unknown_count = _unknown_count - 1 end
         CLASS[pid] = result
         _emit_resolved(pid, prev, result)
         return result
@@ -70,7 +73,10 @@ end
 
 function ff_entity_class_mark_pending(pid)
     if not pid or pid == 0 then return end
-    if CLASS[pid] == nil then CLASS[pid] = FF_CLASS_UNKNOWN end
+    if CLASS[pid] == nil then
+        CLASS[pid] = FF_CLASS_UNKNOWN
+        _unknown_count = _unknown_count + 1
+    end
 end
 
 function ff_entity_class_subscribe(fn)
@@ -78,12 +84,14 @@ function ff_entity_class_subscribe(fn)
 end
 
 function ff_entity_class_pump()
+    if _unknown_count <= 0 then return end
     for pid, cls in pairs(CLASS) do
         if cls == FF_CLASS_UNKNOWN then
             local mob = windower.ffxi.get_mob_by_id(pid)
             local result = _classify_from_mob(mob)
             if result ~= FF_CLASS_UNKNOWN then
                 CLASS[pid] = result
+                _unknown_count = _unknown_count - 1
                 _emit_resolved(pid, FF_CLASS_UNKNOWN, result)
             end
         end

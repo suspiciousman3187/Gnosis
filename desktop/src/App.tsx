@@ -3,13 +3,11 @@ const EncounterView = lazy(() => import('@/components/EncounterView'));
 const ContentView = lazy(() => import('./ContentView'));
 import TrackingControls from './TrackingControls';
 import LoadingScreen from './LoadingScreen';
-import { startMultibox } from './multibox';
 import TitleBar from './TitleBar';
 const TrendsView = lazy(() => import('./TrendsView'));
 const CompareView = lazy(() => import('./CompareView'));
 import NavRail, { type Section } from './NavRail';
 import { useAdminStatus } from './useAdminStatus';
-import LiveView from './LiveView';
 import LootView from './LootView';
 import ActivitiesView from './ActivitiesView';
 import HistoryView from './HistoryView';
@@ -38,7 +36,8 @@ import { ItemIconContext } from '@/components/ItemIcon';
 import { BuffIconContext } from '@/components/BuffIcon';
 import { anonymize } from './anonymize';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
-import { inTauri, listReportFiles, readText, deleteFile, fileTs, readTrackerStatus, writeTrackerControl, readTrackerPrefs, writeTrackerPrefs, compressIdleFiles } from './library';
+import { inTauri, listReportFiles, readText, deleteFile, fileTs, writeTrackerControl, readTrackerPrefs, writeTrackerPrefs, compressIdleFiles } from './library';
+import { useTrackerStatus, startMultibox } from './multibox';
 import { showOverlay, hideOverlay, setOverlayClickthrough } from './overlay';
 import { getCheckOnStartupEnabled } from './updater';
 import StartupUpdateCheck from './StartupUpdateCheck';
@@ -300,45 +299,33 @@ function AppMain() {
     } catch (e) { setError(String(e)); }
   }, [dir]);
 
-  // Poll the addon's published tracking state (faster than the file list so the
-  // live timer and mode stay responsive).
+  const ipcStatus = useTrackerStatus();
   useEffect(() => {
-    if (!inTauri || !dir) return;
-    let alive = true;
+    const s = ipcStatus;
+    if (!s) return;
     const OFF_DEBOUNCE_TICKS = 3;
-    const tick = async () => {
-      const s = await readTrackerStatus(dir);
-      if (!alive) return;
-      if (!s) return;
-      const pend = pendingMode.current;
-      if (pend) {
-        if (s.mode === pend.mode) pendingMode.current = null;
-        else if (Date.now() < pend.until) { setStatus({ ...s, mode: pend.mode }); return; }
-        else pendingMode.current = null;
-      }
-      let effectiveMode: TrackingMode = s.mode;
-      setStatus(prev => {
-        if (prev && s.mode === 'off' && prev.mode !== 'off') {
-          offReadStreak.current += 1;
-          if (offReadStreak.current < OFF_DEBOUNCE_TICKS) {
-            effectiveMode = prev.mode;
-            return { ...s, mode: prev.mode };
-          }
-        } else {
-          offReadStreak.current = 0;
+    const pend = pendingMode.current;
+    if (pend) {
+      if (s.mode === pend.mode) pendingMode.current = null;
+      else if (Date.now() < pend.until) { setStatus({ ...s, mode: pend.mode }); return; }
+      else pendingMode.current = null;
+    }
+    let effectiveMode: TrackingMode = s.mode;
+    setStatus(prev => {
+      if (prev && s.mode === 'off' && prev.mode !== 'off') {
+        offReadStreak.current += 1;
+        if (offReadStreak.current < OFF_DEBOUNCE_TICKS) {
+          effectiveMode = prev.mode;
+          return { ...s, mode: prev.mode };
         }
-        return s;
-      });
-      setTrackPrefs(p => (effectiveMode !== p.mode ? { ...p, mode: effectiveMode } : p));
-    };
-    tick();
-    const id = setInterval(() => { if (!document.hidden) void tick(); }, 1500);
-    const onVis = () => { if (!document.hidden) void tick(); };
-    document.addEventListener('visibilitychange', onVis);
-    return () => { alive = false; clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
-  }, [dir]);
+      } else {
+        offReadStreak.current = 0;
+      }
+      return s;
+    });
+    setTrackPrefs(p => (effectiveMode !== p.mode ? { ...p, mode: effectiveMode } : p));
+  }, [ipcStatus]);
 
-  // A fresh status file means the addon is loaded and writing (15s idle heartbeat).
   const connected = !!status && (Date.now() / 1000 - status.updatedAt) < 25;
 
   const sendCommand = useCallback(async (cmd: { mode?: TrackingMode; action?: 'save' }) => {
@@ -773,13 +760,6 @@ function AppMain() {
               <Suspense fallback={<div className="text-gray-600 text-xs py-12 text-center">Loading Compare…</div>}>
                 <CompareView paths={paths} anon={anon} onOpen={(p) => openFromTrends(p, 'compare')} />
               </Suspense>
-            </div>
-          </div>
-        )}
-        {section === 'live' && (
-          <div className="h-full">
-            <div className="mx-auto max-w-6xl px-6 py-6">
-              <LiveView dir={dir} />
             </div>
           </div>
         )}

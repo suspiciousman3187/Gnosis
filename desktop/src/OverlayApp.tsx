@@ -2,12 +2,11 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { emit } from '@tauri-apps/api/event';
 import type { LivePlayer, TrackerLive } from './content';
-import { startMultibox, useBoxes, useLiveGroups, useLiveOverlayGroups, addCombatSubscriber, type KillEvent } from './multibox';
+import { startMultibox, useBoxes, useLiveOverlayGroups, type KillEvent } from './multibox';
 import { inTauri } from './library';
 import { JOB_FULL_NAMES } from '@/lib/anonymize';
 import { JOB_ICONS, mainJobKey } from '@/components/JobIcon';
 import { imgSrc } from '@/lib/img';
-import { aggregateFilteredPlayers, mobKeyFromDisplay } from './overlayFilter';
 import type { LiveTarget } from './content';
 
 const CTRL = 'w-5 h-5 flex items-center justify-center rounded hover:bg-white/15 transition-colors';
@@ -137,7 +136,6 @@ export default function OverlayApp() {
 
   // Subscribe to the multibox IPC stream in this (overlay) window's context.
   useEffect(() => { startMultibox(); }, []);
-  useEffect(() => addCombatSubscriber(), []);
 
   useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
 
@@ -160,7 +158,6 @@ export default function OverlayApp() {
   }, []);
 
   const groups = useLiveOverlayGroups();
-  const heavyGroups = useLiveGroups();
 
   const selected = demo
     ? null
@@ -186,11 +183,6 @@ export default function OverlayApp() {
   };
   const live: TrackerLive | null = paused ? pausedLive : liveSource;
   const zoneTitle = paused ? pausedZoneTitle : zoneTitleSource;
-
-  const heavyGroup = useMemo(
-    () => selected ? heavyGroups.find(g => g.key === selected.key) : undefined,
-    [heavyGroups, selected?.key],
-  );
 
   const allBoxes = useBoxes();
 
@@ -383,7 +375,7 @@ export default function OverlayApp() {
       // Per-mob elapsed: (ended ?? now) - since. Falls back to encounter
       // duration when the timing stamps are missing (older addon build).
       const t = focusedMob.target;
-      let dur = heavyGroup?.durationSeconds ?? live?.elapsed ?? 0;
+      let dur = live?.elapsed ?? 0;
       if (t.since != null) {
         const nowSec = Math.floor(Date.now() / 1000);
         const endSec = t.ended ?? nowSec;
@@ -393,9 +385,6 @@ export default function OverlayApp() {
       const jobByName: Record<string, string> = {};
       for (const p of (live?.players ?? [])) {
         if (p.job) jobByName[p.name] = p.job;
-      }
-      for (const p of (heavyGroup?.party ?? [])) {
-        if (p.mainJob) jobByName[p.name] = p.mainJob;
       }
       const merged: Record<string, number> = {};
       let partyDamage = 0;
@@ -415,22 +404,8 @@ export default function OverlayApp() {
       players.sort((a, b) => b.damage - a.damage);
       return { players, partyDamage, partyDps: dur > 0 ? Math.round(partyDamage / dur) : 0 };
     }
-    if (heavyGroup) {
-      const filterSet = new Set([mobKeyFromDisplay(focus.name)]);
-      const partyByName = new Map(heavyGroup.party.map(p => [p.name, p]));
-      for (const lp of (live?.players ?? [])) {
-        const existing = partyByName.get(lp.name);
-        if (!existing && lp.job) {
-          partyByName.set(lp.name, { name: lp.name, mainJob: lp.job, subJob: '', mainLevel: 0, subLevel: 0 });
-        } else if (existing && !existing.mainJob && lp.job) {
-          partyByName.set(lp.name, { ...existing, mainJob: lp.job });
-        }
-      }
-      const enrichedParty = Array.from(partyByName.values());
-      return aggregateFilteredPlayers(heavyGroup.combatStats, filterSet, enrichedParty, heavyGroup.durationSeconds);
-    }
     return null;
-  }, [focus, focusedMob, heavyGroup, live?.elapsed, live?.players]);
+  }, [focus, focusedMob, live?.elapsed, live?.players]);
 
   const recording = !!live?.recording;
   const isSingleBox = groups.length <= 1;

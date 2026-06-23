@@ -652,18 +652,14 @@ export default function DiagnosticsView({ content }: { content: LoadedContent | 
               )}
             </Section>
 
-            <Section title="Multibox / Live Combat" total={fmtMB(snap.multibox.totalBytes)}>
-              <Row
-                label={`${snap.multibox.boxCount} characters`}
-                value={`${snap.multibox.combatSubscribers} combat subs`}
-                sub={snap.multibox.combatSubscribers > 0 ? 'live stream OPEN' : 'stream closed'}
-              />
+            <Section title="Multibox" total={fmtMB(snap.multibox.totalBytes)}>
+              <Row label={`${snap.multibox.boxCount} characters`} value="" />
               {snap.multibox.boxes.map((b, i) => (
                 <Row
                   key={i}
                   label={b.name ?? `Char ${i + 1}`}
                   value={fmtKB(b.totalBytes)}
-                  sub={`c ${fmtKB(b.combatBytes)} · l ${fmtKB(b.liveBytes)} · ${b.killHistoryCount} kills`}
+                  sub={`l ${fmtKB(b.liveBytes)} · ${b.killHistoryCount} kills`}
                   warn={b.totalBytes > 10 * 1024 * 1024}
                 />
               ))}

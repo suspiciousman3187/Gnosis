@@ -33,12 +33,10 @@ local cfg = {
     mode = 'off',
     gate = 'off',
     boundary = nil,
-    idle_timeout = 30,        -- seconds of no combat that closes a combat-idle encounter
-    lightweight = false,      -- skip HP/TP/position sampling; keep combat parse only
-    disable_movement = false, -- skip position sampling ONLY (keeps HP/TP/combat). Independent
-                              -- knob users set when they want full combat data but no Map tab.
+    idle_timeout = 30,
+    lightweight = true,
+    disable_movement = true,
     prune_empty_zones = true, -- discard a zone encounter that saw no combat (towns, etc.)
-    wants_live_combat = false,
     track_outsiders = false,
     track_currency = false,    -- experimental; opt-in. Adds a 3s wait at encounter close for 0x0113/0x0118 replies.
     debug = false,             -- gates verbose save-trace + [perf] telemetry chat lines (silent in normal use).
@@ -113,7 +111,25 @@ local PET_NAMES = { ['Luopan'] = true }
 -- when the job-bearing 0x0DD only fires before tracking starts (the common case).
 local job_cache = {}
 local job_cache_dirty = false
+local job_cache_last_save = 0
+local JOB_CACHE_DEBOUNCE_SEC = 30
+local JOB_CACHE_CAP = 500
+local JOB_CACHE_TRIM_TO = 400
 local JOB_CACHE_PATH = windower.addon_path .. 'data/styx_jobs.json'
+local function trim_job_cache_if_full()
+    local n = 0
+    for _ in pairs(job_cache) do n = n + 1 end
+    if n <= JOB_CACHE_CAP then return end
+    local entries = {}
+    for id, rec in pairs(job_cache) do
+        entries[#entries + 1] = { id = id, seen = (rec.seen or 0) }
+    end
+    table.sort(entries, function(a, b) return a.seen > b.seen end)
+    for i = JOB_CACHE_TRIM_TO + 1, #entries do
+        job_cache[entries[i].id] = nil
+    end
+    job_cache_dirty = true
+end
 local function load_job_cache()
     local f = io.open(JOB_CACHE_PATH, 'r')
     if not f then return end
@@ -125,15 +141,18 @@ local function load_job_cache()
             if nid and type(v) == 'table' and v.main then job_cache[nid] = v end
         end
     end
+    trim_job_cache_if_full()
 end
-local function save_job_cache()
+local function save_job_cache(force)
     if not job_cache_dirty then return end
+    if not force and (os.clock() - job_cache_last_save) < JOB_CACHE_DEBOUNCE_SEC then return end
     local f = io.open(JOB_CACHE_PATH, 'w')
     if not f then return end
     local ok, s = pcall(json.encode, job_cache)
     if ok and s then f:write(s) end
     f:close()
     job_cache_dirty = false
+    job_cache_last_save = os.clock()
 end
 load_job_cache()
 
@@ -200,15 +219,19 @@ local function sync_party_jobs(into)
                     if v.main_job and v.main_job ~= 0 then
                         into[name] = { main = JOB_MAP[v.main_job] or tostring(v.main_job), main_lvl = v.main_job_level or 0, sub = JOB_MAP[v.sub_job] or '', sub_lvl = v.sub_job_level or 0 }
                         if not job_cache[v.id] then
-                            job_cache[v.id] = { name = v.name, main = into[name].main, main_lvl = into[name].main_lvl, sub = into[name].sub, sub_lvl = into[name].sub_lvl }
+                            job_cache[v.id] = { name = v.name, main = into[name].main, main_lvl = into[name].main_lvl, sub = into[name].sub, sub_lvl = into[name].sub_lvl, seen = os.time() }
                             job_cache_dirty = true
+                            trim_job_cache_if_full()
+                        else
+                            job_cache[v.id].seen = os.time()
                         end
                     else
                         local pending = ff_entity_class_take_pending_job(v.id)
                         if pending and pending.main then
                             into[name] = { main = pending.main, main_lvl = pending.main_lvl or 0, sub = pending.sub or '', sub_lvl = pending.sub_lvl or 0 }
-                            job_cache[v.id] = { name = v.name, main = pending.main, main_lvl = pending.main_lvl or 0, sub = pending.sub or '', sub_lvl = pending.sub_lvl or 0 }
+                            job_cache[v.id] = { name = v.name, main = pending.main, main_lvl = pending.main_lvl or 0, sub = pending.sub or '', sub_lvl = pending.sub_lvl or 0, seen = os.time() }
                             job_cache_dirty = true
+                            trim_job_cache_if_full()
                         else
                             local jc = job_cache[v.id]
                             if jc and jc.main and jc.main ~= '?' then
@@ -342,9 +365,10 @@ local function open_encounter(segmentation)
     local src = detect_source(zid, zname)
     local live_only = (src == 'sortie')
     local start_os = os.time()
+    if not live_only and ff_perf_encounter_open then ff_perf_encounter_open() end
     -- Open the shared per-instance live-overlay state. We alias its tables
     -- into enc.* below so the existing handlers (track_capture_targets, the
-    -- 0x000E HP sampler, write_tracker_live) keep referencing them by the
+    -- 0x000E HP sampler, push_tracker_live) keep referencing them by the
     -- same field names. next_kill_seq stays internal to live_state (it's a
     -- number - can't be shared by reference in Lua); the 0x000E handler now
     -- delegates the death snapshot to ff_live_state_hp_update which owns it.
@@ -363,7 +387,6 @@ local function open_encounter(segmentation)
         live_only          = live_only,
         segmentation       = segmentation,
         action_log         = {},
-        combat_stats       = {},   -- native Parse-equivalent damage/stat accumulation
         skillchain_log     = {},
         buff_log           = {},
         item_use_log       = {},
@@ -439,12 +462,6 @@ local function open_encounter(segmentation)
     -- Start shared gear/state capture for this encounter window. Skip for
     -- live-only (content) encounters - the content module owns gear capture.
     if not live_only and ff_gear_start then enc.gear_token = ff_gear_start(enc.start_os) end
-    -- Drive the desktop live combat view from this encounter's stats. Content
-    -- zones are owned by the content module, which sets the pointer itself.
-    if not live_only then
-        ff_live_combat_stats = enc.combat_stats
-        ff_live_combat_start = enc.start_os
-    end
     -- Currency tracking: seed currency_start from the module-level cache
     -- (any 0x0113/0x0118 we've ever seen this session) so we always have a
     -- baseline even if the request below is rate-limited, missed, or its
@@ -619,8 +636,6 @@ local function close_encounter()
     -- Live-only (content) encounter: it only drove the overlay - discard it, and
     -- leave the content module's gear capture untouched (we never started one).
     if enc.live_only then enc = nil; return end
-    ff_live_combat_stats = nil
-    ff_live_combat_start = nil
 
     local _trace = {}
     local _last_t = os.clock()
@@ -720,10 +735,6 @@ local function close_encounter()
         keyItemLog       = arr(enc.key_item_log),
         gearLog          = gear_log or json.null,
         stateSets        = state_sets or json.null,
-        -- combatStats dropped; the desktop derives it from actionLog via
-        -- combatStatsFromActionLog when the field is empty. Live overlay still
-        -- reads enc.combat_stats via ff_live_combat_stats - unaffected.
-        combatStats      = json.null,
         enemyReports     = json.null,
         content          = { type = source },
         notes            = '',
@@ -746,7 +757,8 @@ local function close_encounter()
     local zone_segment = (gn_zone_path_segment and gn_zone_path_segment(enc.zone_name)) or 'Unknown'
     local zone_dir    = windower.addon_path .. 'data/' .. zone_segment
     if gn_ensure_dir then gn_ensure_dir(zone_dir) end
-    local save_path = zone_dir .. '/' .. ('encounter_%d__%s.json'):format(enc.start_os, tag)
+    local save_basename = ('encounter_%d__%s'):format(enc.start_os, tag)
+    local save_path = zone_dir .. '/' .. save_basename .. '.json'
     local enemy_count = #encounter.enemies
 
     if cfg and cfg.debug then
@@ -827,6 +839,10 @@ local function close_encounter()
             gn_chat(('Encounter saved%s: %ds, %d enemies. save=%dms%s')
                 :format(label, duration, enemy_count, _enc_ms, cur_tail))
             if telemetry and cfg and cfg.debug then gn_chat(('[perf] %s'):format(tostring(telemetry))) end
+            if ff_perf_encounter_close_dump then
+                local rel = ff_perf_encounter_close_dump(save_basename)
+                if rel then gn_chat('Debug performance log saved: ' .. rel) end
+            end
         else
             gn_chat_err('Encounter save failed.')
         end
@@ -1019,8 +1035,7 @@ end
 -- content modules get it too. We just start it on open and fold the result on
 -- close - no gear/state event handling here anymore.
 
--- ── Capture: action packets ─────────────────────────────────────────────────
-windower.register_event('action', function(act)
+ff_register_action_handler(function(act)
     if not act then return end
     -- Lazy content-zone arm: if we entered a content zone before the addon
     -- loaded (no zone-change event fired for us), open the live-only enc on
@@ -1040,12 +1055,17 @@ windower.register_event('action', function(act)
         if j then
             local cur = job_cache[act.actor_id]
             if not cur or cur.main ~= j then
+                local was_new = (cur == nil)
                 job_cache[act.actor_id] = {
                     name = cur and cur.name, main = j,
                     main_lvl = (cur and cur.main_lvl) or 0,
                     sub = (cur and cur.sub) or '', sub_lvl = (cur and cur.sub_lvl) or 0,
+                    seen = os.time(),
                 }
                 job_cache_dirty = true
+                if was_new then trim_job_cache_if_full() end
+            elseif cur then
+                cur.seen = os.time()
             end
         end
     end
@@ -1087,9 +1107,6 @@ windower.register_event('action', function(act)
                 pet_names        = enc.pet_names_seen,
                 party_tp         = enc.last_party_tp,
             })
-            -- Native combat stats (replaces the external Parse addon); the desktop
-            -- live view consumes these via the periodic ff_ipc_send_combat stream.
-            if ff_combat_accumulate then ff_combat_accumulate(enc.combat_stats, act) end
         end
         -- Shared live-overlay accumulation: per-mob-instance damage map
         -- (drives Focus Mob), enemy_ids gate (scopes the 0x000E HP sampler),
@@ -1114,8 +1131,7 @@ windower.register_event('action', function(act)
     ff_log_action_interrupt(enc.action_log, enc.start_os, act, { party_jobs = jobs })
 end)
 
--- ── Party job capture (0x0DD), ungated - the host's runs only in Sortie ─────
-windower.register_event('incoming chunk', function(id, data)
+local function _chunk_party_jobs(id, data)
     if id ~= 0xDD then return end
     local ok, packet = pcall(packets.parse, 'incoming', data)
     if not ok or not packet then return end
@@ -1129,10 +1145,13 @@ windower.register_event('incoming chunk', function(id, data)
             main_lvl = packet['Main job level'] or 0,
             sub      = JOB_MAP[packet['Sub job']] or '',
             sub_lvl  = packet['Sub job level'] or 0,
+            seen     = os.time(),
         }
         if cls == FF_CLASS_PC then
+            local was_new = (job_cache[pid] == nil)
             job_cache[pid] = record
             job_cache_dirty = true
+            if was_new then trim_job_cache_if_full() end
         elseif cls == FF_CLASS_UNKNOWN then
             ff_entity_class_set_pending_job(pid, record)
         end
@@ -1183,10 +1202,9 @@ windower.register_event('incoming chunk', function(id, data)
             math.floor(os.difftime(os.time(), enc.start_os)),
             resolved, hpp, pid)
     end
-end)
+end
 
--- ── Boss HP series + self-buff diffs + buff wear (0x000E / 0x063 / 0x029) ────
-windower.register_event('incoming chunk', function(id, data)
+local function _chunk_misc(id, data)
     -- Baseline-tracking handlers run BEFORE the enc gate so cache state stays
     -- accurate across non-tracking periods. They only emit log entries when an
     -- encounter is open.
@@ -1502,16 +1520,21 @@ windower.register_event('incoming chunk', function(id, data)
         end
         return
     end
-end)
+end
 
--- ── Drops: temporary + direct (non-pool) loot ───────────────────────────────
+windower.register_event('incoming chunk', ff_perf_event('incoming_chunk', function(id, data)
+    _chunk_party_jobs(id, data)
+    _chunk_misc(id, data)
+end))
+
+
 -- Treasure-pool drops + looter come from packets 0x0D2/0x0D3 above (robust,
 -- language-independent). Text only covers loot that never enters the pool:
 -- temporary items, and direct "Obtained:" grants. No chat output.
 local function clean_item(s)
     return (s:gsub('\239', ''):gsub('^%s+', ''):gsub('%s+$', ''))
 end
-windower.register_event('incoming text', function(original)
+windower.register_event('incoming text', ff_perf_event('incoming_text', function(original)
     if not enc then return end
     local s = strip_escape_codes(original):gsub('[\r\n]', '')
     local elapsed = math.floor(os.difftime(os.time(), enc.start_os))
@@ -1540,7 +1563,7 @@ windower.register_event('incoming text', function(original)
         table.insert(enc.drop_log, { name = name, elapsed = elapsed, type = 'direct' })
         return
     end
-end)
+end))
 
 -- Auto-open a LIVE-ONLY encounter when we're in a recognized content zone
 -- (Sortie/Odyssey/Limbus/Ambuscade), regardless of cfg.gate. The content
@@ -1571,7 +1594,7 @@ end
 
 -- ── Boundary: zone changes ──────────────────────────────────────────────────
 windower.register_event('zone change', function()
-    save_job_cache()
+    save_job_cache(true)
     -- Server re-pushes inventory state on zone-in. Suppress temp-item logging
     -- for a few seconds so the existing-items burst isn't recorded as gains.
     _temp_log_armed_at = os.clock() + 3
@@ -1630,23 +1653,16 @@ local function pos_moved(store, key, x, y, z)
     return false
 end
 
--- ── 1 Hz poll (party HP/TP) + combat-idle close ─────────────────────────────
 local last_ipc = 0
-windower.register_event('prerender', function()
+local _tracker_tick_extra = function() end
+windower.register_event('prerender', ff_perf_event('prerender', function()
     local c = os.clock()
-    -- Multibox channel runs regardless of encounter/gate: each box keeps the app
-    -- updated with its own authoritative identity/job, and reconnects if dropped.
     if c - last_ipc >= 1.0 then
         last_ipc = c
         if ff_ipc_ensure then ff_ipc_ensure() end
         if ff_ipc_send_self then ff_ipc_send_self() end
-        -- Gate the heavy combat_stats emit on whether the desktop's Live tab
-        -- is open. Without this, json.encode of the per-mob×player×ability
-        -- table runs at 1Hz forever and gets slower as the encounter grows
-        -- (200+ ms encodes after an hour in long sessions). When no one is
-        -- consuming the stream, the encode is wasted work that lags the
-        -- FFXI client - which is sharing this very thread.
-        if cfg.wants_live_combat and ff_ipc_send_combat then ff_ipc_send_combat() end
+        _tracker_tick_extra(c)
+        if ff_perf_tick then ff_perf_tick(c) end
     end
     -- Same gate principle as the action/HP handlers: if cfg.gate is off we
     -- still want per-mob HP polling to fill the overlay's LIVE list while
@@ -1654,10 +1670,8 @@ windower.register_event('prerender', function()
     -- live_only encounter.
     if not enc then return end
     -- Live-only encounters (recognized non-generic zones) are discarded on
-    -- close - their only job is to drive the live overlay/combat view. Tearing
-    -- them down on the 30s combat-idle lull (running between mobs, opening
-    -- chests, etc.) just makes the UI flap "Recording <-> waiting" and wipes
-    -- the live combat_stats pointer mid-run. Hold them open until zone change.
+    -- close - their only job is to drive the live overlay. Hold them open
+    -- until zone change so the UI doesn't flap "Recording <-> waiting".
     if cfg.boundary == 'combat-idle' and not enc.live_only and (c - enc.last_combat_clock) >= cfg.idle_timeout then
         if enc.segmentation == 'content-auto' and not enc.had_combat then
             enc.last_combat_clock = c
@@ -1780,26 +1794,15 @@ windower.register_event('prerender', function()
             end
         end
     end
-end)
+end))
 
 -- Don't lose an in-progress encounter on logout/unload.
-windower.register_event('logout', function() close_encounter(); save_job_cache() end)
-windower.register_event('unload', function() close_encounter(); save_job_cache() end)
+windower.register_event('logout', function() close_encounter(); save_job_cache(true) end)
+windower.register_event('unload', function() close_encounter(); save_job_cache(true) end)
 
--- ── Desktop control bridge (file channel) ──────────────────────────────────
--- The desktop app controls tracking by writing data/tracker_control.json
--- ({nonce, mode?, action?}); each new nonce is applied once. We publish current
--- state to data/tracker_status.json so the UI can reflect mode + live recording.
--- Same data folder the desktop already reads encounters from; tracker_* files
--- are ignored by the desktop's report listing (no report prefix).
-local CONTROL_PATH = windower.addon_path .. 'data/tracker_control.json'
-local STATUS_PATH  = windower.addon_path .. 'data/tracker_status.json'
-local LIVE_PATH    = windower.addon_path .. 'data/tracker_live.json'
 local PREFS_PATH   = windower.addon_path .. 'data/tracker_prefs.json'
-local last_control_nonce = nil
-local last_control_check = 0
-local last_status_write  = 0
-local last_status_key    = nil
+local last_status_key = nil
+local last_status_write = 0
 local last_live_recording = false
 
 local function read_json_file(path)
@@ -1820,25 +1823,29 @@ end
 local function write_tracker_prefs()
     local f = io.open(PREFS_PATH, 'w')
     if f then
-        f:write(json.encode({ mode = cfg.mode, idleTimeout = cfg.idle_timeout, lightweight = cfg.lightweight, disableMovement = cfg.disable_movement, wantsLiveCombat = cfg.wants_live_combat, trackOutsiders = cfg.track_outsiders, trackCurrency = cfg.track_currency }))
+        f:write(json.encode({ mode = cfg.mode, idleTimeout = cfg.idle_timeout, lightweight = cfg.lightweight, disableMovement = cfg.disable_movement, trackOutsiders = cfg.track_outsiders, trackCurrency = cfg.track_currency }))
         f:close()
     end
 end
 
-local function write_tracker_status()
-    -- "Recording" = either tracker.lua has its own enc open OR Gnosis.lua is
-    -- driving the shared live_state in Sortie. Sortie zones never satisfy
-    -- (enc ~= nil) here (we don't auto-arm there anymore), but the overlay
-    -- should still light up as recording.
+local function apply_control_cmd(cmd)
+    if type(cmd) ~= 'table' then return end
+    if cmd.action == 'save' then close_encounter(); return end
+    if type(cmd.idleTimeout) == 'number' then ff_tracker_set_timeout(cmd.idleTimeout) end
+    if type(cmd.lightweight) == 'boolean' then cfg.lightweight = cmd.lightweight; write_tracker_prefs() end
+    if type(cmd.disableMovement) == 'boolean' then cfg.disable_movement = cmd.disableMovement; write_tracker_prefs() end
+    if type(cmd.trackOutsiders) == 'boolean' then cfg.track_outsiders = cmd.trackOutsiders; write_tracker_prefs() end
+    if type(cmd.trackCurrency) == 'boolean' then cfg.track_currency = cmd.trackCurrency; write_tracker_prefs() end
+    if cmd.mode then ff_tracker_set_mode(cmd.mode) end
+end
+
+local function push_tracker_status(c)
     local live = ff_live_state_get()
     local recording = (enc ~= nil) or (live ~= nil)
     local zid = current_zone_id()
     local zone = (enc and enc.zone_name) or (live and live.zone_name) or zone_name_for(zid)
     local source = (enc and enc.source) or (live and live.source) or detect_source(zid, zone)
-    -- Skip rewrites when nothing meaningful changed (idle disk churn); refresh
-    -- every 2s while recording (live timer) and a 15s heartbeat when idle.
     local key = string.format('%s|%s|%s|%s|%d', cfg.mode, tostring(recording), tostring(zone), tostring(source), cfg.idle_timeout)
-    local c = os.clock()
     if key == last_status_key then
         if recording and (c - last_status_write) < 2 then return end
         if not recording and (c - last_status_write) < 15 then return end
@@ -1847,64 +1854,37 @@ local function write_tracker_status()
     local start_os = (enc and enc.start_os) or (live and live.start_os)
     local engaged = 0
     if live then for _ in pairs(live.enemy_ids) do engaged = engaged + 1 end end
-    local status = {
-        mode        = cfg.mode,
-        idleTimeout = cfg.idle_timeout,
-        recording = recording,
-        zone      = zone or json.null,
-        source    = (source and source ~= 'generic') and source or json.null,
-        elapsed   = (recording and start_os) and math.floor(os.difftime(os.time(), start_os)) or 0,
-        enemies   = engaged,
-        updatedAt = os.time(),
-    }
-    local f = io.open(STATUS_PATH, 'w')
-    if f then f:write(json.encode(status)); f:close() end
+    if ff_ipc_send_status then
+        ff_ipc_send_status({
+            mode        = cfg.mode,
+            idleTimeout = cfg.idle_timeout,
+            recording   = recording,
+            zone        = zone or json.null,
+            source      = (source and source ~= 'generic') and source or json.null,
+            elapsed     = (recording and start_os) and math.floor(os.difftime(os.time(), start_os)) or 0,
+            enemies     = engaged,
+            updatedAt   = os.time(),
+        })
+    end
 end
 
--- Live combat snapshot for the overlay: a tiny per-player damage/DPS list,
--- written ~1Hz while recording. Tiny by design (top 8) - safe to write often.
--- We delegate to ff_live_state_emit so this runs whether tracker.lua's enc
--- is open OR Gnosis.lua is the one driving the shared live_state in Sortie.
-local function write_tracker_live()
+local function push_tracker_live()
     if not ff_live_state_is_open() then
         if last_live_recording then
             last_live_recording = false
-            local f = io.open(LIVE_PATH, 'w'); if f then f:write('{"recording":false}'); f:close() end
             if ff_ipc_send_live then ff_ipc_send_live({ recording = false }) end
         end
         return
     end
     last_live_recording = true
-    local live = ff_live_state_emit()
-    local f = io.open(LIVE_PATH, 'w')
-    if f then f:write(json.encode(live)); f:close() end
-    -- Also stream per-box so the desktop overlay can group simultaneous fights by
-    -- zone (the shared file is stomped when boxes are in different zones).
-    if ff_ipc_send_live then ff_ipc_send_live(live) end
+    if ff_ipc_send_live then ff_ipc_send_live(ff_live_state_emit()) end
 end
 
-windower.register_event('prerender', function()
-    local c = os.clock()
-    if (c - last_control_check) < 1.0 then return end
-    last_control_check = c
-    local cmd = read_json_file(CONTROL_PATH)
-    if type(cmd) == 'table' and cmd.nonce ~= last_control_nonce then
-        last_control_nonce = cmd.nonce
-        if cmd.action == 'save' then
-            close_encounter()
-        else
-            if type(cmd.idleTimeout) == 'number' then ff_tracker_set_timeout(cmd.idleTimeout) end
-            if type(cmd.lightweight) == 'boolean' then cfg.lightweight = cmd.lightweight; write_tracker_prefs() end
-            if type(cmd.disableMovement) == 'boolean' then cfg.disable_movement = cmd.disableMovement; write_tracker_prefs() end
-            if type(cmd.wantsLiveCombat) == 'boolean' then cfg.wants_live_combat = cmd.wantsLiveCombat; write_tracker_prefs() end
-            if type(cmd.trackOutsiders) == 'boolean' then cfg.track_outsiders = cmd.trackOutsiders; write_tracker_prefs() end
-            if type(cmd.trackCurrency) == 'boolean' then cfg.track_currency = cmd.trackCurrency; write_tracker_prefs() end
-            if cmd.mode then ff_tracker_set_mode(cmd.mode) end
-        end
-    end
-    write_tracker_status()
-    write_tracker_live()
-end)
+_tracker_tick_extra = function(c)
+    if ff_ipc_drain_inbound then ff_ipc_drain_inbound(apply_control_cmd) end
+    push_tracker_status(c)
+    push_tracker_live()
+end
 
 function ff_tracker_set_mode(mode)
     local preset = MODE_PRESETS[mode]
@@ -1945,17 +1925,11 @@ function ff_movement_disabled()
     return cfg.disable_movement == true
 end
 
--- Treat any command already on disk as applied, so a reload doesn't re-run the
--- last desktop command (which would override an in-game //gnosis track). Publish
--- initial status so the desktop UI reflects state immediately.
 do
-    local existing = read_json_file(CONTROL_PATH)
-    if type(existing) == 'table' then last_control_nonce = existing.nonce end
     local prefs = read_json_file(PREFS_PATH)
     if type(prefs) == 'table' then
         if type(prefs.lightweight) == 'boolean' then cfg.lightweight = prefs.lightweight end
         if type(prefs.disableMovement) == 'boolean' then cfg.disable_movement = prefs.disableMovement end
-        if type(prefs.wantsLiveCombat) == 'boolean' then cfg.wants_live_combat = prefs.wantsLiveCombat end
         if type(prefs.trackOutsiders) == 'boolean' then cfg.track_outsiders = prefs.trackOutsiders end
         if type(prefs.trackCurrency) == 'boolean' then cfg.track_currency = prefs.trackCurrency end
         if type(prefs.idleTimeout) == 'number' and prefs.idleTimeout >= 1 then
@@ -1965,11 +1939,13 @@ do
             ff_tracker_set_mode(prefs.mode)
         end
     end
-    -- Cold-start arm: a `//gnosis reload` (or initial addon load) while the
-    -- user is already inside a content zone wouldn't fire a zone-change event
-    -- for us, so the auto-arm in that handler never runs. Do an extra arm
-    -- here so the overlay's mob list works without forcing the user to zone
-    -- in and out.
     ensure_content_enc()
-    write_tracker_status()
 end
+
+windower.register_event('action', ff_perf_event('action', function(act)
+    for i = 1, #ff_action_handlers do ff_action_handlers[i](act) end
+end))
+
+windower.register_event('outgoing chunk', ff_perf_event('outgoing_chunk', function(id, data, modified, injected, blocked)
+    for i = 1, #ff_outgoing_chunk_handlers do ff_outgoing_chunk_handlers[i](id, data, modified, injected, blocked) end
+end))

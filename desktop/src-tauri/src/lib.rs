@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::TcpListener;
+use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, SystemTime};
 use tauri::{AppHandle, Emitter};
 
@@ -12,15 +14,11 @@ mod db;
 const STYX_BOX_PORT: u16 = 24199;
 static CONN_SEQ: AtomicU64 = AtomicU64::new(1);
 
-static COMBAT_RELAY: AtomicBool = AtomicBool::new(false);
 static IPC_BOUND: AtomicBool = AtomicBool::new(false);
 static SILENT_MODE_ON_MINIMIZE: AtomicBool = AtomicBool::new(false);
 static SILENT_MODE_HIDE_OVERLAY: AtomicBool = AtomicBool::new(false);
 static USER_QUITTING: AtomicBool = AtomicBool::new(false);
 static STARTUP_CHECK_DONE: AtomicBool = AtomicBool::new(false);
-
-#[tauri::command]
-fn set_combat_relay(enabled: bool) { COMBAT_RELAY.store(enabled, Ordering::Relaxed); }
 
 #[tauri::command]
 fn set_silent_mode_on_minimize(enabled: bool) { SILENT_MODE_ON_MINIMIZE.store(enabled, Ordering::Relaxed); }
@@ -639,6 +637,11 @@ struct BoxMsg {
     line: String,
 }
 
+static IPC_WRITERS: OnceLock<Mutex<HashMap<u64, Mutex<TcpStream>>>> = OnceLock::new();
+fn ipc_writers() -> &'static Mutex<HashMap<u64, Mutex<TcpStream>>> {
+    IPC_WRITERS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
 fn start_box_server(app: AppHandle) {
     std::thread::spawn(move || {
         let listener = match TcpListener::bind(("127.0.0.1", STYX_BOX_PORT)) {
@@ -655,26 +658,51 @@ fn start_box_server(app: AppHandle) {
             let app = app.clone();
             std::thread::spawn(move || {
                 let conn = CONN_SEQ.fetch_add(1, Ordering::Relaxed);
+                let writer_clone = stream.try_clone().ok();
+                if let Some(w) = writer_clone {
+                    if let Ok(mut map) = ipc_writers().lock() {
+                        map.insert(conn, Mutex::new(w));
+                    }
+                }
                 let reader = BufReader::new(stream);
                 for line in reader.lines() {
                     match line {
                         Ok(line) if !line.trim().is_empty() => {
-                            if line.len() > 1000
-                                && !COMBAT_RELAY.load(Ordering::Relaxed)
-                                && line.contains(r#""t":"combat""#)
-                            {
-                                continue;
-                            }
                             let _ = app.emit("styx://box-msg", BoxMsg { conn, line });
                         }
                         Ok(_) => {}
                         Err(_) => break,
                     }
                 }
+                if let Ok(mut map) = ipc_writers().lock() { map.remove(&conn); }
                 let _ = app.emit("styx://box-gone", conn);
             });
         }
     });
+}
+
+#[tauri::command]
+fn ipc_broadcast(line: String) -> usize {
+    let mut sent = 0usize;
+    let mut dead: Vec<u64> = Vec::new();
+    if let Ok(map) = ipc_writers().lock() {
+        for (conn, w) in map.iter() {
+            if let Ok(mut s) = w.lock() {
+                let payload = format!("{line}\n");
+                if s.write_all(payload.as_bytes()).is_ok() {
+                    sent += 1;
+                } else {
+                    dead.push(*conn);
+                }
+            }
+        }
+    }
+    if !dead.is_empty() {
+        if let Ok(mut map) = ipc_writers().lock() {
+            for c in dead { map.remove(&c); }
+        }
+    }
+    sent
 }
 
 #[tauri::command]
@@ -1007,7 +1035,7 @@ pub fn run() {
     })
     .invoke_handler(tauri::generate_handler![
       list_json_files, read_text_file, read_file_bytes, write_text_file, delete_file, open_url,
-      compress_idle_files, find_addon_data_dir, show_main_window, set_combat_relay,
+      compress_idle_files, find_addon_data_dir, show_main_window, ipc_broadcast,
       ipc_bound, get_process_memory_bytes, get_webview_processes, walk_process_vm, process_glog_file, scan_glog_dir,
       derive_addon_dir, read_installed_addon_version, install_addon_update,
       set_silent_mode_on_minimize, get_silent_mode_on_minimize, destroy_main_window,

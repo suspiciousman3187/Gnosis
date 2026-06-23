@@ -34,7 +34,7 @@ export interface TrackerPrefs {
 export const DEFAULT_TRACKER_PREFS: TrackerPrefs = {
   mode: 'fight',
   idleTimeout: 30,
-  lightweight: false,
+  lightweight: true,
   disableMovement: true,
   trackCurrency: false,
 };
