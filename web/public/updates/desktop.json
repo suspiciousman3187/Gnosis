@@ -9,9 +9,9 @@
                                          }
                   },
     "addon":  {
-                  "version":  "0.0.2",
-                  "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.2/Gnosis-addon-0.0.2.zip",
-                  "sha256":  "7bc5411e42fff3cf689e4110ebd1b20fa56de5642686059b2ab237efcf926ad1",
+                  "version":  "0.0.3",
+                  "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.3/Gnosis.zip",
+                  "sha256":  "ca28faa035a1b2a2befb12713f3b912bd62ece24f8f5fde43cb325e92144b96a",
                   "notes":  " "
               }
 }
