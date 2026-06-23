@@ -1,11 +1,11 @@
 {
-    "version":  "0.0.2",
+    "version":  "0.0.3",
     "notes":  " ",
-    "pub_date":  "2026-06-15T02:41:28Z",
+    "pub_date":  "2026-06-23T03:14:00Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRWhDa0pXczk2b2M5RlpxR01SV0Z1R0NscWpQWlo2bjhwY0p4KzdhbUVJWms3S0VVYk92ZlF1VHhVVnlDQzh2SXdiL2Mzd2R5ZGtPN3kvVFV5TFA0UDVZZy93VWZ3NkFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgxNDkxMjg3CWZpbGU6R25vc2lzXzAuMC4yX3g2NC1zZXR1cC5leGUKTmlUckk2MzFnaW5NSzNnbWZoSCtZQ28rVjhESGlySk9keUR2UXJWMmdOR0psRE5HZk1ya245STQ4dUl0VFdZTGFLMW9jc2p2bHhuYXFUV2F1Z2h4RHc9PQo=",
-                                             "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.2/Gnosis_0.0.2_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRWhDa0pXczk2b2Y1NUhvOWNTa3k2ejBnemlPQWo0c255aGYyVmVWc0Mvc2x1SWcvTmlueDV1T1NoVnFwQWczcWJEaXZpdElkOGpEb1pPcjRndzhMblRGempHaXFicWdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMjAyNDc2CWZpbGU6R25vc2lzXzAuMC4zX3g2NC1zZXR1cC5leGUKMkY0MUxFYXZZR25ndTZXTUtmdXZoTWsrcHB5T0dXV0ZQNTJaV3lCK2NCMHdiQTUzQzU2dG9vZHRicHZNQnN5dFRDZnE1ZFB0VCtOSmw5S0ZHSHlRQ3c9PQo=",
+                                             "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.3/Gnosis_0.0.3_x64-setup.exe"
                                          }
                   },
     "addon":  {
