@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { gunzipSync, gzipSync } from 'node:zlib';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { adminClient, CORS_HEADERS } from '@/lib/share-server';
 import { r2GetBuffer } from '@/lib/r2';
+import { scrubOutsiders } from '@/lib/scrubOutsiders';
 
 export function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
@@ -52,12 +54,25 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     return NextResponse.json({ error: 'not found' }, { status: 404, headers: CORS_HEADERS });
   }
 
-  return new NextResponse(buf, {
+  let outBuf: ArrayBufferLike = buf;
+  try {
+    const raw = gunzipSync(Buffer.from(buf));
+    const parsed = JSON.parse(raw.toString('utf8'));
+    const { data, replaced } = scrubOutsiders(parsed);
+    if (replaced > 0) {
+      const rezipped = gzipSync(Buffer.from(JSON.stringify(data)));
+      outBuf = rezipped.buffer.slice(rezipped.byteOffset, rezipped.byteOffset + rezipped.byteLength);
+    }
+  } catch {
+    outBuf = buf;
+  }
+
+  return new NextResponse(outBuf, {
     status: 200,
     headers: {
       ...CORS_HEADERS,
       'Content-Type': 'application/gzip',
-      'Cache-Control': row?.is_private ? 'private, max-age=60' : 'public, max-age=31536000, immutable',
+      'Cache-Control': row?.is_private ? 'private, max-age=60' : 'public, max-age=3600',
     },
   });
 }
