@@ -16,7 +16,7 @@ type LoadedContent =
   | { kind: 'sortie'; record: RunRecord }
   | { kind: 'encounter'; encounter: Encounter };
 
-type Payload = { v: number; anonymized?: boolean; content: LoadedContent; icons?: Record<string, string> };
+type Payload = { v: number; anonymized?: boolean; content: LoadedContent; icons?: Record<string, string>; viewerVersion?: string };
 
 const buffResolver = (id: number): string | null => (id >= 0 ? `/buffs/xiview/${id}.bmp` : null);
 
@@ -97,6 +97,7 @@ export default function SharedReportView({ id, loggedIn, isOwner, initialPrivate
   const [err, setErr] = useState('');
   const [anonymized, setAnonymized] = useState<boolean | undefined>(undefined);
   const [leakedNames, setLeakedNames] = useState<string[]>([]);
+  const [versions, setVersions] = useState<{ addon?: string; viewer?: string }>({});
 
   useEffect(() => {
     let alive = true;
@@ -133,6 +134,10 @@ export default function SharedReportView({ id, loggedIn, isOwner, initialPrivate
           setContent(payload.content);
           setIcons(payload.icons ?? {});
           setAnonymized(payload.anonymized);
+          const inner = payload.content.kind === 'encounter'
+            ? (payload.content as { encounter: { addonVersion?: string } }).encounter
+            : (payload.content as { record: { addonVersion?: string } }).record;
+          setVersions({ addon: inner?.addonVersion, viewer: payload.viewerVersion });
           setState('ok');
         }
       } catch (e) {
@@ -189,6 +194,11 @@ export default function SharedReportView({ id, loggedIn, isOwner, initialPrivate
           <div className="bg-amber-950/30 border border-amber-700/50 rounded-lg px-4 py-2.5 mb-4 text-[12px] text-amber-200">
             <span className="font-semibold">Real character names included.</span>{' '}
             <span className="text-amber-200/80">The uploader chose to share this report without anonymizing player names.</span>
+          </div>
+        )}
+        {state === 'ok' && (versions.addon || versions.viewer) && (
+          <div className="text-[11px] text-gray-500 mb-3 font-mono">
+            Addon {versions.addon ? `v${versions.addon}` : '?'} · Viewer {versions.viewer ? `v${versions.viewer}` : '?'}
           </div>
         )}
         {state === 'ok' && content && (() => {

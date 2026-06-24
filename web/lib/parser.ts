@@ -326,6 +326,7 @@ function parseBossReports(sections: Record<string, string[]>): Record<string, Bo
 function parseJsonReport(data: any): ParsedRun {
   return {
     runDate: new Date(data.runDate),
+    addonVersion: typeof data.addonVersion === 'string' ? data.addonVersion : undefined,
     gallimaufry: data.gallimaufry ?? 0,
     oldCasePlus1: data.oldCasePlus1 ?? 0,
     defeatedBosses: data.defeatedBosses ?? [],

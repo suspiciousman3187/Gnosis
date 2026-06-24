@@ -1,9 +1,10 @@
 _addon.name = 'Gnosis'
 _addon.author = 'Noirblanc'
-_addon.version = '0.0.3'
+_addon.version = '0.0.4'
 _addon.commands = {'gnosis', 'gn'}
 
 dofile(windower.addon_path .. 'libs/perf.lua')
+dofile(windower.addon_path .. 'libs/crashlog.lua')
 
 require('chat')
 require('logger')
@@ -1003,6 +1004,7 @@ local function generate_report()
         dropLog        = #sortie_enc.drop_log > 0 and sortie_enc.drop_log or json.null,
         notes          = additional_note,
         sortieStartTime = sortie_start_time,
+        addonVersion   = _addon and _addon.version or nil,
         combatStats    = json.null,
         actionLog      = #sortie_enc.action_log > 0 and sortie_enc.action_log or json.null,
         killLog        = #sortie_enc.kill_log > 0 and sortie_enc.kill_log or json.null,
@@ -1485,7 +1487,7 @@ windower.register_event('incoming chunk', ff_perf_event('incoming_chunk', functi
         end
     end
 
-end))
+end, function(id) return string.format('sortie 0x%X', id) end))
 
 
 ff_register_outgoing_chunk_handler(function(id, data, modified, injected, blocked)
@@ -2130,6 +2132,13 @@ windower.register_event('addon command', function(cmd, ...)
         gn_chat(('mode=%s timeout=%ds enc=%s'):format(m, t, enc and 'open' or 'closed'))
         return
     end
+    if cmd == 'crashlog' then
+        local sub = a1 or 'help'
+        if sub == 'on' then if ff_crashlog_on then ff_crashlog_on(); gn_chat('Crashlog started -> data/crashlog.txt') end; return end
+        if sub == 'off' then if ff_crashlog_off then ff_crashlog_off(); gn_chat('Crashlog stopped.') end; return end
+        gn_chat('crashlog: on | off')
+        return
+    end
     if cmd == 'debug' then
         local sub = a1 or 'help'
         if sub == 'on' then if ff_perf_on then ff_perf_on(); gn_chat('Debug performance log started.') end; return end
@@ -2146,7 +2155,7 @@ windower.register_event('addon command', function(cmd, ...)
         return
     end
     if cmd == 'help' or cmd == '?' then
-        gn_chat('cmds: start | stop | mode <encounter|session|zone|off> | save | timeout <s> | status | debug <on|off|reset|report>')
+        gn_chat('cmds: start | stop | mode <encounter|session|zone|off> | save | timeout <s> | status | debug <on|off|reset|report> | crashlog <on|off>')
         return
     end
     gn_chat_err('unknown command: ' .. tostring(cmd) .. ' (try //gn help)')

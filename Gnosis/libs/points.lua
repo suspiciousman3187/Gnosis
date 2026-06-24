@@ -26,6 +26,7 @@ local function rate(metric)
 end
 
 windower.register_event('incoming chunk', ff_perf_event('incoming_chunk', function(id, org, modi, is_injected, is_blocked)
+
     if is_injected or is_blocked then return end
     if id ~= 0x029 and id ~= 0x02D then return end
     local ok, p = pcall(packets.parse, 'incoming', org)
@@ -37,7 +38,7 @@ windower.register_event('incoming chunk', ff_perf_event('incoming_chunk', functi
     elseif msg == 718 or msg == 735 then add('cp', val)
     elseif msg == 809 or msg == 810 then add('ep', val)
     elseif msg == 371 or msg == 372 then add('lp', val) end
-end))
+end, function(id) return string.format('points 0x%X', id) end))
 
 function ff_points_rates()
     return {

@@ -404,6 +404,7 @@ export function extractGearCapture(body: { gearLog?: unknown; stateSets?: unknow
 
 export interface ParsedRun extends GearCapture {
   runDate: Date;
+  addonVersion?: string;
   gallimaufry: number;
   oldCasePlus1: number;
   defeatedBosses: string[];
@@ -547,6 +548,7 @@ export interface RunRecord extends GearCapture {
   created_at: string;
   is_public: boolean;
   run_date: string;
+  addonVersion?: string;
   gallimaufry: number;
   old_case_plus1: number;
   defeated_bosses: string[];

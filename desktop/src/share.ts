@@ -274,6 +274,10 @@ export async function shareReport(
     const icons = await collectIcons(payload.content, iconResolver);
     if (Object.keys(icons).length) payload.icons = icons;
   }
+  try {
+    const m = await import('@tauri-apps/api/app');
+    (payload as Record<string, unknown>).viewerVersion = await m.getVersion();
+  } catch { /* non-Tauri / offline-import — leave unset */ }
   const json = JSON.stringify(payload);
 
   const body = await gzip(json);

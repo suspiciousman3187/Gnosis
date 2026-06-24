@@ -738,6 +738,7 @@ local function close_encounter()
         enemyReports     = json.null,
         content          = { type = source },
         notes            = '',
+        addonVersion     = _addon and _addon.version or nil,
     }
     _trace.assemble = _ms_since()
     _trace.position_n = #(enc.position_log or {})
@@ -1525,7 +1526,7 @@ end
 windower.register_event('incoming chunk', ff_perf_event('incoming_chunk', function(id, data)
     _chunk_party_jobs(id, data)
     _chunk_misc(id, data)
-end))
+end, function(id) return string.format('0x%X', id) end))
 
 
 -- Treasure-pool drops + looter come from packets 0x0D2/0x0D3 above (robust,
@@ -1944,8 +1945,11 @@ end
 
 windower.register_event('action', ff_perf_event('action', function(act)
     for i = 1, #ff_action_handlers do ff_action_handlers[i](act) end
+end, function(act)
+    if not act then return 'nil' end
+    return string.format('cat=%s param=%s actor=%s', tostring(act.category), tostring(act.param), tostring(act.actor_id))
 end))
 
 windower.register_event('outgoing chunk', ff_perf_event('outgoing_chunk', function(id, data, modified, injected, blocked)
     for i = 1, #ff_outgoing_chunk_handlers do ff_outgoing_chunk_handlers[i](id, data, modified, injected, blocked) end
-end))
+end, function(id) return string.format('0x%X', id) end))

@@ -6,23 +6,48 @@ local ipc_sock = nil
 local ipc_connected = false
 local ipc_last_try = 0
 local ipc_seq = 0
+local ipc_pending = nil
+local ipc_pending_t = 0
 
 local function ipc_disconnect()
     if ipc_sock then pcall(function() ipc_sock:close() end) end
     ipc_sock = nil
     ipc_connected = false
+    if ipc_pending then pcall(function() ipc_pending:close() end) ipc_pending = nil end
 end
 
-local function ipc_try_connect()
+local function ipc_finish(s)
+    s:settimeout(0)
+    ipc_sock = s
+    ipc_connected = true
+end
+
+local function ipc_start_connect()
     ipc_disconnect()
     local s = socket.tcp()
-    s:settimeout(0.2)
-    local ok = s:connect(IPC_HOST, IPC_PORT)
+    if not s then return end
+    s:settimeout(0)
+    local ok, err = s:connect(IPC_HOST, IPC_PORT)
     if ok then
-        s:settimeout(0)
-        ipc_sock = s
-        ipc_connected = true
+        ipc_finish(s)
+    elseif err == 'timeout' or err == 'Operation already in progress' or err == 'Operation now in progress' then
+        ipc_pending = s
+        ipc_pending_t = os.clock()
     else
+        pcall(function() s:close() end)
+    end
+end
+
+local function ipc_poll_pending()
+    if not ipc_pending then return end
+    local s = ipc_pending
+    local _, wt = socket.select({}, { s }, 0)
+    if wt and wt[s] then
+        ipc_pending = nil
+        if s:getpeername() then ipc_finish(s)
+        else pcall(function() s:close() end) end
+    elseif os.clock() - ipc_pending_t > 2 then
+        ipc_pending = nil
         pcall(function() s:close() end)
     end
 end
@@ -51,10 +76,12 @@ end
 -- Reconnect bookkeeping; call ~1 Hz. Retries every 3s while the app is down.
 function ff_ipc_ensure()
     if ipc_connected then return end
+    ipc_poll_pending()
+    if ipc_pending then return end
     local now = os.clock()
     if now - ipc_last_try >= 3 then
         ipc_last_try = now
-        ipc_try_connect()
+        ipc_start_connect()
     end
 end
 

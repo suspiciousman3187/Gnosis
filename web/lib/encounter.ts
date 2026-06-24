@@ -130,6 +130,7 @@ export interface Encounter {
   zoneLog?: ZoneLogEntry[] | null;
   startTime: number;        // unix epoch seconds (os.time() at encounter open)
   durationSeconds: number;
+  addonVersion?: string;
 
   // ── Roster ────────────────────────────────────────────────────────────────
   party: PartyMember[];

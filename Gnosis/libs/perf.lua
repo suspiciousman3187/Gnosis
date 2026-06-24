@@ -27,18 +27,28 @@ local function reset_buckets()
     p.last_save_ms, p.save_count, p.error_count = 0, 0, 0
 end
 
-function ff_perf_event(name, fn)
+function ff_perf_event(name, fn, detailFn)
     return function(...)
-        if not p.on then return fn(...) end
+        local clog_on = ff_crashlog_is_on and ff_crashlog_is_on()
+        if not p.on and not clog_on then return fn(...) end
+        local detail = nil
+        if (clog_on or p.on) and detailFn then
+            local ok, d = pcall(detailFn, ...)
+            if ok then detail = d end
+        end
+        if clog_on then ff_crashlog_in(name, detail) end
         local t0 = os.clock()
         local r1, r2, r3, r4, r5 = fn(...)
-        local dt = (os.clock() - t0) * 1000
-        local bt = bucket(p.totals, name)
-        bt.count = bt.count + 1; bt.ms = bt.ms + dt
-        if dt > bt.max then bt.max = dt end
-        local b5 = bucket(p.last5s, name)
-        b5.count = b5.count + 1; b5.ms = b5.ms + dt
-        if dt > b5.max then b5.max = dt end
+        if p.on then
+            local dt = (os.clock() - t0) * 1000
+            local bt = bucket(p.totals, name)
+            bt.count = bt.count + 1; bt.ms = bt.ms + dt
+            if dt > bt.max then bt.max = dt end
+            local b5 = bucket(p.last5s, name)
+            b5.count = b5.count + 1; b5.ms = b5.ms + dt
+            if dt > b5.max then b5.max = dt end
+        end
+        if clog_on then ff_crashlog_out(name, detail) end
         return r1, r2, r3, r4, r5
     end
 end

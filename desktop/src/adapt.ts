@@ -16,6 +16,7 @@ export function parsedToRecord(parsed: ParsedRun, rawText: string): RunRecord {
     ...localBase(),
     localCharacter: parsed.localCharacter ?? null,
     run_date: parsed.runDate.toISOString(),
+    addonVersion: parsed.addonVersion,
     gallimaufry: parsed.gallimaufry,
     old_case_plus1: parsed.oldCasePlus1,
     defeated_bosses: parsed.defeatedBosses,
