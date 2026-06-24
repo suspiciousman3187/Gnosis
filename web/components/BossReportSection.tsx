@@ -14,6 +14,36 @@ import { isWeaponSkill, isAutoAttack, isSpell, isJobAbility, isEnfeebleSpell, is
 import { useEnemyTerm } from './EnemyTerm';
 import BuffIcon from './BuffIcon';
 import { formatDuration, fmtFightTime } from './sortie/SortieHelpers';
+import { debuffUpkeepByPlayer, type DebuffUpkeepRow } from '@/lib/debuffUpkeep';
+
+function DebuffUpkeepInline({ rows }: { rows: DebuffUpkeepRow[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="rounded border border-fuchsia-700/30 bg-fuchsia-950/15 px-2.5 py-2 mb-2">
+      <div className="text-[10px] uppercase tracking-wide text-fuchsia-300 mb-1.5">Debuff Upkeep</div>
+      <div className="space-y-1">
+        {rows.map(r => {
+          const pct = Math.min(100, Math.max(0, r.uptimePct * 100));
+          return (
+            <div key={r.name} className="flex items-center gap-2 text-[11px]">
+              <div className="w-24 truncate text-fuchsia-100" title={r.name}>{r.name}</div>
+              <div className="flex-1 h-1.5 bg-panel-alt rounded-full overflow-hidden">
+                <div className="h-full bg-fuchsia-500/70" style={{ width: `${pct}%` }} />
+              </div>
+              <div className="w-10 text-right text-gray-200 font-mono">{Math.round(pct)}%</div>
+              <div className="w-28 text-right text-gray-500 font-mono whitespace-nowrap">
+                {Math.round(r.activeSeconds)}s / {Math.round(r.windowSeconds)}s
+              </div>
+              <div className="w-12 text-right text-gray-500 font-mono whitespace-nowrap">
+                {r.applyCount}x
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function RollBadge({ label, value, lucky }: { label: string; value: number; lucky: boolean }) {
   return (
@@ -317,6 +347,12 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
     return map;
   })();
 
+  const upkeepByPlayer = (() => {
+    const fightStart = report.fightStartElapsed;
+    if (fightStart == null || report.fightDurationSeconds <= 0) return {};
+    return debuffUpkeepByPlayer(buffLog, name, fightStart, report.fightDurationSeconds);
+  })();
+
   const damageTakenByPlayer = (() => {
     type DamageTakenRow = {
       elapsed: number;
@@ -469,8 +505,9 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
             const isCor = corsairRolls != null && mainJobKey(jobMap[entry.name]) === 'cor';
             const playerSC = scByPlayer[entry.name];
             const playerDebuffs = debuffsByPlayer[entry.name];
+            const playerUpkeep = upkeepByPlayer[entry.name] ?? [];
             const playerDamageTaken = damageTakenByPlayer[entry.name] ?? [];
-            const hasStats = (perPlayer[entry.name] && Object.keys(perPlayer[entry.name]).length > 0) || (playerItems != null && playerItems.events.length > 0) || playerActions.length > 0 || isCor || (playerSC != null && playerSC.events.length > 0) || (playerDebuffs != null && playerDebuffs.events.length > 0) || playerDamageTaken.length > 0;
+            const hasStats = (perPlayer[entry.name] && Object.keys(perPlayer[entry.name]).length > 0) || (playerItems != null && playerItems.events.length > 0) || playerActions.length > 0 || isCor || (playerSC != null && playerSC.events.length > 0) || (playerDebuffs != null && playerDebuffs.events.length > 0) || playerUpkeep.length > 0 || playerDamageTaken.length > 0;
             return (
               <div key={entry.name}>
                 <button
@@ -743,6 +780,8 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                         })}
                       </PlayerSubTable>
                       {/* Row 2: Debuffs | Buffs */}
+                      <div>
+                        <DebuffUpkeepInline rows={playerUpkeep} />
                       <PlayerSubTable
                         title="Debuffs & Enfeebling"
                         titleColor="text-fuchsia-400"
@@ -783,6 +822,7 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                           </tr>
                         ))}
                       </PlayerSubTable>
+                      </div>
                       <PlayerSubTable
                         title="Buffs"
                         titleColor="text-violet-400"

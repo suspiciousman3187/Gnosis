@@ -1,17 +1,17 @@
 {
     "version":  "0.0.4",
     "notes":  "Fixed a bug where Gnosis lagged the client while the viewer was closed.",
-    "pub_date":  "2026-06-24T15:50:47Z",
+    "pub_date":  "2026-06-24T21:39:55Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRWhDa0pXczk2b1RUVFpNSDd5bUlUVVFpOHJoOU05QlBsRFcvMGhFdzhTb1IzQWZQVy9BT3hiSzVxNDBMYlcvZHEyakVYZlRsVDEza1dabWhwUi9ma2N2eElEZTU4Qnc0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMzE2MTM0CWZpbGU6R25vc2lzXzAuMC40X3g2NC1zZXR1cC5leGUKMnN2VmFuK1hZVjJJRnZ5MFBWMHhDcktYTVZGNmlBbWw1TGpld1IzZ2wwV0dnTjVuYk1wdFZGbmVBa2FSOVFZMVNnaFZVRnAvRXRQcE9XK1U3emlnQVE9PQo=",
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRWhDa0pXczk2b1d2aVNnTDlabm1POEVhRDZ1MVBOWkt2VmdQMXdxWDFtTUpoTFdVbmdiU2hWRm1PdUdoL3l1VzZhd0treFd2elo3OEpDNk9oY3NTdzR2SWh0VEZHdGdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMzM3MTM3CWZpbGU6R25vc2lzXzAuMC40X3g2NC1zZXR1cC5leGUKWjcrTmRJR3FGZ3QyL2gycDAvWVZ3U1R2S25FblJBY1lNK0trckNhMldaSlZpdkVsQkZaOFJQTWxtV0Z5TGNidWowUkJaRmtDSlZweThEYXpid0NIQWc9PQo=",
                                              "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.4/Gnosis_0.0.4_x64-setup.exe"
                                          }
                   },
     "addon":  {
                   "version":  "0.0.4",
                   "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.4/Gnosis.zip",
-                  "sha256":  "c74d080a276e07ca566f2f2b8390eb72691e1052670f09bc5a1717be9eae2733",
+                  "sha256":  "f04be8819bbb0b17a58d7d224add4de999bd8a7513b7f611bafe7ce7f12c394a",
                   "notes":  " "
               }
 }
