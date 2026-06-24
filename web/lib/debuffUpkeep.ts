@@ -168,11 +168,11 @@ export function computeDebuffUpkeep(
   }
 
   const out: DebuffUpkeepRow[] = [];
+  const windowSeconds = Math.max(0, fightEnd - fightStart);
   for (const a of accs.values()) {
     const merged = unionIntervals(a.rawIntervals);
-    const clipped = clipToWindow(merged, a.firstApplyAt, fightEnd);
+    const clipped = clipToWindow(merged, fightStart, fightEnd);
     const activeSeconds = clipped.reduce((s, iv) => s + (iv.end - iv.start), 0);
-    const windowSeconds = Math.max(0, fightEnd - a.firstApplyAt);
     out.push({
       player: a.player,
       name: a.name,
