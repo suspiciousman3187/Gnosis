@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+﻿import { createClient } from '@/lib/supabase/server';
 import { createClient as adminClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import NavBar from '@/components/NavBar';
@@ -38,13 +38,13 @@ export default async function RootPage() {
             <div className="flex items-center justify-center gap-4 pt-2">
               <Link
                 href="/login"
-                className="bg-accent hover:bg-accent-hover text-gray-900 font-semibold px-6 py-2.5 rounded-lg transition-colors"
+                className="le-tap bg-accent hover:bg-accent-hover text-gray-900 font-semibold px-6 py-2.5 rounded-lg transition-colors"
               >
                 Sign In
               </Link>
               <Link
                 href="/register"
-                className="bg-white/[0.08] hover:bg-white/[0.14] backdrop-blur-sm border border-white/25 hover:border-white/45 text-gray-100 font-semibold px-6 py-2.5 rounded-lg transition-colors"
+                className="le-tap bg-white/[0.08] hover:bg-white/[0.14] backdrop-blur-sm border border-white/25 hover:border-white/45 text-gray-100 font-semibold px-6 py-2.5 rounded-lg transition-colors"
               >
                 Create Account
               </Link>

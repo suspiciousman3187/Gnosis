@@ -43,7 +43,7 @@ export default function ReportPrivacyBadge({ id, initialPrivate }: { id: string;
       disabled={busy}
       data-tooltip={tip}
       aria-label={isPrivate ? 'Make report public' : 'Make report private'}
-      className={`shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider rounded border px-2 py-1 leading-none whitespace-nowrap transition-colors disabled:opacity-40 disabled:cursor-wait ${
+      className={`le-tap shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider rounded border px-2 py-1 leading-none whitespace-nowrap transition-colors disabled:opacity-40 disabled:cursor-wait ${
         isPrivate
           ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 hover:bg-amber-500/25'
           : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/25'

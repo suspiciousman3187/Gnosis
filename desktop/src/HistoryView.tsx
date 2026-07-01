@@ -11,6 +11,7 @@ import { requestSummaries as storeRequestSummaries, useSummary } from './summary
 import { alertDialog } from '@/lib/dialogs';
 import { ADDON_SOURCE_COLOR, CONTENT_COLOR_PALETTE, contentById, type ContentColorKey } from '@/lib/contentRegistry';
 import type { EncounterSource } from '@/lib/encounter';
+import RestoreArchiveModal from './RestoreArchiveModal';
 
 function titleColorFor(sourceOrKind: string): { off: string; on: string } | null {
   const def = contentById(sourceOrKind);
@@ -548,6 +549,7 @@ function HistoryViewImpl({
   const splitResultRef = useRef<{ newFiles: string[] } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ groupId: string; x: number; y: number } | null>(null);
   const [mergeMode, setMergeMode] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
   const [mergeSelection, setMergeSelection] = useState<Set<string>>(() => new Set());
   const [mergeStep, setMergeStep] = useState<'idle' | 'confirm' | 'working' | 'done' | 'error'>('idle');
   const [mergeError, setMergeError] = useState<string | null>(null);
@@ -888,7 +890,7 @@ function HistoryViewImpl({
                     onClick={onSplitClick}
                     disabled={splitDisabled}
                     data-tooltip={!selectedGroup ? 'Open an encounter first' : 'Split the current encounter into segments'}
-                    className={`${baseBtn} border-white/15 text-gray-300 hover:text-white hover:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed`}
+                    className={`le-tap ${baseBtn} border-white/15 text-gray-300 hover:text-white hover:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed`}
                   >
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="M3 12h4l3-3 4 6 3-3h4" />
@@ -900,13 +902,26 @@ function HistoryViewImpl({
                     onClick={onMergeButton}
                     disabled={mergeBusy}
                     data-tooltip={mergeBusy ? 'Merge in progress…' : mergeMode ? 'Cancel merge mode' : 'Merge multiple encounters'}
-                    className={`${baseBtn} ${mergeActive ? 'border-rose-500/50 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20' : 'border-white/15 text-gray-300 hover:text-white hover:bg-white/[0.06]'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                    className={`le-tap ${baseBtn} ${mergeActive ? 'border-rose-500/50 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20' : 'border-white/15 text-gray-300 hover:text-white hover:bg-white/[0.06]'} disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="M7 3v6a4 4 0 0 0 4 4h2a4 4 0 0 1 4 4v4" />
                       <path d="M17 7l-4-4-4 4" />
                     </svg>
                     <span>{mergeLabel}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRestoreOpen(true)}
+                    disabled={paths.length === 0}
+                    data-tooltip="Restore originals from a prior merge"
+                    className={`le-tap ${baseBtn} border-white/15 text-gray-300 hover:text-white hover:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed`}
+                  >
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M3 12a9 9 0 1 0 3-6.7" />
+                      <path d="M3 4v5h5" />
+                    </svg>
+                    <span>Restore</span>
                   </button>
                 </div>
               );
@@ -1067,6 +1082,18 @@ function HistoryViewImpl({
           }}
         />
       )}
+      {restoreOpen && paths.length > 0 && (() => {
+        const sample = paths[0];
+        const zoneDir = sample.replace(/[\\/][^\\/]+$/, '');
+        const dataDir = zoneDir.replace(/[\\/][^\\/]+$/, '');
+        return (
+          <RestoreArchiveModal
+            dataDir={dataDir}
+            onClose={() => setRestoreOpen(false)}
+            onRestored={() => { /* parent watcher picks up new files */ }}
+          />
+        );
+      })()}
       {(splitStep === 'confirm' || splitStep === 'done' || splitStep === 'error') && splitGroup && (
         <SplitConfirmModal
           group={splitGroup}
@@ -1327,11 +1354,11 @@ function MergeConfirmModal({
               </p>
             )}
             <div className="flex justify-end gap-2">
-              <button onClick={onCancel} className="px-3 py-1.5 text-xs rounded border border-white/15 text-gray-300 hover:bg-white/5">Cancel</button>
+              <button onClick={onCancel} className="le-tap px-3 py-1.5 text-xs rounded border border-white/15 text-gray-300 hover:bg-white/5">Cancel</button>
               <button
                 onClick={() => onConfirm(sorted)}
                 disabled={crossZone}
-                className="px-3 py-1.5 text-xs rounded bg-accent text-black font-semibold hover:bg-accent/90 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed"
+                className="le-tap px-3 py-1.5 text-xs rounded bg-accent text-black font-semibold hover:bg-accent/90 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed"
               >
                 Merge {selection.length} encounters
               </button>
@@ -1342,7 +1369,7 @@ function MergeConfirmModal({
           <>
             <p className="text-xs text-rose-300 mb-3 bg-rose-500/10 border border-rose-500/30 rounded px-2 py-1.5 break-words">{error ?? 'Unknown error.'}</p>
             <div className="flex justify-end">
-              <button onClick={onCancel} className="px-3 py-1.5 text-xs rounded border border-white/15 text-gray-300 hover:bg-white/5">Close</button>
+              <button onClick={onCancel} className="le-tap px-3 py-1.5 text-xs rounded border border-white/15 text-gray-300 hover:bg-white/5">Close</button>
             </div>
           </>
         )}
@@ -1647,7 +1674,7 @@ function SplitConfirmModal({
             </p>
 
             <div className="flex justify-end gap-2">
-              <button onClick={onCancel} className="px-3 py-1.5 text-xs rounded border border-white/15 text-gray-300 hover:bg-white/5">Cancel</button>
+              <button onClick={onCancel} className="le-tap px-3 py-1.5 text-xs rounded border border-white/15 text-gray-300 hover:bg-white/5">Cancel</button>
               <button
                 onClick={() => onConfirm(mode, { gapSeconds, boundaries: mode === 'manual' ? manualBoundaries : undefined })}
                 disabled={preview.length < 2}
@@ -1662,7 +1689,7 @@ function SplitConfirmModal({
           <>
             <p className="text-xs text-emerald-300 mb-3">Segments written; originals archived to <code className="text-[10px] bg-black/40 px-1 rounded">data/_split/</code>. Opening the first segment.</p>
             <div className="flex justify-end">
-              <button onClick={onCancel} className="px-3 py-1.5 text-xs rounded bg-accent text-black font-semibold">Close</button>
+              <button onClick={onCancel} className="le-tap px-3 py-1.5 text-xs rounded bg-accent text-black font-semibold">Close</button>
             </div>
           </>
         )}
@@ -1670,7 +1697,7 @@ function SplitConfirmModal({
           <>
             <p className="text-xs text-rose-300 mb-3 bg-rose-500/10 border border-rose-500/30 rounded px-2 py-1.5 break-words">{error ?? 'Unknown error.'}</p>
             <div className="flex justify-end">
-              <button onClick={onCancel} className="px-3 py-1.5 text-xs rounded border border-white/15 text-gray-300 hover:bg-white/5">Close</button>
+              <button onClick={onCancel} className="le-tap px-3 py-1.5 text-xs rounded border border-white/15 text-gray-300 hover:bg-white/5">Close</button>
             </div>
           </>
         )}

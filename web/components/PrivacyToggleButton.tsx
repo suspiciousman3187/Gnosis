@@ -45,7 +45,7 @@ export default function PrivacyToggleButton({ id, isPrivate }: { id: string; isP
       disabled={busy}
       data-tooltip={tip}
       aria-label={localPrivate ? 'Make report public' : 'Make report private'}
-      className={`rounded p-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+      className={`le-tap rounded p-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
         localPrivate
           ? 'text-amber-400/80 hover:text-amber-300 hover:bg-amber-500/10'
           : 'text-gray-400/60 hover:text-gray-200 hover:bg-white/[0.06]'

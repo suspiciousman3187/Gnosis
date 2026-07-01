@@ -13,16 +13,19 @@ export default function Collapse({ open, children }: { open: boolean; children: 
       return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2); };
     }
     setShow(false);
-    const t = window.setTimeout(() => setMounted(false), 180);
+    const t = window.setTimeout(() => setMounted(false), 200);
     return () => window.clearTimeout(t);
   }, [open]);
   if (!mounted) return null;
   return (
     <div
-      className="transition-[opacity,transform] duration-[180ms] ease-out motion-reduce:transition-none origin-top"
+      className="motion-reduce:transition-none origin-top"
       style={{
         opacity: show ? 1 : 0,
         transform: show ? 'translateY(0)' : 'translateY(-6px)',
+        transitionProperty: 'opacity, transform',
+        transitionDuration: 'var(--dur-base)',
+        transitionTimingFunction: 'var(--ease-out)',
         willChange: 'opacity, transform',
       }}
     >

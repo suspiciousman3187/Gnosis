@@ -79,7 +79,7 @@ export default function AdminShareActions({
               <button
                 key={opt.id}
                 onClick={() => setFilter(opt.id)}
-                className={`text-xs px-2.5 py-1 rounded transition-colors ${on ? 'bg-accent/20 text-accent font-semibold' : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'}`}
+                className={`le-tap text-xs px-2.5 py-1 rounded transition-colors ${on ? 'bg-accent/20 text-accent font-semibold' : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'}`}
               >
                 {opt.label}
               </button>

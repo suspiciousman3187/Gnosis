@@ -53,7 +53,7 @@ export default function MobSelector({ mobs, options, value, onChange, allLabel =
     <div className="relative max-w-sm">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg border border-white/10 bg-panel hover:bg-white/[0.04] transition-colors"
+        className="le-tap w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg border border-white/10 bg-panel hover:bg-white/[0.04] transition-colors"
       >
         <span className="font-medium text-gray-200 truncate">{selectedLabel}</span>
         <span className="text-gray-400 text-xs shrink-0">{open ? '▲' : '▼'}</span>

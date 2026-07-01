@@ -5,6 +5,7 @@ import PageTransition from '@/components/PageTransition';
 import DialogHost from '@/components/DialogHost';
 import TooltipHost from '@/components/TooltipHost';
 import SiteFooter from '@/components/SiteFooter';
+import MotionRoot from '@/components/MotionRoot';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,12 +33,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <NextTopLoader color="#f0c062" shadow="0 0 10px #f0c062,0 0 5px #f5d088" showSpinner={false} />
-        <div className="styx-bg" />
-        <PageTransition>{children}</PageTransition>
-        <SiteFooter />
-        <DialogHost />
-        <TooltipHost />
+        <MotionRoot>
+          <NextTopLoader color="#f0c062" shadow="0 0 10px #f0c062,0 0 5px #f5d088" showSpinner={false} />
+          <div className="styx-bg" />
+          <PageTransition>{children}</PageTransition>
+          <SiteFooter />
+          <DialogHost />
+          <TooltipHost />
+        </MotionRoot>
       </body>
     </html>
   );

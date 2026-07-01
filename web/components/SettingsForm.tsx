@@ -127,7 +127,7 @@ export default function SettingsForm({ initialUsername, initialAvatarUrl }: { in
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingAvatar}
-                  className="text-xs rounded-lg px-3 py-1.5 bg-surface-raised hover:bg-surface-hover border border-white/10 text-gray-200 transition-colors disabled:opacity-40"
+                  className="le-tap text-xs rounded-lg px-3 py-1.5 bg-surface-raised hover:bg-surface-hover border border-white/10 text-gray-200 transition-colors disabled:opacity-40"
                 >
                   {uploadingAvatar ? 'Uploading…' : profile?.avatar_url ? 'Change' : 'Upload Picture'}
                 </button>
@@ -135,7 +135,7 @@ export default function SettingsForm({ initialUsername, initialAvatarUrl }: { in
                   <button
                     onClick={removeAvatar}
                     disabled={uploadingAvatar}
-                    className="text-xs rounded-lg px-3 py-1.5 border border-rose-500/30 text-rose-300 hover:bg-rose-500/10 transition-colors disabled:opacity-40"
+                    className="le-tap text-xs rounded-lg px-3 py-1.5 border border-rose-500/30 text-rose-300 hover:bg-rose-500/10 transition-colors disabled:opacity-40"
                   >
                     Remove
                   </button>
@@ -172,7 +172,7 @@ export default function SettingsForm({ initialUsername, initialAvatarUrl }: { in
               <button
                 onClick={saveDisplayName}
                 disabled={savingName || displayName.trim().toLowerCase() === (profile?.username ?? '')}
-                className="text-sm rounded-lg px-4 py-2 bg-accent hover:bg-accent-hover disabled:bg-gray-700 disabled:text-gray-400 text-gray-900 font-semibold transition-colors disabled:cursor-not-allowed"
+                className="le-tap text-sm rounded-lg px-4 py-2 bg-accent hover:bg-accent-hover disabled:bg-gray-700 disabled:text-gray-400 text-gray-900 font-semibold transition-colors disabled:cursor-not-allowed"
               >
                 {savingName ? 'Saving…' : nameSaved ? 'Saved!' : 'Save'}
               </button>
@@ -201,14 +201,14 @@ export default function SettingsForm({ initialUsername, initialAvatarUrl }: { in
                 <button
                   onClick={copyToken}
                   disabled={!token}
-                  className="px-4 py-2 bg-emerald-600/80 hover:bg-emerald-600 rounded-lg text-sm text-white font-semibold transition-colors disabled:opacity-40 border border-emerald-500/40"
+                  className="le-tap px-4 py-2 bg-emerald-600/80 hover:bg-emerald-600 rounded-lg text-sm text-white font-semibold transition-colors disabled:opacity-40 border border-emerald-500/40"
                 >
                   {copied ? 'Copied!' : 'Copy Token'}
                 </button>
                 <button
                   onClick={regenerate}
                   disabled={regenerating}
-                  className="px-4 py-2 bg-accent hover:bg-accent-hover disabled:bg-gray-700 text-gray-900 font-semibold rounded-lg text-sm transition-colors"
+                  className="le-tap px-4 py-2 bg-accent hover:bg-accent-hover disabled:bg-gray-700 text-gray-900 font-semibold rounded-lg text-sm transition-colors"
                 >
                   {regenerating ? 'Regenerating…' : token ? 'Regenerate Token' : 'Generate Token'}
                 </button>

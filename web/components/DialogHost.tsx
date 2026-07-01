@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
 import { subscribeDialogs, resolveDialog, type DialogSpec, type DialogTone } from '@/lib/dialogs';
 
 const TONE_BORDER: Record<DialogTone, string> = {
@@ -50,9 +51,19 @@ function DialogPanel({ dlg }: { dlg: DialogSpec }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center px-6 py-12">
+    <motion.div
+      className="fixed inset-0 z-[10000] flex items-center justify-center px-6 py-12"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.14 }}
+    >
       <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={() => click(dlg.buttons.find(b => b.value === 'cancel')?.value ?? 'cancel')} />
-      <div className={`relative w-full max-w-md bg-zinc-950/95 border ${TONE_BORDER[dlg.tone]} rounded-xl shadow-2xl px-5 py-4`}>
+      <motion.div
+        className={`relative w-full max-w-md bg-zinc-950/95 border ${TONE_BORDER[dlg.tone]} rounded-xl shadow-2xl px-5 py-4`}
+        initial={{ opacity: 0, y: 10, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+      >
         {dlg.title && (
           <div className={`text-sm font-bold uppercase tracking-wider mb-2 ${TONE_ACCENT[dlg.tone]}`}>{dlg.title}</div>
         )}
@@ -91,15 +102,15 @@ function DialogPanel({ dlg }: { dlg: DialogSpec }) {
                 key={b.value}
                 ref={i === 0 ? firstBtnRef : undefined}
                 onClick={() => click(b.value)}
-                className={`text-xs rounded-lg px-3.5 py-1.5 transition-colors ${cls}`}
+                className={`le-tap text-xs rounded-lg px-3.5 py-1.5 transition-colors ${cls}`}
               >
                 {b.label}
               </button>
             );
           })}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

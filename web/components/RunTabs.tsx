@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, type ReactNode } from 'react';
+import { useState, useEffect, useId, useMemo, type ReactNode } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import GearSets from '@/components/GearSets';
 import DeathReport from '@/components/DeathReport';
 import FightsPanel from '@/components/FightsPanel';
@@ -46,32 +47,46 @@ export function buildJobMap(party: PartyMember[]): Record<string, string> {
 
 type Tab = 'overview' | 'timeline' | 'ground' | 'basement' | 'aminon' | 'combat' | 'fights' | 'actions' | 'status' | 'map' | 'gear' | 'deaths';
 
-function TabBtn({ id, label, active, setActive }: { id: Tab; label: string; active: Tab; setActive: (t: Tab) => void }) {
+const TAB_INDICATOR_TRANSITION = { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const };
+
+function TabBtn({ id, label, active, setActive, groupId }: { id: Tab; label: string; active: Tab; setActive: (t: Tab) => void; groupId: string }) {
+  const isActive = active === id;
   return (
     <button
       onClick={() => setActive(id)}
-      className={`flex-1 px-4 py-1.5 text-sm font-medium text-center rounded-lg transition-colors ${
-        active === id
-          ? 'bg-surface-raised text-accent border border-accent/40 shadow-sm'
-          : 'text-gray-300 border border-transparent hover:text-white hover:bg-white/[0.06]'
+      className={`le-tap relative flex-1 px-4 py-1.5 text-sm font-medium text-center rounded-lg ${
+        isActive ? 'text-accent' : 'text-gray-300 hover:text-white'
       }`}
     >
-      {label}
+      {isActive && (
+        <motion.div
+          layoutId={`tab-${groupId}`}
+          className="absolute inset-0 rounded-lg bg-surface-raised border border-accent/40 shadow-sm"
+          transition={TAB_INDICATOR_TRANSITION}
+        />
+      )}
+      <span className="relative z-[1]">{label}</span>
     </button>
   );
 }
 
-function SortieTabBtn({ id, label, active, setActive }: { id: Tab; label: string; active: Tab; setActive: (t: Tab) => void }) {
+function SortieTabBtn({ id, label, active, setActive, groupId }: { id: Tab; label: string; active: Tab; setActive: (t: Tab) => void; groupId: string }) {
+  const isActive = active === id;
   return (
     <button
       onClick={() => setActive(id)}
-      className={`flex-1 px-4 py-1.5 text-sm font-medium text-center rounded-md transition-colors border ${
-        active === id
-          ? 'bg-violet-500/30 text-violet-100 border-violet-400/60 shadow-sm'
-          : 'text-gray-300 border-transparent hover:bg-violet-500/15 hover:text-violet-100'
+      className={`le-tap relative flex-1 px-4 py-1.5 text-sm font-medium text-center rounded-md ${
+        isActive ? 'text-violet-100' : 'text-gray-300 hover:text-violet-100'
       }`}
     >
-      {label}
+      {isActive && (
+        <motion.div
+          layoutId={`tab-${groupId}`}
+          className="absolute inset-0 rounded-md bg-violet-500/30 border border-violet-400/60 shadow-sm"
+          transition={TAB_INDICATOR_TRANSITION}
+        />
+      )}
+      <span className="relative z-[1]">{label}</span>
     </button>
   );
 }
@@ -124,6 +139,8 @@ export default function RunTabs({ run: r, isAdmin = false, header, preTabContent
     ...(hasDeaths ? ['deaths'] as Tab[] : []),
   ]);
   const [active, setActive] = useState<Tab>('overview');
+  const topTabsId = useId();
+  const sortieTabsId = useId();
   useEffect(() => {
     const raw = (new URLSearchParams(window.location.search).get('section') || '').toLowerCase();
     // Back-compat: the Map tab used to be ?section=journey.
@@ -201,24 +218,24 @@ export default function RunTabs({ run: r, isAdmin = false, header, preTabContent
           </div>
         )}
         <div className="p-1.5 flex items-center gap-1 flex-wrap">
-          <TabBtn id="overview"  label="Overview"  active={active} setActive={selectTab} />
-          {hasFights && <TabBtn id="fights" label="Fights" active={active} setActive={selectTab} />}
-          {hasCombat && <TabBtn id="combat" label="Stats" active={active} setActive={selectTab} />}
-          {hasStatus && <TabBtn id="status" label="Status" active={active} setActive={selectTab} />}
-          {hasDeaths && <TabBtn id="deaths" label="Deaths" active={active} setActive={selectTab} />}
-          {hasActionLog && <TabBtn id="actions" label="Actions" active={active} setActive={selectTab} />}
-          {hasJourney && <TabBtn id="map" label="Map" active={active} setActive={selectTab} />}
-          {hasGear && <TabBtn id="gear" label="Gear" active={active} setActive={selectTab} />}
+          <TabBtn id="overview"  label="Overview"  active={active} setActive={selectTab} groupId={topTabsId} />
+          {hasFights && <TabBtn id="fights" label="Fights" active={active} setActive={selectTab} groupId={topTabsId} />}
+          {hasCombat && <TabBtn id="combat" label="Stats" active={active} setActive={selectTab} groupId={topTabsId} />}
+          {hasStatus && <TabBtn id="status" label="Status" active={active} setActive={selectTab} groupId={topTabsId} />}
+          {hasDeaths && <TabBtn id="deaths" label="Deaths" active={active} setActive={selectTab} groupId={topTabsId} />}
+          {hasActionLog && <TabBtn id="actions" label="Actions" active={active} setActive={selectTab} groupId={topTabsId} />}
+          {hasJourney && <TabBtn id="map" label="Map" active={active} setActive={selectTab} groupId={topTabsId} />}
+          {hasGear && <TabBtn id="gear" label="Gear" active={active} setActive={selectTab} groupId={topTabsId} />}
         </div>
         <div className="border-y border-violet-500/50 bg-violet-950/30">
           <div className="bg-gradient-to-r from-violet-500/30 via-violet-500/20 to-violet-500/30 border-b border-violet-500/40 px-3 py-1 flex items-center justify-center">
             <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-violet-100 select-none">Sortie</span>
           </div>
           <div className="px-1.5 pb-1.5 pt-1.5 flex items-center gap-1 flex-wrap">
-            <SortieTabBtn id="timeline" label="Timeline" active={active} setActive={selectTab} />
-            <SortieTabBtn id="ground"   label="Ground"   active={active} setActive={selectTab} />
-            <SortieTabBtn id="basement" label="Basement" active={active} setActive={selectTab} />
-            <SortieTabBtn id="aminon"   label="Aminon"   active={active} setActive={selectTab} />
+            <SortieTabBtn id="timeline" label="Timeline" active={active} setActive={selectTab} groupId={sortieTabsId} />
+            <SortieTabBtn id="ground"   label="Ground"   active={active} setActive={selectTab} groupId={sortieTabsId} />
+            <SortieTabBtn id="basement" label="Basement" active={active} setActive={selectTab} groupId={sortieTabsId} />
+            <SortieTabBtn id="aminon"   label="Aminon"   active={active} setActive={selectTab} groupId={sortieTabsId} />
           </div>
         </div>
       </div>
@@ -229,7 +246,14 @@ export default function RunTabs({ run: r, isAdmin = false, header, preTabContent
           the overview tab instead and leave this slot empty. */}
       {preTabContent}
 
-      <div key={active} className="ff-tab">
+      <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={active}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -5 }}
+        transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
+      >
       {active === 'overview' && (
         <SortieOverview
           r={r}
@@ -379,7 +403,8 @@ export default function RunTabs({ run: r, isAdmin = false, header, preTabContent
           gearIndex={gearIndex}
         />
       )}
-      </div>
+      </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

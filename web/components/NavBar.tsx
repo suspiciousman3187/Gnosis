@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { motion } from 'motion/react';
 import { createClient } from '@/lib/supabase/client';
 
 interface NavBarProps {
@@ -30,24 +31,33 @@ function buildItems(pathname: string, isAdmin: boolean): NavItem[] {
 }
 
 function NavLinks({ items }: { items: NavItem[] }) {
+  const groupId = useId();
   return (
     <div className="flex items-center gap-1">
       {items.map(it => {
-        const cls = `px-3 py-1.5 rounded-md text-xs font-semibold tracking-wide transition-colors ${
-          it.active
-            ? (it.danger ? 'bg-rose-500/10 text-rose-300' : 'bg-white/[0.07] text-white')
-            : (it.danger ? 'text-rose-400/70 hover:text-rose-300 hover:bg-rose-500/10' : 'text-gray-300 hover:text-white hover:bg-white/[0.05]')
-        }`;
+        const base = 'le-tap relative px-3 py-1.5 rounded-md text-xs font-semibold tracking-wide';
+        const textCls = it.active
+          ? (it.danger ? 'text-rose-300' : 'text-white')
+          : (it.danger ? 'text-rose-400/70 hover:text-rose-300' : 'text-gray-300 hover:text-white');
+        const cls = `${base} ${textCls}`;
+        const pill = it.active && (
+          <motion.div
+            layoutId={`nav-${groupId}`}
+            className={`absolute inset-0 rounded-md ${it.danger ? 'bg-rose-500/10' : 'bg-white/[0.07]'}`}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          />
+        );
+        const inner = <span className="relative z-[1]">{it.label}</span>;
         if (it.external) {
           return (
             <a key={it.label} href={it.href} target="_blank" rel="noopener noreferrer" className={cls}>
-              {it.label}
+              {pill}{inner}
             </a>
           );
         }
         return (
           <Link key={it.label} href={it.href} className={cls}>
-            {it.label}
+            {pill}{inner}
           </Link>
         );
       })}
@@ -71,7 +81,7 @@ function RightCluster({
       {!loggedIn && (
         <Link
           href="/login"
-          className="ml-1 px-3.5 py-1.5 text-sm font-semibold bg-accent hover:bg-accent-hover text-gray-900 rounded-md transition-colors"
+          className="le-tap ml-1 px-3.5 py-1.5 text-sm font-semibold bg-accent hover:bg-accent-hover text-gray-900 rounded-md transition-colors"
         >
           Sign in
         </Link>
@@ -80,7 +90,7 @@ function RightCluster({
       <div ref={dropdownRef} className={`relative ${!loggedIn ? 'hidden' : ''}`}>
         <button
           onClick={() => setOpen(v => !v)}
-          className="flex items-center focus:outline-none rounded-full focus:ring-2 focus:ring-accent/50"
+          className="le-tap flex items-center focus:outline-none rounded-full focus:ring-2 focus:ring-accent/50"
           aria-label="Account menu"
         >
           {avatarUrl ? (

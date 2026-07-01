@@ -40,7 +40,7 @@ export default function DeleteShareButton({ id }: { id: string }) {
       disabled={busy}
       data-tooltip="Unshare - remove this upload from the web"
       aria-label="Unshare uploaded report"
-      className="text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/10 rounded p-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      className="le-tap text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/10 rounded p-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
     >
       {busy ? (
         <span className="inline-block w-3 h-3 rounded-full border-2 border-rose-400/40 border-t-rose-400 animate-spin" />
