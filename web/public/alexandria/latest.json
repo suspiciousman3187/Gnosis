@@ -1,0 +1,11 @@
+{
+    "version":  "0.0.1",
+    "notes":  "It is what it is.",
+    "pub_date":  "2026-07-01T08:10:04Z",
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeXlYRzc1SzZNcm9jYVNXbDVpQ0w3cGd3a003NHlUdFJwc1M4SysvYzJPd21yRGVKQ2t0Ry9qWkhUUU01UnZoZUYyVXFKQ1N4STdZRWJsMXMwVHI3VFFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyODkzNDAxCWZpbGU6QWxleGFuZHJpYV8wLjAuMV94NjQtc2V0dXAuZXhlCm1GOTZGN1R4ektwVG10THl1eTd6L0haQ2FUc0N0Z2t6Rm94bEdyOVBSSTJ0NEtCaUpXQllNTXRMdVZEekZLeE5VSDlzYkZySkRCNzYzUzRPSnFhT0JBPT0K",
+                                             "url":  "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.1/Alexandria_0.0.1_x64-setup.exe"
+                                         }
+                  }
+}
