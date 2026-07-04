@@ -1,11 +1,11 @@
 {
-    "version":  "0.0.4",
-    "notes":  "0.0.4",
-    "pub_date":  "2026-07-03T04:36:01Z",
+    "version":  "0.0.5",
+    "notes":  "v0.0.5",
+    "pub_date":  "2026-07-04T20:47:52Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeTZOSUVKMWxpV3B0WVRndy9oQkpSQUlMSnlLMVJXVTZzUDJaS2I5bjJ6L0psdjNQbDdpS2hnT25rSlRJTlVDbkJsNmFQK1hvTlR6VmkwN081d25DdndJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzMDUzMzU5CWZpbGU6QWxleGFuZHJpYV8wLjAuNF94NjQtc2V0dXAuZXhlClJPQW5JTVFuOVJPOUJnTVY2OUxEb21QMHhiTjU0MkU4SzJWRUlsTlBpblY4V1ZZTzViUnl5RjFDTW1yaWp5cW1HcEM1QUxlOFQycHJKcTFISjJNckRRPT0K",
-                                             "url":  "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.4/Alexandria_0.0.4_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeS9rdlBVTy9zUEJpMUFqUFVib1YvVzNBKzkvanNQSmExeTk1V09MNmwybDdBNXhTeGwrQ3dLV0U2ZjlrQ0N0YmowK21Fb1U5K2lEWVh4blMwZWN4OWdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzMTk4MDcxCWZpbGU6QWxleGFuZHJpYV8wLjAuNV94NjQtc2V0dXAuZXhlCk1Tem0xR1dJcU9PV1BXY1ZHVGRWaW9LeU5PSnpkZzZQTjJrVkxoQ0NQNmtUbkRFMDh3Nkt5a0lIWC83SnZaRnVDdjQ4VWl0dGNPTTZVcmlmeXIyUERRPT0K",
+                                             "url":  "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.5/Alexandria_0.0.5_x64-setup.exe"
                                          }
                   }
 }
