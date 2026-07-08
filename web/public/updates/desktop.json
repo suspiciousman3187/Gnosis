@@ -1,6 +1,6 @@
 {
     "version":  "0.0.5",
-    "notes":  "# New Features\n* New Cleanup section which allows better pruning of \"garbage\" encounter data, as well as a restore function to roll back any corrupted data from deletion/merge/split operations.\n* Select Mode in Encounter History now allows Click+Drag to quickly select multiple logs for merging.\n\n# Bugfixes\n* Enemy-targetted Job Abilities should no longer be classified as Weapon Skills and should now properly display under Job Abilities across all views.\n* Direct-drop personal Loot (in Multibox setups) now should be properly attributed to the proper clients.\n* Fixed duplicated/triplicated drops appearing in multibox encounter reports.\n* Fixed multibox Sortie reports that only showed one character\u0027s Experience and Loot; all characters now appear.\n* Fixed the Sortie Experience and Currency sections showing empty when Experience and Gallimaufry were actually earned.\n* Fixed a bug where Debuff Uptime section was displayed incorrectly when viewing logs locally.\n* Reworked the Gallimaufry tracking upon killing bosses in Sortie to be more reliable.\n* Reworked Aminon fight engage detection to be more reliable and prevent double-logging.",
+    "notes":  "v0.0.5",
     "pub_date":  "2026-07-08T04:29:18Z",
     "platforms":  {
                       "windows-x86_64":  {
