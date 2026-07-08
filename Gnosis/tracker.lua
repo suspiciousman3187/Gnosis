@@ -260,10 +260,43 @@ local function sync_party_jobs(into)
     end
 end
 
+local function drop_owner_name()
+    local p = windower.ffxi.get_player()
+    if not p then return nil end
+    return (resolve_member_name and resolve_member_name(p.id, p.name)) or p.name
+end
+
+-- Append a job-change event for any party member whose main/sub/levels differ
+-- from what we last logged. Lets the viewer attribute the correct job to each
+-- time window (e.g. per boss attempt after a mid-encounter job swap). '?'/''
+-- (unresolved) jobs are skipped so we only record real, known jobs.
+local function log_party_job_changes()
+    if not enc or not enc.job_change_log or not enc.party_jobs then return end
+    local elapsed = math.floor(os.difftime(os.time(), enc.start_os))
+    for name, j in pairs(enc.party_jobs) do
+        if j and j.main and j.main ~= '?' and j.main ~= '' then
+            local prev = enc.last_logged_jobs[name]
+            if not prev or prev.main ~= j.main or prev.main_lvl ~= (j.main_lvl or 0)
+               or prev.sub ~= (j.sub or '') or prev.sub_lvl ~= (j.sub_lvl or 0) then
+                enc.last_logged_jobs[name] = { main = j.main, main_lvl = j.main_lvl or 0, sub = j.sub or '', sub_lvl = j.sub_lvl or 0 }
+                table.insert(enc.job_change_log, {
+                    elapsed   = elapsed,
+                    player    = name,
+                    mainJob   = j.main,
+                    mainLevel = j.main_lvl or 0,
+                    subJob    = j.sub or '',
+                    subLevel  = j.sub_lvl or 0,
+                })
+            end
+        end
+    end
+end
+
 ff_entity_class_subscribe(function(pid, new_class, prev_class)
     if not enc or not enc.party_jobs then return end
     if prev_class == new_class then return end
     sync_party_jobs(enc.party_jobs)
+    log_party_job_changes()
 end)
 
 local _last_lazy_pet_refresh = 0
@@ -414,6 +447,8 @@ local function open_encounter(segmentation)
         currency_end       = nil,  -- merged from 0x0113 + 0x0118 at encounter close
         key_item_log       = {},   -- {elapsed, kiId, kiName} for each KI flipped 0->1 in 0x0055
         party_jobs         = {},   -- name -> {main,sub,...}; enemy = NOT in this map
+        job_change_log     = {},   -- {elapsed, player, mainJob, mainLevel, subJob, subLevel} per job change
+        last_logged_jobs   = {},   -- name -> last-logged {main,main_lvl,sub,sub_lvl} for change diffing
         id_to_name         = {},   -- entity id -> latest customized name (rename reconcile)
         outsider_labels    = {},   -- entity id -> assigned label (e.g. "Red Mage 1"); track_outsiders only
         outsider_counts    = {},   -- label root (e.g. "Red Mage") -> next index
@@ -458,6 +493,7 @@ local function open_encounter(segmentation)
     -- Seed the roster (real jobs where known) so is-party-member checks and the
     -- DRG-jump remap work from the first packet.
     sync_party_jobs(enc.party_jobs)
+    log_party_job_changes()  -- seed opening job setup at elapsed 0
     refresh_party_pet_ids()
     -- Start shared gear/state capture for this encounter window. Skip for
     -- live-only (content) encounters - the content module owns gear capture.
@@ -693,6 +729,7 @@ local function close_encounter()
         startTime        = enc.start_os,
         durationSeconds  = duration,
         party            = build_party_list(),
+        jobChangeLog     = arr(enc.job_change_log),
         playerIds        = next(enc.id_to_name) and (function()
             local m = {}
             for id, nm in pairs(enc.id_to_name) do m[nm] = id end
@@ -1275,6 +1312,7 @@ local function _chunk_misc(id, data)
                     count   = (delta > 1) and delta or nil,
                     elapsed = math.floor(os.difftime(os.time(), enc.start_os)),
                     type    = 'temporary',
+                    by      = drop_owner_name(),
                 }
                 table.insert(enc.drop_log, entry)
                 enc.recent_temp_names[nm] = entry.elapsed
@@ -1489,12 +1527,13 @@ local function _chunk_misc(id, data)
         local item = res.items and res.items[item_id]
         local dropper = (dropper_id and dropper_id ~= 0) and windower.ffxi.get_mob_by_id(dropper_id) or nil
         local entry = {
-            name    = ff_loc_name(item, 'Item #' .. tostring(item_id)),
-            itemId  = item_id,
-            count   = (count and count > 1) and count or nil,
-            source  = dropper and dropper.name or nil,
-            elapsed = math.floor(os.difftime(os.time(), enc.start_os)),
-            type    = 'pool',
+            name      = ff_loc_name(item, 'Item #' .. tostring(item_id)),
+            itemId    = item_id,
+            count     = (count and count > 1) and count or nil,
+            source    = dropper and dropper.name or nil,
+            elapsed   = math.floor(os.difftime(os.time(), enc.start_os)),
+            type      = 'pool',
+            poolIndex = pool_idx,
         }
         table.insert(enc.drop_log, entry)
         enc.recent_pool_names[entry.name] = entry.elapsed
@@ -1549,7 +1588,7 @@ windower.register_event('incoming text', ff_perf_event('incoming_text', function
         local name = clean_item(tmp)
         local last = enc.recent_temp_names and enc.recent_temp_names[name]
         if last and (elapsed - last) <= 5 then return end
-        table.insert(enc.drop_log, { name = name, elapsed = elapsed, type = 'temporary' })
+        table.insert(enc.drop_log, { name = name, elapsed = elapsed, type = 'temporary', by = drop_owner_name() })
         return
     end
 
@@ -1561,7 +1600,7 @@ windower.register_event('incoming text', ff_perf_event('incoming_text', function
         local name = clean_item(direct):gsub('^[Aa]n? ', ''):gsub('^[Tt]he ', '')
         local last_pool = enc.recent_pool_names[name]
         if last_pool and (elapsed - last_pool) <= 10 then return end
-        table.insert(enc.drop_log, { name = name, elapsed = elapsed, type = 'direct' })
+        table.insert(enc.drop_log, { name = name, elapsed = elapsed, type = 'direct', by = drop_owner_name() })
         return
     end
 end))
@@ -1685,6 +1724,7 @@ windower.register_event('prerender', ff_perf_event('prerender', function()
         last_poll = c
         ff_entity_class_pump()
         sync_party_jobs(enc.party_jobs)  -- pick up jobs that synced after open
+        log_party_job_changes()          -- record any mid-encounter job swaps
         refresh_party_pet_ids()           -- catch any pet just (un)summoned
         save_job_cache()  -- persist newly-learned jobs promptly (no-op when clean)
         local elapsed = math.floor(os.difftime(os.time(), enc.start_os))

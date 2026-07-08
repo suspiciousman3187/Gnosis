@@ -69,8 +69,10 @@ export default function GainsPanel({
 }: GainsPanelProps) {
   const [gainsTab, setGainsTab] = useState<'experience' | 'loot' | 'currency'>('experience');
   const [expTab, setExpTab] = useState<'experience' | 'capacity' | 'exemplar'>('experience');
-  const [lootBySource, setLootBySource] = useState(false);
+  const [lootView, setLootView] = useState<'item' | 'source' | 'char'>('item');
+  const lootBySource = lootView === 'source';
   const dur = durationSeconds;
+  const hasPoints = !!points && (points.xp > 0 || points.cp > 0 || points.ep > 0 || points.lp > 0);
 
   const progression = useMemo(() => {
     type Totals = { xp: number; cp: number; lp: number; ep: number };
@@ -168,6 +170,24 @@ export default function GainsPanel({
     return [...m.values()].sort((a, b) => b.count - a.count);
   }, [dropLog, lootBySource]);
 
+  const lootByCharacter = useMemo(() => {
+    type CharItem = { itemId?: number; name: string; type?: string; count: number };
+    const m = new Map<string, Map<string, CharItem>>();
+    for (const d of dropLog ?? []) {
+      const who = d.by || 'Unattributed';
+      const inner = m.get(who) ?? new Map<string, CharItem>();
+      const key = `${d.itemId ?? ''}|${d.name}|${d.type ?? ''}`;
+      const add = d.count && d.count > 1 ? d.count : 1;
+      const cur = inner.get(key);
+      if (cur) cur.count += add;
+      else inner.set(key, { itemId: d.itemId, name: d.name, type: d.type, count: add });
+      m.set(who, inner);
+    }
+    return [...m.entries()]
+      .sort((a, b) => (a[0] === 'Unattributed' ? 1 : 0) - (b[0] === 'Unattributed' ? 1 : 0) || a[0].localeCompare(b[0]))
+      .map(([name, items]) => ({ name, items: [...items.values()].sort((x, y) => y.count - x.count) }));
+  }, [dropLog]);
+
   type Kind = 'xp' | 'cp' | 'lp' | 'ep';
   const SUB_META = {
     experience: { label: 'Experience & Limit', kinds: [
@@ -225,7 +245,7 @@ export default function GainsPanel({
 
       {gainsTab === 'experience' && (
         <div>
-          {!progression.has ? (
+          {!progression.has && !hasPoints ? (
             <p className="text-gray-400 text-sm py-8 text-center px-5">No experience, capacity, or exemplar points recorded this encounter.</p>
           ) : (
             <>
@@ -239,6 +259,8 @@ export default function GainsPanel({
                   </div>
                 </div>
               )}
+              {progression.has && (
+              <>
               <div className="px-5 py-3 border-b border-white/[0.06]">
                 <div className="flex bg-black/20 rounded-lg p-1 gap-1">
                   {SUB_ORDER.map(t => {
@@ -317,6 +339,8 @@ export default function GainsPanel({
                   </table>
                 )}
               </div>
+              </>
+              )}
             </>
           )}
         </div>
@@ -329,26 +353,61 @@ export default function GainsPanel({
               <div className="flex rounded-md border border-white/15 overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => setLootBySource(false)}
-                  className={`px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide transition-colors ${
-                    !lootBySource ? 'bg-accent/15 text-accent' : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
+                  onClick={() => setLootView('item')}
+                  className={`le-tap px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide transition-colors ${
+                    lootView === 'item' ? 'bg-accent/15 text-accent' : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
                   }`}
                 >
                   By Item
                 </button>
                 <button
                   type="button"
-                  onClick={() => setLootBySource(true)}
-                  className={`px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide transition-colors border-l border-white/15 ${
-                    lootBySource ? 'bg-accent/15 text-accent' : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
+                  onClick={() => setLootView('source')}
+                  className={`le-tap px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide transition-colors border-l border-white/15 ${
+                    lootView === 'source' ? 'bg-accent/15 text-accent' : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
                   }`}
                 >
                   By Item + Source
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setLootView('char')}
+                  className={`le-tap px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide transition-colors border-l border-white/15 ${
+                    lootView === 'char' ? 'bg-accent/15 text-accent' : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
+                  }`}
+                >
+                  By Character
+                </button>
               </div>
             </div>
           )}
-          {groupedLoot.length > 0 ? (
+          {lootView === 'char' && (
+            lootByCharacter.length > 0 ? (
+              <div className="space-y-4">
+                {lootByCharacter.map(c => (
+                  <div key={c.name}>
+                    <h4 className="text-[11px] font-semibold text-gray-300 uppercase tracking-wide mb-1.5">
+                      {c.name || 'Unattributed'}
+                      <span className="text-gray-500 font-mono ml-2">{c.items.reduce((s, it) => s + it.count, 0)}</span>
+                    </h4>
+                    <div className="space-y-1">
+                      {c.items.map((it, i) => (
+                        <div key={`${it.name}-${i}`} className="flex items-center gap-x-2 text-sm py-0.5">
+                          <ItemIcon id={it.itemId} name={it.name} size={18} nameClass="text-lime-200" />
+                          {it.count > 1 && <span className="text-gray-300 text-xs font-mono shrink-0">×{it.count}</span>}
+                          {it.type === 'temporary' && <span className="text-gray-400 text-[10px] shrink-0">(temp)</span>}
+                          {it.type === 'direct' && <span className="text-gray-400 text-[10px] shrink-0">(direct)</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-400 text-sm py-6 text-center">None found.</p>
+            )
+          )}
+          {lootView !== 'char' && (groupedLoot.length > 0 ? (
             <div className="space-y-1">
               {groupedLoot.map((g, i) => {
                 const looters = [...g.looters.entries()].sort((a, b) => b[1] - a[1]);
@@ -380,7 +439,7 @@ export default function GainsPanel({
             </div>
           ) : (
             <p className="text-gray-400 text-sm py-6 text-center">None found.</p>
-          )}
+          ))}
           {(keyItemLog?.length ?? 0) > 0 && (() => {
             const items = keyItemLog!;
             const seen = new Set<number>();

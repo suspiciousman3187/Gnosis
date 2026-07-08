@@ -204,7 +204,7 @@ export default function AdminSharesTable({ rows }: { rows: AdminShareRow[] }) {
         {filtered.length === rows.length ? `${rows.length} total` : `${filtered.length} of ${rows.length}`}
       </p>
 
-      <div className="bg-surface border border-white/10 rounded-xl overflow-hidden">
+      <div className="bg-surface border border-white/10 rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-[10px] uppercase tracking-wide text-gray-400/80 bg-white/[0.03] border-b border-white/10">
@@ -241,7 +241,7 @@ export default function AdminSharesTable({ rows }: { rows: AdminShareRow[] }) {
                   {r.uploaderUsername ? r.uploaderUsername : <span className="text-gray-400">{r.uploaderIp ?? 'anon'}</span>}
                 </td>
                 <td className="px-3 py-2.5 text-gray-100">{r.zone_name ?? <span className="text-gray-400">-</span>}</td>
-                <td className="px-3 py-2.5 text-gray-300 font-mono text-xs">{partyJobs(r.party)}</td>
+                <td className="px-3 py-2.5 text-gray-300 font-mono text-xs max-w-[240px] truncate" title={partyJobs(r.party)}>{partyJobs(r.party)}</td>
                 <td className="px-3 py-2.5 font-mono text-gray-300 text-xs">{formatDuration(r.duration_seconds)}</td>
                 <td className="px-3 py-2.5 text-gray-300 text-xs max-w-[200px] truncate" title={r.drops?.map(d => `${d.name}${d.count > 1 ? ' ×' + d.count : ''}`).join(', ')}>
                   {dropsLabel(r.drops)}

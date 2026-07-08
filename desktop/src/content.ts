@@ -166,12 +166,24 @@ function gearViewOf(c: LoadedContent): GearView {
     progressionEnd?: CharacterGear['progressionEnd'];
     currencyStart?: CharacterGear['currencyStart'];
     currencyEnd?: CharacterGear['currencyEnd'];
+    points?: { xp: number; cp: number; ep: number; lp: number } | null;
+    gallimaufry?: number | null;
   };
+  let progressionLog = r.progressionLog ?? null;
+  if (!progressionLog && r.points) {
+    const p = r.points;
+    const evs: NonNullable<CharacterGear['progressionLog']> = [];
+    if (p.xp > 0) evs.push({ elapsed: 0, kind: 'xp', value: p.xp });
+    if (p.cp > 0) evs.push({ elapsed: 0, kind: 'cp', value: p.cp });
+    if (p.ep > 0) evs.push({ elapsed: 0, kind: 'ep', value: p.ep });
+    if (p.lp > 0) evs.push({ elapsed: 0, kind: 'lp', value: p.lp });
+    if (evs.length > 0) progressionLog = evs;
+  }
   return {
     char: r.localCharacter ?? null,
     gear: {
       gearLog: r.gearLog ?? null, stateSets: r.stateSets ?? null, positionLog: r.position_log ?? null, buffLog: r.buff_log ?? null,
-      progressionLog: r.progressionLog ?? null,
+      progressionLog,
       progressionStart: r.progressionStart ?? null,
       progressionEnd: r.progressionEnd ?? null,
       currencyStart: r.currencyStart ?? null,
@@ -223,38 +235,192 @@ export function mergeContents(contents: LoadedContent[]): LoadedContent {
   return { kind: 'sortie', record: { ...mergedRec, party: patchParty(mergedRec.party), gearByPlayer } };
 }
 
+const GROUP_JOIN_WINDOW_SEC = 45;
+
+function clusterByProximity(paths: string[], keyOf: (p: string) => string, window: number): string[][] {
+  const sorted = [...paths].sort((a, b) => {
+    const k = keyOf(a).localeCompare(keyOf(b));
+    return k !== 0 ? k : fileTs(a) - fileTs(b);
+  });
+  const clusters: string[][] = [];
+  let cur: string[] = [];
+  let curKey = '';
+  let lastTs = 0;
+  for (const p of sorted) {
+    const k = keyOf(p);
+    const t = fileTs(p);
+    if (cur.length > 0 && k === curKey && t - lastTs <= window) {
+      cur.push(p);
+      lastTs = t;
+    } else {
+      if (cur.length > 0) clusters.push(cur);
+      cur = [p];
+      curKey = k;
+      lastTs = t;
+    }
+  }
+  if (cur.length > 0) clusters.push(cur);
+  return clusters;
+}
+
+export interface PathGroupView {
+  id: string;
+  boundaries?: number[];
+  segIndex?: number;
+  segCount?: number;
+}
+
+export interface PathGroup {
+  id: string;
+  rep: string;
+  members: string[];
+  chars: string[];
+  view?: PathGroupView;
+}
+
+export interface ViewEntryLike {
+  id: string;
+  members: string[];
+  boundaries?: number[];
+}
+
 export function groupMultiboxPaths(
   paths: string[],
   encSummaries: Record<string, { zones?: string[]; zone?: string | null } | undefined>,
-): { id: string; rep: string; members: string[]; chars: string[] }[] {
-  const BUCKET = 30;
-  const zoneSig = (p: string): string => {
+  views?: ViewEntryLike[],
+): PathGroup[] {
+  const claimed = new Map<string, ViewEntryLike>();
+  if (views) {
+    const pathSet = new Set(paths);
+    for (const v of views) {
+      const present = v.members.filter(m => pathSet.has(m));
+      if (present.length === 0) continue;
+      for (const m of present) claimed.set(m, v);
+    }
+  }
+  const unclaimed = paths.filter(p => !claimed.has(p));
+  const autoGroups = groupAutomatic(unclaimed, encSummaries);
+
+  if (claimed.size === 0) return autoGroups;
+
+  const viewGroups = new Map<string, PathGroup[]>();
+  for (const v of new Set(claimed.values())) {
+    const members = v.members.filter(m => claimed.get(m) === v);
+    const chars = [...new Set(members.map(fileChar).filter((c): c is string => !!c))];
+    if (v.boundaries && v.boundaries.length > 0) {
+      const segCount = v.boundaries.length + 1;
+      const segs: PathGroup[] = [];
+      for (let i = 0; i < segCount; i++) {
+        segs.push({
+          id: `view:${v.id}:seg${i}`,
+          rep: members[0],
+          members,
+          chars,
+          view: { id: v.id, boundaries: v.boundaries, segIndex: i, segCount },
+        });
+      }
+      viewGroups.set(members[0], segs);
+    } else {
+      viewGroups.set(members[0], [{
+        id: `view:${v.id}`,
+        rep: members[0],
+        members,
+        chars,
+        view: { id: v.id },
+      }]);
+    }
+  }
+
+  const anchorOf = new Map<string, string>();
+  for (const [anchor] of viewGroups) {
+    const v = claimed.get(anchor)!;
+    for (const m of v.members) anchorOf.set(m, anchor);
+  }
+
+  const out: PathGroup[] = [];
+  const emittedAnchors = new Set<string>();
+  const autoByFirstPath = new Map<string, PathGroup>();
+  const emittedAuto = new Set<PathGroup>();
+  for (const g of autoGroups) for (const m of g.members) autoByFirstPath.set(m, g);
+  for (const p of paths) {
+    const anchor = anchorOf.get(p);
+    if (anchor !== undefined) {
+      if (!emittedAnchors.has(anchor)) {
+        emittedAnchors.add(anchor);
+        const groupsFor = viewGroups.get(anchor);
+        if (groupsFor) out.push(...groupsFor);
+      }
+      continue;
+    }
+    const g = autoByFirstPath.get(p);
+    if (g && !emittedAuto.has(g)) {
+      emittedAuto.add(g);
+      out.push(g);
+    }
+  }
+  return out;
+}
+
+function groupAutomatic(
+  paths: string[],
+  encSummaries: Record<string, { zones?: string[]; zone?: string | null } | undefined>,
+): PathGroup[] {
+  const zoneSig = (p: string): string | null => {
     const kind = kindFromName(p);
     if (kind !== 'encounter') return 'content-module';
     const enc = encSummaries[p];
-    if (!enc) return `unparsed::${p}`;
+    if (!enc) return null;
     const zones = enc.zones?.length ? enc.zones : (enc.zone ? [enc.zone] : []);
-    if (zones.length === 0) return `unzoned::${p}`;
+    if (zones.length === 0) return 'unzoned';
     return zones.slice().sort().join('|');
   };
-  const bucketKey = (p: string) => `${kindFromName(p)}|${Math.round(fileTs(p) / BUCKET)}|${zoneSig(p)}`;
-  const byBucket = new Map<string, string[]>();
-  for (const p of paths) {
-    const key = bucketKey(p);
-    const arr = byBucket.get(key);
-    if (arr) arr.push(p); else byBucket.set(key, [p]);
+
+  const timeClusters = clusterByProximity(paths, p => kindFromName(p) ?? '?', GROUP_JOIN_WINDOW_SEC);
+
+  const finalClusters: string[][] = [];
+  for (const cluster of timeClusters) {
+    const bySig = new Map<string, string[]>();
+    const pending: string[] = [];
+    for (const p of cluster) {
+      const sig = zoneSig(p);
+      if (sig === null) { pending.push(p); continue; }
+      const arr = bySig.get(sig);
+      if (arr) arr.push(p); else bySig.set(sig, [p]);
+    }
+    if (bySig.size === 0) {
+      finalClusters.push(pending);
+      continue;
+    }
+    if (bySig.size === 1) {
+      const only = [...bySig.values()][0];
+      finalClusters.push([...only, ...pending]);
+      continue;
+    }
+    let largest: string[] | null = null;
+    for (const arr of bySig.values()) {
+      if (!largest || arr.length > largest.length) largest = arr;
+      finalClusters.push(arr);
+    }
+    if (pending.length > 0 && largest) largest.push(...pending);
   }
+
+  const clusterOf = new Map<string, string[]>();
+  const idOf = new Map<string[], string>();
+  for (const c of finalClusters) {
+    for (const p of c) clusterOf.set(p, c);
+    idOf.set(c, `grp:${c[0]}`);
+  }
+
   const out: { id: string; rep: string; members: string[]; chars: string[] }[] = [];
-  const emitted = new Set<string>();
+  const emitted = new Set<string[]>();
   for (const p of paths) {
-    const key = bucketKey(p);
-    const bucket = byBucket.get(key)!;
-    const chars = bucket.map(fileChar);
-    const multibox = bucket.length >= 2 && chars.every(Boolean) && new Set(chars).size === chars.length;
+    const cluster = clusterOf.get(p) ?? [p];
+    const chars = cluster.map(fileChar);
+    const multibox = cluster.length >= 2 && chars.every(Boolean) && new Set(chars).size === chars.length;
     if (multibox) {
-      if (emitted.has(key)) continue;
-      emitted.add(key);
-      out.push({ id: key, rep: bucket[0], members: bucket, chars: chars as string[] });
+      if (emitted.has(cluster)) continue;
+      emitted.add(cluster);
+      out.push({ id: idOf.get(cluster) ?? `grp:${cluster[0]}`, rep: cluster[0], members: cluster, chars: chars as string[] });
     } else {
       out.push({ id: p, rep: p, members: [p], chars: (fileChar(p) ? [fileChar(p)!] : []) });
     }
@@ -265,14 +431,25 @@ export function groupMultiboxPaths(
 export function representativeLootSummaries(
   summaries: LootEncounterSummary[],
 ): LootEncounterSummary[] {
-  const BUCKET = 30;
   type Bucket = { sig: string; entries: LootEncounterSummary[] };
+  const bySigTime = [...summaries]
+    .filter(s => kindFromName(s.path))
+    .sort((a, b) => {
+      const ka = `${kindFromName(a.path)}|${a.zone ?? ''}`;
+      const kb = `${kindFromName(b.path)}|${b.zone ?? ''}`;
+      const c = ka.localeCompare(kb);
+      return c !== 0 ? c : a.ts - b.ts;
+    });
   const groups = new Map<string, Bucket>();
-  for (const s of summaries) {
-    const kind = kindFromName(s.path);
-    if (!kind) continue;
-    const bucketKey = Math.round(s.ts / BUCKET);
-    const sig = `${kind}|${bucketKey}|${s.zone ?? ''}`;
+  let clusterId = 0;
+  let prevKey = '';
+  let prevTs = 0;
+  for (const s of bySigTime) {
+    const key = `${kindFromName(s.path)}|${s.zone ?? ''}`;
+    if (key !== prevKey || s.ts - prevTs > GROUP_JOIN_WINDOW_SEC) clusterId++;
+    prevKey = key;
+    prevTs = s.ts;
+    const sig = `${key}#${clusterId}`;
     const g = groups.get(sig) ?? { sig, entries: [] };
     g.entries.push(s);
     groups.set(sig, g);

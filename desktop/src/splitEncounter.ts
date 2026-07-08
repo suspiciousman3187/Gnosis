@@ -1,4 +1,20 @@
 import type { Encounter, EncounterEnemy, EncounterDrop } from '@/lib/encounter';
+import type { PartyMember } from '@/lib/types';
+
+function partyAtElapsed(enc: Encounter, atElapsed: number): PartyMember[] {
+  const log = enc.jobChangeLog;
+  if (!Array.isArray(log) || log.length === 0) return enc.party;
+  const latest = new Map<string, { mainJob: string; mainLevel: number; subJob: string; subLevel: number }>();
+  for (const e of log) {
+    if (e.elapsed > atElapsed) continue;
+    latest.set(e.player, { mainJob: e.mainJob, mainLevel: e.mainLevel, subJob: e.subJob, subLevel: e.subLevel });
+  }
+  if (latest.size === 0) return enc.party;
+  return (enc.party ?? []).map(p => {
+    const j = latest.get(p.name);
+    return j ? { ...p, mainJob: j.mainJob, mainLevel: j.mainLevel, subJob: j.subJob, subLevel: j.subLevel } : p;
+  });
+}
 
 type WithElapsed = { elapsed: number };
 
@@ -62,7 +78,7 @@ function sliceEnemies(
  * Segments with no log entries at all are dropped (e.g., an idle gap between
  * fights produces an empty segment that's not worth saving).
  */
-export function splitEncounter(enc: Encounter, boundaries: number[]): Encounter[] {
+export function splitEncounterWindows(enc: Encounter, boundaries: number[]): (Encounter | null)[] {
   const end = enc.durationSeconds;
   // Normalize: dedupe, clamp to [0, end), sort ascending.
   const cleaned = [...new Set(boundaries)]
@@ -78,10 +94,10 @@ export function splitEncounter(enc: Encounter, boundaries: number[]): Encounter[
   }
   windows.push({ start: cursor, end });
 
-  const segments: Encounter[] = [];
+  const segments: (Encounter | null)[] = [];
   for (const w of windows) {
     const segDur = w.end - w.start;
-    if (segDur <= 0) continue;
+    if (segDur <= 0) { segments.push(null); continue; }
     const actionLog        = sliceLog(enc.actionLog, w.start, w.end);
     const skillchainLog    = sliceLog(enc.skillchainLog, w.start, w.end);
     const buffLog          = sliceLog(enc.buffLog, w.start, w.end);
@@ -107,7 +123,7 @@ export function splitEncounter(enc: Encounter, boundaries: number[]): Encounter[
     // Drop entirely-empty segments (no combat, no events).
     const hasContent =
       (actionLog?.length ?? 0) + (killLog?.length ?? 0) + (deathLog?.length ?? 0) > 0;
-    if (!hasContent) continue;
+    if (!hasContent) { segments.push(null); continue; }
 
     const enemies = sliceEnemies(enc.enemies, w.start, w.end);
 
@@ -121,7 +137,7 @@ export function splitEncounter(enc: Encounter, boundaries: number[]): Encounter[
       startTime: enc.startTime + w.start,
       durationSeconds: segDur,
 
-      party: enc.party,
+      party: partyAtElapsed(enc, w.start),
       playerIds: enc.playerIds ?? null,
       enemies,
 
@@ -156,7 +172,11 @@ export function splitEncounter(enc: Encounter, boundaries: number[]): Encounter[
   return segments;
 }
 
-export type SplitMode = 'per-kill' | 'per-zone' | 'idle-gaps' | 'manual';
+export function splitEncounter(enc: Encounter, boundaries: number[]): Encounter[] {
+  return splitEncounterWindows(enc, boundaries).filter((s): s is Encounter => s !== null);
+}
+
+export type SplitMode = 'per-kill' | 'per-zone' | 'idle-gaps' | 'per-boss' | 'manual';
 
 /**
  * Generate boundary timestamps from an encounter based on a heuristic mode.
@@ -172,6 +192,31 @@ export function suggestSplits(enc: Encounter, mode: SplitMode, opts?: { gapSecon
   if (mode === 'per-zone') {
     const zones = (enc.zoneLog ?? []).map(z => z.elapsed).filter(t => t > 0 && t < enc.durationSeconds);
     return zones;
+  }
+  if (mode === 'per-boss') {
+    const enemies = enc.enemies ?? [];
+    if (enemies.length === 0) return [];
+    const byName = new Map<string, EncounterEnemy[]>();
+    for (const e of enemies) {
+      const arr = byName.get(e.name) ?? [];
+      arr.push(e);
+      byName.set(e.name, arr);
+    }
+    let bossName: string | null = null;
+    let bossDmg = -1;
+    for (const [name, arr] of byName) {
+      if (arr.length < 2) continue;
+      const dmg = arr.reduce((s, e) => s + (e.damageTaken ?? 0), 0);
+      if (dmg > bossDmg) { bossDmg = dmg; bossName = name; }
+    }
+    if (!bossName) return [];
+    const instances = [...byName.get(bossName)!].sort((a, b) => a.firstSeen - b.firstSeen);
+    const out: number[] = [];
+    for (let i = 1; i < instances.length; i++) {
+      const t = Math.floor(instances[i].firstSeen);
+      if (t > 0 && t < enc.durationSeconds) out.push(t);
+    }
+    return out;
   }
   if (mode === 'idle-gaps') {
     const minGap = opts?.gapSeconds ?? 60;

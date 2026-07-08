@@ -1,17 +1,17 @@
 {
-    "version":  "0.0.4",
-    "notes":  "Fixed a bug where Gnosis lagged the client while the viewer was closed.",
-    "pub_date":  "2026-06-24T21:39:55Z",
+    "version":  "0.0.5",
+    "notes":  "# New Features\n* New Cleanup section which allows better pruning of \"garbage\" encounter data, as well as a restore function to roll back any corrupted data from deletion/merge/split operations.\n* Select Mode in Encounter History now allows Click+Drag to quickly select multiple logs for merging.\n\n# Bugfixes\n* Enemy-targetted Job Abilities should no longer be classified as Weapon Skills and should now properly display under Job Abilities across all views.\n* Direct-drop personal Loot (in Multibox setups) now should be properly attributed to the proper clients.\n* Fixed duplicated/triplicated drops appearing in multibox encounter reports.\n* Fixed multibox Sortie reports that only showed one character\u0027s Experience and Loot; all characters now appear.\n* Fixed the Sortie Experience and Currency sections showing empty when Experience and Gallimaufry were actually earned.\n* Fixed a bug where Debuff Uptime section was displayed incorrectly when viewing logs locally.\n* Reworked the Gallimaufry tracking upon killing bosses in Sortie to be more reliable.\n* Reworked Aminon fight engage detection to be more reliable and prevent double-logging.",
+    "pub_date":  "2026-07-08T04:29:18Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRWhDa0pXczk2b1d2aVNnTDlabm1POEVhRDZ1MVBOWkt2VmdQMXdxWDFtTUpoTFdVbmdiU2hWRm1PdUdoL3l1VzZhd0treFd2elo3OEpDNk9oY3NTdzR2SWh0VEZHdGdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMzM3MTM3CWZpbGU6R25vc2lzXzAuMC40X3g2NC1zZXR1cC5leGUKWjcrTmRJR3FGZ3QyL2gycDAvWVZ3U1R2S25FblJBY1lNK0trckNhMldaSlZpdkVsQkZaOFJQTWxtV0Z5TGNidWowUkJaRmtDSlZweThEYXpid0NIQWc9PQo=",
-                                             "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.4/Gnosis_0.0.4_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRWhDa0pXczk2b1ZqbTdxbG12RjdEVUI1Y3FvRVBxUmd3ODMvQ253UnFYUGIyYXVZZTNOSE1oSXNCOHo3UE5iQitwdnJYcGg0MFVMd0VCTXc0aThwaGdwWWwzN3Voc0FzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNDg0OTUzCWZpbGU6R25vc2lzXzAuMC41X3g2NC1zZXR1cC5leGUKYzQvUG5XR0hyTmRCWEMvcWVJMEx0MUhablpPRnExUnpSb0h6czRXcGlmdHVYeTF4YXpEVkp4RnpCbmJSTzVodklKSVZKQ1VZcG85ajVTdFppL09aREE9PQo=",
+                                             "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.5/Gnosis_0.0.5_x64-setup.exe"
                                          }
                   },
     "addon":  {
-                  "version":  "0.0.4",
-                  "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.4/Gnosis.zip",
-                  "sha256":  "f04be8819bbb0b17a58d7d224add4de999bd8a7513b7f611bafe7ce7f12c394a",
-                  "notes":  " "
+                  "version":  "0.0.5",
+                  "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.5/Gnosis-addon-0.0.5.zip",
+                  "sha256":  "069d7dec08ee8fd21d8b30f4339cb81376d822d3dc1914796699394913cbe2e9",
+                  "notes":  "v0.0.5"
               }
 }

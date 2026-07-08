@@ -41,6 +41,13 @@ export function canonicalTypeOf(entry: ActionLogEntry): CanonicalActionType {
     const base = categoryToType(entry.category);
     // Preserve spell sub-classifications when the resolver tagged them.
     if (base === 'spell' && (entry.type === 'enfeeb' || entry.type === 'mb')) return entry.type;
+    // Category 3 carries BOTH weaponskills and damaging, enemy-targeted job
+    // abilities (Jump, High Jump, Super Jump, Shield Bash, ...). The addon
+    // disambiguates them by the action's message id and records the result in
+    // `type`; category alone can't tell them apart and would mislabel the job
+    // abilities as weaponskills (dragging down the WS average). Trust the addon's
+    // 'ja' whenever the category resolved to 'ws'.
+    if (base === 'ws' && entry.type === 'ja') return 'ja';
     return base;
   }
   return legacyTypeToCanonical(entry.type);

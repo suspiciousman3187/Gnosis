@@ -4,7 +4,8 @@ import { createPortal } from 'react-dom';
 import { List, type RowComponentProps } from 'react-window';
 import type { EncSummary } from './App';
 import type { LootEncounterSummary } from '@/lib/dropAggregator';
-import { kindFromName, labelFromName, fileTs, fileChar, representativeLootSummaries, type ContentKind } from './content';
+import { kindFromName, labelFromName, fileTs, fileChar, representativeLootSummaries, groupMultiboxPaths, type ContentKind, type PathGroup } from './content';
+import { newViewId, type ViewEntry } from './viewManifest';
 import { loadSharedPaths, setSharePrivacy, type SharedPathMap } from './share';
 import { openExternal } from './library';
 import { requestSummaries as storeRequestSummaries, useSummary } from './summaryStore';
@@ -12,6 +13,7 @@ import { alertDialog } from '@/lib/dialogs';
 import { ADDON_SOURCE_COLOR, CONTENT_COLOR_PALETTE, contentById, type ContentColorKey } from '@/lib/contentRegistry';
 import type { EncounterSource } from '@/lib/encounter';
 import RestoreArchiveModal from './RestoreArchiveModal';
+import CleanupModal from './CleanupModal';
 
 function titleColorFor(sourceOrKind: string): { off: string; on: string } | null {
   const def = contentById(sourceOrKind);
@@ -128,14 +130,28 @@ function fmtRowDate(unixSec: number) {
 
 const ROW_HEIGHT = 58;
 
-type Group = { id: string; rep: string; members: string[]; chars: string[] };
+type Group = PathGroup;
+
+function segSpecOf(g: Group): { boundaries: number[]; segIndex: number } | undefined {
+  if (g.view?.segIndex == null || !g.view.boundaries) return undefined;
+  return { boundaries: g.view.boundaries, segIndex: g.view.segIndex };
+}
+
+function segWindowDur(g: Group, totalDur: number | undefined): number | undefined {
+  if (g.view?.segIndex == null || !g.view.boundaries || totalDur == null) return undefined;
+  const i = g.view.segIndex;
+  const b = g.view.boundaries;
+  const start = i === 0 ? 0 : b[i - 1];
+  const end = i >= b.length ? totalDur : b[i];
+  return Math.max(0, end - start);
+}
 
 interface RowExtraProps {
   groups: Group[];
   selected: string | null;
   confirmDelete: string | null;
   setConfirmDelete: (id: string | null) => void;
-  onOpenGroup: (members: string[]) => void;
+  onOpenGroup: (members: string[], view?: { boundaries?: number[]; segIndex?: number }) => void;
   onRemoveGroup: (members: string[]) => void;
   sharedPaths: SharedPathMap;
   starredPaths: Set<string>;
@@ -145,6 +161,9 @@ interface RowExtraProps {
   toggleMergeSelection: (groupId: string, shiftKey: boolean) => void;
   enterMergeMode: () => void;
   openContextMenu: (groupId: string, x: number, y: number) => void;
+  onRowPointerDown: (index: number, groupId: string, e: React.PointerEvent) => void;
+  onRowPointerEnter: (index: number) => void;
+  viewStats: Map<string, { dur: number; enemies: number }>;
 }
 
 function groupShareUrl(members: string[], sharedPaths: SharedPathMap): string | null {
@@ -182,8 +201,10 @@ interface RowData {
   sharePrivate: boolean;
   starred: boolean;
   showStats: boolean;
-  nEnemies: number;
-  onOpenGroup: (members: string[]) => void;
+  nEnemies: number | null;
+  segDur?: number;
+  isSegment: boolean;
+  onOpenGroup: (members: string[], view?: { boundaries?: number[]; segIndex?: number }) => void;
   onToggleStar: (members: string[]) => void;
   setConfirmDelete: (id: string | null) => void;
   mergeMode: boolean;
@@ -191,6 +212,9 @@ interface RowData {
   toggleMergeSelection: (groupId: string, shiftKey: boolean) => void;
   enterMergeMode: () => void;
   openContextMenu: (groupId: string, x: number, y: number) => void;
+  index: number;
+  onRowPointerDown: (index: number, groupId: string, e: React.PointerEvent) => void;
+  onRowPointerEnter: (index: number) => void;
 }
 
 // Star button - shared across every design (its placement varies, but
@@ -261,10 +285,11 @@ function SortieBadges({ d }: { d: RowData }) {
 }
 
 function MultiboxBadge({ d }: { d: RowData }) {
-  if (!d.multibox) return null;
+  if (d.isSegment || !d.multibox) return null;
+  const label = d.g.view ? `${d.g.members.length} merged` : `${d.g.members.length}×`;
   return (
     <span title={d.g.chars.join(', ')} className="shrink-0 text-[9px] font-bold px-1 py-0.5 rounded bg-accent/20 text-accent leading-none">
-      {d.g.members.length}×
+      {label}
     </span>
   );
 }
@@ -358,23 +383,21 @@ function TitleColored({ d }: { d: RowData }) {
 function HistoryRowBody({ d }: { d: RowData }) {
   return (
     <div onClick={(e) => {
+        if (d.mergeMode) { e.preventDefault(); return; }
         if (e.shiftKey || e.ctrlKey || e.metaKey) {
           e.preventDefault();
           d.toggleMergeSelection(d.g.id, e.shiftKey);
           return;
         }
-        if (d.mergeMode) {
-          e.preventDefault();
-          d.toggleMergeSelection(d.g.id, e.shiftKey);
-          return;
-        }
-        d.onOpenGroup(d.g.members);
+        d.onOpenGroup(d.g.members, segSpecOf(d.g));
       }}
+      onPointerDown={(e) => d.onRowPointerDown(d.index, d.g.id, e)}
+      onPointerEnter={() => d.onRowPointerEnter(d.index)}
       onContextMenu={(e) => {
         e.preventDefault();
         d.openContextMenu(d.g.id, e.clientX, e.clientY);
       }}
-      className={`group w-full rounded px-2.5 py-2 cursor-pointer transition-colors mb-1 flex items-center gap-2.5 ${
+      className={`group w-full rounded px-2.5 py-2 cursor-pointer transition-colors mb-1 flex items-center gap-2.5 ${d.mergeMode ? 'select-none' : ''} ${
         d.mergeSelected ? 'bg-accent/15 ring-1 ring-accent/40' : d.on && !d.mergeMode ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]'
       }`}
     >
@@ -397,13 +420,17 @@ function HistoryRowBody({ d }: { d: RowData }) {
           {d.showStats && (
             <>
               <span className="mx-1.5 text-gray-700">|</span>
-              <span className="text-gray-400">{fmtDurCompact(d.enc!.dur ?? 0)}</span>
-              <span className="mx-1.5 text-gray-700">|</span>
-              <span className="text-gray-400">
-                {d.nEnemies === 1 && d.enc?.enemyNames?.[0]
-                  ? d.enc.enemyNames[0]
-                  : `${d.nEnemies.toLocaleString()} mobs`}
-              </span>
+              <span className="text-gray-400">{fmtDurCompact(d.segDur ?? d.enc!.dur ?? 0)}</span>
+              {d.nEnemies != null && (
+                <>
+                  <span className="mx-1.5 text-gray-700">|</span>
+                  <span className="text-gray-400">
+                    {d.nEnemies === 1 && d.enc?.enemyNames?.[0]
+                      ? d.enc.enemyNames[0]
+                      : `${d.nEnemies.toLocaleString()} mobs`}
+                  </span>
+                </>
+              )}
             </>
           )}
         </div>
@@ -416,6 +443,7 @@ function HistoryRow({
   index, style,
   groups, selected, setConfirmDelete, onOpenGroup, sharedPaths, starredPaths, onToggleStar,
   mergeMode, mergeSelection, toggleMergeSelection, enterMergeMode, openContextMenu,
+  onRowPointerDown, onRowPointerEnter, viewStats,
 }: RowComponentProps<RowExtraProps>) {
   const g = groups[index];
   const p = g.rep;
@@ -426,10 +454,18 @@ function HistoryRow({
     ? enc.contentDefId
     : (kind === 'encounter' && enc?.source && enc.source !== 'generic' ? enc.source : kind);
   const zones = enc?.zones ?? (enc?.zone ? [enc.zone] : []);
-  const title = kind === 'encounter'
+  const baseTitle = kind === 'encounter'
     ? (zones.length > 0 ? zones.join(' + ') : '…')
     : labelFromName(p);
-  const nEnemies = enc?.enemies ?? 0;
+  const title = g.view?.segIndex != null && g.view.segCount != null
+    ? `${baseTitle} · Part ${g.view.segIndex + 1}/${g.view.segCount}`
+    : baseTitle;
+  const vstat = g.view ? viewStats.get(g.view.id) : undefined;
+  const isSegment = g.view?.segIndex != null;
+  const segDur = isSegment
+    ? segWindowDur(g, vstat?.dur ?? enc?.dur)
+    : (g.view ? vstat?.dur : undefined);
+  const nEnemies = isSegment ? null : (g.view ? (vstat?.enemies ?? 0) : (enc?.enemies ?? 0));
   const showStats = kind === 'encounter' && !!enc;
   const multibox = g.members.length > 1;
   const shareInfo = groupShareInfo(g.members, sharedPaths);
@@ -440,12 +476,15 @@ function HistoryRow({
 
   const data: RowData = {
     p, g, kind, dotKind, enc, title, on, multibox, shareUrl, shareId, sharePrivate, starred,
-    showStats, nEnemies, onOpenGroup, onToggleStar, setConfirmDelete,
+    showStats, nEnemies, segDur, isSegment, onOpenGroup, onToggleStar, setConfirmDelete,
     mergeMode,
     mergeSelected: mergeSelection.has(g.id),
     toggleMergeSelection,
     enterMergeMode,
     openContextMenu,
+    index,
+    onRowPointerDown,
+    onRowPointerEnter,
   };
 
   return (
@@ -522,7 +561,9 @@ interface Props {
   lootSummaries: Record<string, LootEncounterSummary>;
   selected: string | null;
   error: string | null;
-  onOpenGroup: (members: string[]) => void;
+  views: ViewEntry[];
+  onViewsChange: (next: ViewEntry[]) => void;
+  onOpenGroup: (members: string[], view?: { boundaries?: number[]; segIndex?: number }) => void;
   onRemoveGroup: (members: string[]) => void;
   /** Browser-mode fallback: open a file picker and load one report. */
   onPickFile: (file: File) => void;
@@ -537,6 +578,7 @@ interface Props {
 
 function HistoryViewImpl({
   inTauri, paths, encSummaries, lootSummaries, selected, error,
+  views, onViewsChange,
   onOpenGroup, onRemoveGroup, onPickFile, onMergeStatusChange, onMergeProgress, onSplitStatusChange,
 }: Props) {
   const [search, setSearch] = useState('');
@@ -546,16 +588,18 @@ function HistoryViewImpl({
   const [splitGroup, setSplitGroup] = useState<Group | null>(null);
   const [splitStep, setSplitStep] = useState<'idle' | 'confirm' | 'working' | 'done' | 'error'>('idle');
   const [splitError, setSplitError] = useState<string | null>(null);
-  const splitResultRef = useRef<{ newFiles: string[] } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ groupId: string; x: number; y: number } | null>(null);
   const [mergeMode, setMergeMode] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
+  const [cleanupOpen, setCleanupOpen] = useState(false);
   const [mergeSelection, setMergeSelection] = useState<Set<string>>(() => new Set());
   const [mergeStep, setMergeStep] = useState<'idle' | 'confirm' | 'working' | 'done' | 'error'>('idle');
   const [mergeError, setMergeError] = useState<string | null>(null);
-  const mergeResultRef = useRef<{ newFiles: string[] } | null>(null);
+  const [bulkDeleteStep, setBulkDeleteStep] = useState<'idle' | 'confirm' | 'working' | 'error'>('idle');
+  const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
   const mergeAnchorRef = useRef<string | null>(null);
   const orderedGroupIdsRef = useRef<string[]>([]);
+  const dragStateRef = useRef<{ active: boolean; anchor: number; base: Set<string>; moved: boolean; groupId?: string; mode: 'add' | 'remove' } | null>(null);
   const toggleMergeSelection = useCallback((groupId: string, shiftKey: boolean) => {
     if (mergeStep === 'confirm' || mergeStep === 'working') return;
     if (shiftKey && mergeAnchorRef.current && mergeAnchorRef.current !== groupId) {
@@ -587,7 +631,7 @@ function HistoryViewImpl({
     setMergeMode(false);
     clearMergeSelection();
   }, [clearMergeSelection]);
-  const mergeBusy = mergeStep === 'confirm' || mergeStep === 'working';
+  const mergeBusy = mergeStep === 'confirm' || mergeStep === 'working' || bulkDeleteStep === 'confirm' || bulkDeleteStep === 'working';
   const onMergeButton = useCallback(() => {
     if (mergeBusy) return;
     if (mergeMode) { exitMergeMode(); return; }
@@ -598,34 +642,63 @@ function HistoryViewImpl({
     setMergeError(null);
     setMergeStep('confirm');
   }, [mergeSelection.size, mergeBusy]);
+  const onConfirmBulkDelete = useCallback(() => {
+    if (mergeBusy || mergeSelection.size < 1) return;
+    setBulkDeleteError(null);
+    setBulkDeleteStep('confirm');
+  }, [mergeSelection.size, mergeBusy]);
+  const applyRange = useCallback((fromIndex: number, toIndex: number, base: Set<string>, mode: 'add' | 'remove') => {
+    const ids = orderedGroupIdsRef.current;
+    const [lo, hi] = fromIndex <= toIndex ? [fromIndex, toIndex] : [toIndex, fromIndex];
+    const next = new Set(base);
+    for (let i = lo; i <= hi; i++) {
+      if (!ids[i]) continue;
+      if (mode === 'add') next.add(ids[i]); else next.delete(ids[i]);
+    }
+    setMergeSelection(next);
+  }, []);
+  const onRowPointerDown = useCallback((index: number, groupId: string, e: React.PointerEvent) => {
+    if (!mergeMode || mergeBusy || e.button !== 0) return;
+    if (e.shiftKey && mergeAnchorRef.current) {
+      const a = orderedGroupIdsRef.current.indexOf(mergeAnchorRef.current);
+      if (a >= 0) {
+        applyRange(a, index, mergeSelection, 'add');
+        dragStateRef.current = { active: true, anchor: index, base: new Set(mergeSelection), moved: true, mode: 'add' };
+        return;
+      }
+    }
+    mergeAnchorRef.current = groupId;
+    const mode: 'add' | 'remove' = mergeSelection.has(groupId) ? 'remove' : 'add';
+    dragStateRef.current = { active: true, anchor: index, base: new Set(mergeSelection), moved: false, groupId, mode };
+  }, [mergeMode, mergeBusy, mergeSelection, applyRange]);
+  const onRowPointerEnter = useCallback((index: number) => {
+    const drag = dragStateRef.current;
+    if (!drag?.active) return;
+    if (index !== drag.anchor) drag.moved = true;
+    applyRange(drag.anchor, index, drag.base, drag.mode);
+  }, [applyRange]);
+  useEffect(() => {
+    const onUp = () => {
+      const drag = dragStateRef.current;
+      if (drag?.active && !drag.moved && drag.groupId) {
+        const gid = drag.groupId;
+        setMergeSelection(prev => {
+          const next = new Set(prev);
+          if (next.has(gid)) next.delete(gid); else next.add(gid);
+          return next;
+        });
+      }
+      if (dragStateRef.current) dragStateRef.current.active = false;
+    };
+    window.addEventListener('pointerup', onUp);
+    return () => window.removeEventListener('pointerup', onUp);
+  }, []);
   useEffect(() => {
     if (!mergeMode || mergeBusy) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') exitMergeMode(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [mergeMode, exitMergeMode, mergeBusy]);
-  useEffect(() => {
-    if (mergeStep === 'working') onMergeStatusChange?.('working');
-    else if (mergeStep === 'done') onMergeStatusChange?.('complete');
-    else onMergeStatusChange?.('idle');
-  }, [mergeStep, onMergeStatusChange]);
-  useEffect(() => {
-    if (splitStep === 'working') onSplitStatusChange?.('working');
-    else if (splitStep === 'done') onSplitStatusChange?.('complete');
-    else onSplitStatusChange?.('idle');
-  }, [splitStep, onSplitStatusChange]);
-  useEffect(() => {
-    if (mergeStep !== 'done') return;
-    const t = setTimeout(() => {
-      const r = mergeResultRef.current;
-      mergeResultRef.current = null;
-      setMergeStep('idle');
-      setMergeMode(false);
-      clearMergeSelection();
-      if (r && r.newFiles.length > 0) onOpenGroup(r.newFiles);
-    }, 1800);
-    return () => clearTimeout(t);
-  }, [mergeStep, onOpenGroup, clearMergeSelection]);
   // Starred runs - persisted to localStorage, mirrored to React state so
   // toggles trigger a re-render of the list (and the per-row star icon).
   const [starredPaths, setStarredPaths] = useState<Set<string>>(() => loadStarred());
@@ -676,43 +749,45 @@ function HistoryViewImpl({
     return list;
   }, [paths, search, encSummaries, newestFirst, starredPaths]);
 
-  const groups = useMemo(() => {
-    const BUCKET = 30;
-    const zoneSig = (p: string): string => {
-      const kind = kindFromName(p);
-      if (kind !== 'encounter') return 'content-module';
-      const enc = encSummaries[p];
-      if (!enc) return `unparsed::${p}`;
-      const zones = enc.zones?.length ? enc.zones : (enc.zone ? [enc.zone] : []);
-      if (zones.length === 0) return `unzoned::${p}`;
-      // Sort so multi-zone session encounters that visited the same zones
-      // in a different order still match. Distinct sets stay distinct.
-      return zones.slice().sort().join('|');
-    };
-    const bucketKey = (p: string) =>
-      `${kindFromName(p)}|${Math.round(fileTs(p) / BUCKET)}|${zoneSig(p)}`;
-    const byBucket = new Map<string, string[]>();
-    for (const p of visiblePaths) {
-      const key = bucketKey(p);
-      const arr = byBucket.get(key); if (arr) arr.push(p); else byBucket.set(key, [p]);
-    }
-    const out: { id: string; rep: string; members: string[]; chars: string[] }[] = [];
-    const emitted = new Set<string>();
-    for (const p of visiblePaths) {
-      const key = bucketKey(p);
-      const bucket = byBucket.get(key)!;
-      const chars = bucket.map(fileChar);
-      const multibox = bucket.length >= 2 && chars.every(Boolean) && new Set(chars).size === chars.length;
-      if (multibox) {
-        if (emitted.has(key)) continue;
-        emitted.add(key);
-        out.push({ id: key, rep: bucket[0], members: bucket, chars: chars as string[] });
-      } else {
-        out.push({ id: p, rep: p, members: [p], chars: (fileChar(p) ? [fileChar(p)!] : []) });
+  const groups = useMemo(
+    () => groupMultiboxPaths(visiblePaths, encSummaries, views),
+    [visiblePaths, encSummaries, views],
+  );
+  const viewStats = useMemo(() => {
+    const out = new Map<string, { dur: number; enemies: number }>();
+    const seen = new Set<string>();
+    for (const g of groups) {
+      if (!g.view || seen.has(g.view.id)) continue;
+      seen.add(g.view.id);
+      const wins: { s: number; e: number; n: number }[] = [];
+      let ok = true;
+      for (const m of g.members) {
+        const s = encSummaries[m];
+        if (!s) { ok = false; break; }
+        const st = fileTs(m);
+        wins.push({ s: st, e: st + (s.dur ?? 0), n: s.enemies ?? 0 });
       }
+      if (!ok || wins.length === 0) continue;
+      wins.sort((a, b) => a.s - b.s);
+      const span = Math.max(...wins.map(w => w.e)) - Math.min(...wins.map(w => w.s));
+      let mobs = 0;
+      let curEnd = -Infinity;
+      let curMax = -1;
+      for (const w of wins) {
+        if (w.s >= curEnd) {
+          if (curMax >= 0) mobs += curMax;
+          curMax = w.n;
+          curEnd = w.e;
+        } else {
+          curMax = Math.max(curMax, w.n);
+          curEnd = Math.max(curEnd, w.e);
+        }
+      }
+      if (curMax >= 0) mobs += curMax;
+      out.set(g.view.id, { dur: span, enemies: mobs });
     }
     return out;
-  }, [visiblePaths, encSummaries]);
+  }, [groups, encSummaries]);
   orderedGroupIdsRef.current = groups.map(g => g.id);
 
   const mobQuery = useMemo<string | null>(() => {
@@ -872,11 +947,13 @@ function HistoryViewImpl({
             </div>
 
             {(() => {
-              const mergeLabel = mergeMode ? 'Cancel' : 'Merge';
+              const mergeLabel = mergeMode ? 'Cancel' : 'Select';
               const mergeActive = mergeMode;
               const baseBtn = 'flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md border text-[10px] uppercase tracking-wider font-semibold transition-colors whitespace-nowrap';
               const selectedGroup = selected ? (groups.find(g => g.members.includes(selected)) ?? null) : null;
-              const splitDisabled = !selectedGroup || mergeBusy || splitStep === 'working';
+              const splitDisabled = !selectedGroup || mergeBusy
+                || selectedGroup.view?.segIndex != null
+                || kindFromName(selectedGroup.rep) !== 'encounter';
               const onSplitClick = () => {
                 if (splitDisabled || !selectedGroup) return;
                 setSplitGroup(selectedGroup);
@@ -901,20 +978,33 @@ function HistoryViewImpl({
                     type="button"
                     onClick={onMergeButton}
                     disabled={mergeBusy}
-                    data-tooltip={mergeBusy ? 'Merge in progress…' : mergeMode ? 'Cancel merge mode' : 'Merge multiple encounters'}
+                    data-tooltip={mergeBusy ? 'Busy…' : mergeMode ? 'Exit select mode' : 'Select multiple encounters to merge or delete'}
                     className={`le-tap ${baseBtn} ${mergeActive ? 'border-rose-500/50 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20' : 'border-white/15 text-gray-300 hover:text-white hover:bg-white/[0.06]'} disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M7 3v6a4 4 0 0 0 4 4h2a4 4 0 0 1 4 4v4" />
-                      <path d="M17 7l-4-4-4 4" />
+                      <path d="M9 11l3 3L22 4" />
+                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                     </svg>
                     <span>{mergeLabel}</span>
                   </button>
                   <button
                     type="button"
+                    onClick={() => setCleanupOpen(true)}
+                    disabled={paths.length === 0 || mergeBusy}
+                    data-tooltip="Bulk-delete incidental/garbage encounters by rule"
+                    className={`le-tap ${baseBtn} border-white/15 text-gray-300 hover:text-white hover:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed`}
+                  >
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6" />
+                    </svg>
+                    <span>Clean Up</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setRestoreOpen(true)}
                     disabled={paths.length === 0}
-                    data-tooltip="Restore originals from a prior merge"
+                    data-tooltip="Restore originals from a prior merge, split, or bulk delete"
                     className={`le-tap ${baseBtn} border-white/15 text-gray-300 hover:text-white hover:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed`}
                   >
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -941,30 +1031,41 @@ function HistoryViewImpl({
           virtualization (the List would otherwise eat their whole height). */}
       <div className="flex-1 min-h-0 px-3 pb-3 flex flex-col">
         {mergeMode && (
-          <div className="mb-2 shrink-0 px-2.5 py-1 rounded border border-accent/30 bg-accent/[0.06] text-[10px] text-accent/90 italic flex items-center gap-2">
-            <span className="flex-1 truncate">
+          <div className="mb-2 shrink-0 px-2.5 py-1.5 rounded border border-accent/30 bg-accent/[0.06] text-[10px] text-accent/90 italic space-y-1.5">
+            <div>
               {mergeSelection.size === 0
-                ? 'Click encounters to select. Merge activates at 2+.'
-                : `${mergeSelection.size} selected${mergeSelection.size < 2 ? ' - pick at least 2' : ''}`}
-            </span>
+                ? 'Click+Drag to Select. Merge requires same zone.'
+                : `${mergeSelection.size} Encounters Selected`}
+            </div>
+            <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onConfirmMerge}
               disabled={mergeBusy || mergeSelection.size < 2}
-              data-tooltip={mergeBusy ? 'Merge in progress…' : mergeSelection.size < 2 ? 'Select at least 2 encounters' : `Merge ${mergeSelection.size} selected`}
-              className="shrink-0 not-italic px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border border-emerald-500/60 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30 hover:text-emerald-100 disabled:border-white/10 disabled:bg-white/5 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+              data-tooltip={mergeBusy ? 'Busy…' : mergeSelection.size < 2 ? 'Select at least 2 encounters' : `Merge ${mergeSelection.size} selected`}
+              className="le-tap flex-1 not-italic whitespace-nowrap px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border border-emerald-500/60 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30 hover:text-emerald-100 disabled:border-white/10 disabled:bg-white/5 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
             >
-              ✓ MERGE{mergeSelection.size > 0 ? ` (${mergeSelection.size})` : ''}
+              ✓ MERGE
+            </button>
+            <button
+              type="button"
+              onClick={onConfirmBulkDelete}
+              disabled={mergeBusy || mergeSelection.size < 1}
+              data-tooltip={mergeBusy ? 'Busy…' : mergeSelection.size < 1 ? 'Select at least 1 encounter' : `Delete ${mergeSelection.size} selected`}
+              className="le-tap flex-1 not-italic whitespace-nowrap px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border border-rose-500/60 bg-rose-500/20 text-rose-200 hover:bg-rose-500/30 hover:text-rose-100 disabled:border-white/10 disabled:bg-white/5 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+            >
+              🗑 DELETE
             </button>
             <button
               type="button"
               onClick={exitMergeMode}
               disabled={mergeBusy}
-              data-tooltip={mergeBusy ? 'Wait for merge to finish' : 'Exit merge mode (Esc)'}
-              className="shrink-0 not-italic px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border border-rose-500/50 bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 hover:text-rose-200 disabled:border-white/10 disabled:bg-white/5 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+              data-tooltip={mergeBusy ? 'Wait for the operation to finish' : 'Exit select mode (Esc)'}
+              className="le-tap flex-1 not-italic whitespace-nowrap px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border border-white/25 bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white disabled:border-white/10 disabled:bg-white/5 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
             >
               ✕ EXIT
             </button>
+            </div>
           </div>
         )}
         {inTauri ? (
@@ -1025,6 +1126,9 @@ function HistoryViewImpl({
                     toggleMergeSelection,
                     enterMergeMode: () => setMergeMode(true),
                     openContextMenu: (gid, x, y) => setContextMenu({ groupId: gid, x, y }),
+                    onRowPointerDown,
+                    onRowPointerEnter,
+                    viewStats,
                   }}
                 />
               </div>
@@ -1060,24 +1164,49 @@ function HistoryViewImpl({
             setMergeStep('idle');
             setMergeError(null);
           }}
-          onConfirm={async (selectedGroups) => {
-            setMergeStep('working');
-            setMergeError(null);
-            onMergeProgress?.(null);
-            mergeResultRef.current = null;
-            try {
-              const { mergeGroups } = await import('./mergeEncountersDisk');
-              const result = await mergeGroups(
-                selectedGroups.map(g => g.members),
-                (p) => { onMergeProgress?.(p); },
-              );
-              mergeResultRef.current = { newFiles: result.newFiles };
-              setMergeStep('done');
-            } catch (e) {
+          onConfirm={(selectedGroups) => {
+            if (selectedGroups.some(g => g.view?.segIndex != null)) {
+              setMergeError('One of the selected encounters is a split segment. Unsplit it first, then merge.');
               setMergeStep('error');
-              setMergeError(e instanceof Error ? e.message : String(e));
-            } finally {
-              onMergeProgress?.(null);
+              return;
+            }
+            const kinds = new Set(selectedGroups.flatMap(g => g.members.map(m => kindFromName(m))));
+            if (kinds.size > 1) {
+              setMergeError('Only encounters of the same type can be merged together.');
+              setMergeStep('error');
+              return;
+            }
+            const members = [...new Set(selectedGroups.flatMap(g => g.members))];
+            const consumed = new Set(selectedGroups.map(g => g.view?.id).filter((id): id is string => !!id));
+            const entry: ViewEntry = { id: newViewId(), members };
+            onViewsChange(views.filter(v => !consumed.has(v.id)).concat(entry));
+            setMergeStep('idle');
+            setMergeError(null);
+            exitMergeMode();
+            onOpenGroup(members);
+          }}
+        />
+      )}
+      {(bulkDeleteStep === 'confirm' || bulkDeleteStep === 'error') && (
+        <BulkDeleteConfirmModal
+          selection={Array.from(mergeSelection).map(id => groups.find(g => g.id === id)).filter((g): g is Group => !!g)}
+          encSummaries={encSummaries}
+          step={bulkDeleteStep}
+          error={bulkDeleteError}
+          onCancel={() => { setBulkDeleteStep('idle'); setBulkDeleteError(null); }}
+          onConfirm={async (selectedGroups) => {
+            setBulkDeleteStep('working');
+            setBulkDeleteError(null);
+            const members = selectedGroups.flatMap(g => g.members);
+            try {
+              const { archiveForDelete } = await import('./bulkDeleteDisk');
+              await archiveForDelete(members);
+              onRemoveGroup(members);
+              setBulkDeleteStep('idle');
+              exitMergeMode();
+            } catch (e) {
+              setBulkDeleteStep('error');
+              setBulkDeleteError(e instanceof Error ? e.message : String(e));
             }
           }}
         />
@@ -1094,6 +1223,18 @@ function HistoryViewImpl({
           />
         );
       })()}
+      {cleanupOpen && (
+        <CleanupModal
+          groups={groups}
+          encSummaries={encSummaries}
+          onClose={() => setCleanupOpen(false)}
+          onDelete={async (members) => {
+            const { archiveForDelete } = await import('./bulkDeleteDisk');
+            await archiveForDelete(members);
+            onRemoveGroup(members);
+          }}
+        />
+      )}
       {(splitStep === 'confirm' || splitStep === 'done' || splitStep === 'error') && splitGroup && (
         <SplitConfirmModal
           group={splitGroup}
@@ -1101,37 +1242,24 @@ function HistoryViewImpl({
           step={splitStep}
           error={splitError}
           onCancel={() => {
-            const wasDone = splitStep === 'done';
             setSplitStep('idle');
             setSplitError(null);
-            if (wasDone) {
-              const r = splitResultRef.current;
-              splitResultRef.current = null;
-              if (r && r.newFiles.length > 0) onOpenGroup([r.newFiles[0]]);
-            }
             setSplitGroup(null);
           }}
-          onConfirm={async (mode, opts) => {
-            setSplitStep('working');
-            setSplitError(null);
-            onMergeProgress?.(null);
-            splitResultRef.current = null;
-            try {
-              const { splitGroup: doSplit } = await import('./splitEncountersDisk');
-              const result = await doSplit(
-                splitGroup.members,
-                mode,
-                opts,
-                (p) => { onMergeProgress?.(p); },
-              );
-              splitResultRef.current = { newFiles: result.newFiles };
-              setSplitStep('done');
-            } catch (e) {
+          onConfirm={(_mode, opts) => {
+            const bs = [...new Set(opts.boundaries ?? [])].filter(b => b > 0).sort((a, b) => a - b);
+            if (bs.length === 0) {
+              setSplitError('No split boundaries produced - try a different mode or pick boundaries manually.');
               setSplitStep('error');
-              setSplitError(e instanceof Error ? e.message : String(e));
-            } finally {
-              onMergeProgress?.(null);
+              return;
             }
+            const entry: ViewEntry = { id: newViewId(), members: splitGroup.members, boundaries: bs };
+            const next = views.filter(v => v.id !== splitGroup.view?.id).concat(entry);
+            onViewsChange(next);
+            setSplitStep('idle');
+            setSplitError(null);
+            setSplitGroup(null);
+            onOpenGroup(splitGroup.members, { boundaries: bs, segIndex: 0 });
           }}
         />
       )}
@@ -1143,8 +1271,9 @@ function HistoryViewImpl({
         const selectedGroupsForMerge: Group[] = inSelection && selSize >= 2
           ? groups.filter(gg => mergeSelection.has(gg.id))
           : [];
+        const isSegment = g.view?.segIndex != null;
         const items: { label: string; tone?: 'danger' | 'accent' | 'default'; onClick: () => void; disabled?: boolean }[] = [];
-        items.push({ label: 'Open', onClick: () => onOpenGroup(g.members) });
+        items.push({ label: 'Open', onClick: () => onOpenGroup(g.members, segSpecOf(g)) });
         if (inSelection && selSize >= 2) {
           items.push({
             label: `Merge ${selSize} encounters`,
@@ -1156,29 +1285,59 @@ function HistoryViewImpl({
               setMergeStep('confirm');
             },
           });
-        } else {
+        } else if (!isSegment && kindFromName(g.rep) === 'encounter') {
           items.push({
             label: 'Split this encounter',
             tone: 'accent',
-            disabled: splitStep === 'working',
             onClick: () => {
-              if (splitStep === 'working') return;
               setSplitGroup(g);
               setSplitError(null);
               setSplitStep('confirm');
             },
           });
         }
+        if (g.view) {
+          const viewId = g.view.id;
+          const mergedUnderneath = g.members.length > 1;
+          if (isSegment) {
+            if (mergedUnderneath) {
+              items.push({
+                label: 'Unsplit (back to merged)',
+                tone: 'accent',
+                onClick: () => onViewsChange(views.map(v => v.id === viewId ? { id: v.id, members: v.members } : v)),
+              });
+              items.push({
+                label: 'Unmerge (back to originals)',
+                tone: 'accent',
+                onClick: () => onViewsChange(views.filter(v => v.id !== viewId)),
+              });
+            } else {
+              items.push({
+                label: 'Unsplit',
+                tone: 'accent',
+                onClick: () => onViewsChange(views.filter(v => v.id !== viewId)),
+              });
+            }
+          } else {
+            items.push({
+              label: 'Unmerge',
+              tone: 'accent',
+              onClick: () => onViewsChange(views.filter(v => v.id !== viewId)),
+            });
+          }
+        }
         const isStarred = g.members.some(m => starredPaths.has(m));
         items.push({ label: isStarred ? 'Unstar' : 'Star', onClick: () => onToggleStar(g.members) });
         if (selSize > 0) {
           items.push({ label: `Clear selection (${selSize})`, onClick: clearMergeSelection });
         }
-        items.push({
-          label: g.members.length > 1 ? `Delete ${g.members.length} files` : 'Delete',
-          tone: 'danger',
-          onClick: () => setConfirmDelete(g.id),
-        });
+        if (!isSegment) {
+          items.push({
+            label: g.members.length > 1 ? `Delete ${g.members.length} files` : 'Delete',
+            tone: 'danger',
+            onClick: () => setConfirmDelete(g.id),
+          });
+        }
         return (
           <RowContextMenu
             x={contextMenu.x}
@@ -1289,6 +1448,68 @@ function RowContextMenu({ x, y, items, onClose, title }: {
   );
 }
 
+function BulkDeleteConfirmModal({
+  selection, encSummaries, step, error, onCancel, onConfirm,
+}: {
+  selection: Group[];
+  encSummaries: Record<string, EncSummary>;
+  step: 'confirm' | 'error';
+  error: string | null;
+  onCancel: () => void;
+  onConfirm: (selectedGroups: Group[]) => void;
+}) {
+  const sorted = useMemo(() => [...selection].sort((a, b) => fileTs(b.rep) - fileTs(a.rep)), [selection]);
+  const fileCount = useMemo(() => selection.reduce((n, g) => n + g.members.length, 0), [selection]);
+  return createPortal((
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/60" onClick={onCancel}>
+      <div className="bg-surface border border-white/15 rounded-xl shadow-2xl max-w-md w-full p-5" onClick={e => e.stopPropagation()}>
+        <h3 className="text-sm font-bold text-rose-300 uppercase tracking-wide mb-3">
+          {step === 'error' ? 'Delete failed' : 'Delete encounters'}
+        </h3>
+        {step === 'confirm' && (
+          <>
+            <p className="text-xs text-gray-300 mb-3">
+              {selection.length} encounter{selection.length === 1 ? '' : 's'} ({fileCount} file{fileCount === 1 ? '' : 's'}) will be deleted.
+              A copy is moved to <code className="text-[10px] bg-black/40 px-1 rounded">data/_deleted/</code> first, so you can restore it from the Restore button.
+            </p>
+            <ul className="text-[11px] text-gray-400 mb-3 space-y-0.5 max-h-40 overflow-y-auto">
+              {sorted.map((g, i) => {
+                const enc = encSummaries[g.rep];
+                const zones = enc?.zones ?? (enc?.zone ? [enc.zone] : []);
+                const label = kindFromName(g.rep) === 'encounter'
+                  ? (zones.length > 0 ? zones.join(' + ') : 'Encounter')
+                  : labelFromName(g.rep);
+                return (
+                  <li key={g.id} className="font-mono truncate">
+                    {i + 1}. {new Date(fileTs(g.rep) * 1000).toLocaleString()} · {label}{g.members.length > 1 ? ` · ${g.members.length} chars` : ''}
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="flex justify-end gap-2">
+              <button onClick={onCancel} className="le-tap px-3 py-1.5 text-xs rounded border border-white/15 text-gray-300 hover:bg-white/5">Cancel</button>
+              <button
+                onClick={() => onConfirm(sorted)}
+                className="le-tap px-3 py-1.5 text-xs rounded bg-rose-600 text-white font-semibold hover:bg-rose-500"
+              >
+                Delete {fileCount} file{fileCount === 1 ? '' : 's'}
+              </button>
+            </div>
+          </>
+        )}
+        {step === 'error' && (
+          <>
+            <p className="text-xs text-rose-300 mb-3 bg-rose-500/10 border border-rose-500/30 rounded px-2 py-1.5 break-words">{error ?? 'Unknown error.'}</p>
+            <div className="flex justify-end">
+              <button onClick={onCancel} className="le-tap px-3 py-1.5 text-xs rounded border border-white/15 text-gray-300 hover:bg-white/5">Close</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  ), document.body);
+}
+
 function MergeConfirmModal({
   selection, encSummaries, step, error, onCancel, onConfirm,
 }: {
@@ -1331,7 +1552,7 @@ function MergeConfirmModal({
           <>
             <p className="text-xs text-gray-300 mb-3">
               {selection.length} encounters will be merged into 1.
-              The originals will be moved to <code className="text-[10px] bg-black/40 px-1 rounded">data/_merged/</code> (recoverable).
+              Non-destructive: the original files stay untouched; undo any time via right-click → Unmerge.
             </p>
             <ul className="text-[11px] text-gray-400 mb-3 space-y-0.5 max-h-32 overflow-y-auto">
               {sorted.map((g, i) => {
@@ -1514,32 +1735,44 @@ function SplitConfirmModal({
   error: string | null;
   onCancel: () => void;
   onConfirm: (
-    mode: 'per-kill' | 'per-zone' | 'idle-gaps' | 'manual',
+    mode: 'per-kill' | 'per-zone' | 'idle-gaps' | 'per-boss' | 'manual',
     opts: { boundaries?: number[]; gapSeconds?: number },
   ) => void;
 }) {
-  type SplitMode = 'per-kill' | 'per-zone' | 'idle-gaps' | 'manual';
+  type SplitMode = 'per-kill' | 'per-zone' | 'idle-gaps' | 'per-boss' | 'manual';
   const [mode, setMode] = useState<SplitMode>('per-kill');
   const [gapSeconds, setGapSeconds] = useState<number>(60);
   const [manualBoundaries, setManualBoundaries] = useState<number[]>([]);
   const [loadedEnc, setLoadedEnc] = useState<import('@/lib/encounter').Encounter | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
+  const didAutoModeRef = useRef(false);
 
-  // Load the representative member's full Encounter for preview calculations.
+  useEffect(() => {
+    if (didAutoModeRef.current || !loadedEnc) return;
+    const byName = new Map<string, number>();
+    for (const e of loadedEnc.enemies ?? []) byName.set(e.name, (byName.get(e.name) ?? 0) + 1);
+    const maxAttempts = Math.max(0, ...[...byName.values()]);
+    if (maxAttempts >= 2) { setMode('per-boss'); didAutoModeRef.current = true; }
+  }, [loadedEnc]);
+
+  // Load the group's MATERIALIZED encounter for preview calculations, so a
+  // merged view splits on its merged timeline rather than one slice's.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const text = await (await import('./library')).readText(group.rep);
-        const { parseJsonWithTrailingRecovery } = await import('./parseEncounterCore');
-        const enc = parseJsonWithTrailingRecovery(text) as import('@/lib/encounter').Encounter;
-        if (!cancelled) setLoadedEnc(enc);
+        const { readText } = await import('./library');
+        const loads = await Promise.all(group.members.map(async p => ({ path: p, text: await readText(p) })));
+        const { materializeGroup } = await import('./viewMaterialize');
+        const c = materializeGroup(loads);
+        if (c.kind !== 'encounter') throw new Error('Only encounters can be split.');
+        if (!cancelled) setLoadedEnc(c.encounter);
       } catch (e) {
         if (!cancelled) setLoadErr(e instanceof Error ? e.message : String(e));
       }
     })();
     return () => { cancelled = true; };
-  }, [group.rep]);
+  }, [group]);
 
   // Preview the boundary list for the current mode.
   const [boundaries, setBoundaries] = useState<number[]>([]);
@@ -1596,6 +1829,23 @@ function SplitConfirmModal({
             </p>
 
             <div className="space-y-2 mb-3">
+              {(() => {
+                const enemies = loadedEnc?.enemies ?? [];
+                const byName = new Map<string, number>();
+                for (const e of enemies) byName.set(e.name, (byName.get(e.name) ?? 0) + 1);
+                const attempts = Math.max(0, ...[...byName.values()]);
+                if (attempts < 2) return null;
+                const bossName = [...byName.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1])[0]?.[0];
+                return (
+                  <label className="flex items-start gap-2 text-xs text-gray-300 cursor-pointer">
+                    <input type="radio" checked={mode === 'per-boss'} onChange={() => setMode('per-boss')} className="mt-0.5 accent-accent" />
+                    <div className="flex-1">
+                      <div className="font-medium">Per boss attempt</div>
+                      <div className="text-[10px] text-gray-500">{bossName} fought {attempts}× → splits at each fresh engagement</div>
+                    </div>
+                  </label>
+                );
+              })()}
               <label className="flex items-start gap-2 text-xs text-gray-300 cursor-pointer">
                 <input type="radio" checked={mode === 'per-kill'} onChange={() => setMode('per-kill')} className="mt-0.5 accent-accent" />
                 <div className="flex-1">
@@ -1669,14 +1919,14 @@ function SplitConfirmModal({
             )}
 
             <p className="text-[10px] text-gray-500 mb-3">
-              Originals will be moved to <code className="text-[10px] bg-black/40 px-1 rounded">data/_split/</code> (recoverable).
+              Non-destructive: the original files stay untouched; undo any time via right-click → Unsplit.
               Per-segment stats (XP/CP totals, combat stats) are recomputed; cross-segment skillchains may cut.
             </p>
 
             <div className="flex justify-end gap-2">
               <button onClick={onCancel} className="le-tap px-3 py-1.5 text-xs rounded border border-white/15 text-gray-300 hover:bg-white/5">Cancel</button>
               <button
-                onClick={() => onConfirm(mode, { gapSeconds, boundaries: mode === 'manual' ? manualBoundaries : undefined })}
+                onClick={() => onConfirm(mode, { gapSeconds, boundaries })}
                 disabled={preview.length < 2}
                 className="px-3 py-1.5 text-xs rounded bg-accent text-black font-semibold hover:bg-accent/90 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed"
               >
@@ -1763,6 +2013,7 @@ export default memo(HistoryViewImpl, (prev, next) => {
   if (!next.active) return true;
   return prev.active === next.active
     && prev.paths === next.paths
+    && prev.views === next.views
     && prev.encSummaries === next.encSummaries
     && prev.lootSummaries === next.lootSummaries
     && prev.selected === next.selected

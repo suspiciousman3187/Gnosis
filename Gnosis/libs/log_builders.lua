@@ -929,6 +929,21 @@ local function _gear_sig(set)
     end
     return table.concat(parts, ',')
 end
+local function _slot_count(set)
+    local n = 0
+    for _, slot in ipairs(GEAR_SLOTS) do if set[slot] then n = n + 1 end end
+    return n
+end
+local function _is_gear_subset(small, big)
+    for _, slot in ipairs(GEAR_SLOTS) do
+        local s = small[slot]
+        if s then
+            local b = big[slot]
+            if not b or b.id ~= s.id then return false end
+        end
+    end
+    return true
+end
 local function _record_state_set(label, set)
     if not _g.active or not set or not _g.state_sets then return end
     local bucket = _g.state_sets[label]
@@ -936,6 +951,20 @@ local function _record_state_set(label, set)
     local sig = _gear_sig(set)
     for _, v in ipairs(bucket) do
         if v.sig == sig then v.count = v.count + 1; return end
+    end
+    local nslots = _slot_count(set)
+    for _, v in ipairs(bucket) do
+        local vslots = _slot_count(v.gear)
+        if nslots < vslots and _is_gear_subset(set, v.gear) then
+            v.count = v.count + 1
+            return
+        end
+        if nslots > vslots and _is_gear_subset(v.gear, set) then
+            v.gear = set
+            v.sig = sig
+            v.count = v.count + 1
+            return
+        end
     end
     if #bucket >= STATE_VARIANT_CAP then return end
     bucket[#bucket + 1] = { sig = sig, gear = set, count = 1, elapsed = math.floor(os.difftime(os.time(), _g.start_os)) }
@@ -952,13 +981,19 @@ local function _sample_state(base, gen, tries)
     local set = _snapshot_gear()
     if set then
         local sig = _gear_sig(set)
-        if _g.pending_sig == sig then _record_state_set(_state_label_now(base), set); return end
-        _g.pending_sig = sig
+        if _g.pending_sig == sig then
+            _g.pending_hits = (_g.pending_hits or 0) + 1
+            if _g.pending_hits >= 2 then
+                _record_state_set(_state_label_now(base), set)
+                return
+            end
+        else
+            _g.pending_sig = sig
+            _g.pending_hits = 0
+        end
     end
-    if tries < 4 then
-        coroutine.schedule(function() _sample_state(base, gen, tries + 1) end, 0.35)
-    elseif set then
-        _record_state_set(_state_label_now(base), set)
+    if tries < 8 then
+        coroutine.schedule(function() _sample_state(base, gen, tries + 1) end, 0.5)
     end
 end
 local function _arm_state(base)
@@ -966,6 +1001,7 @@ local function _arm_state(base)
     _g.state_gen = (_g.state_gen or 0) + 1
     local gen = _g.state_gen
     _g.pending_sig = nil
+    _g.pending_hits = 0
     coroutine.schedule(function() _sample_state(base, gen, 0) end, 0.4)
 end
 local function _arm_current_state()

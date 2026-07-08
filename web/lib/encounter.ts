@@ -18,6 +18,7 @@ import type {
   PositionLogEntry,
   KillLogEntry,
   DeathEntry,
+  JobChangeEntry,
   GearLogEntry,
   GearStateVariant,
   CharacterGear,
@@ -64,6 +65,7 @@ export interface EncounterDrop {
   source?: string;
   by?: string;
   type?: 'pool' | 'direct' | 'temporary';
+  poolIndex?: number;
 }
 
 // Self gear capture types live in the shared spec (types.ts); re-exported here
@@ -166,6 +168,7 @@ export interface Encounter {
   currencyStart?: CurrencySnapshot | null;
   currencyEnd?: CurrencySnapshot | null;
   keyItemLog?: KeyItemEvent[] | null;
+  jobChangeLog?: JobChangeEntry[] | null;
   gearLog: GearLogEntry[] | null;
 
   // State gearsets keyed by observed-state label ('Engaged' | 'Idle' |

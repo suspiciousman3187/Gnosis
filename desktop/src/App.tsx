@@ -50,7 +50,9 @@ import { getDisplayLanguage } from '@/lib/displayLanguage';
 import { ensureBundlesLoaded, TRANSLATE_BUNDLES } from '@/lib/translate';
 import { useSilentModeBootSync } from './silentMode';
 import { listen } from '@tauri-apps/api/event';
-import { kindFromName, labelFromName, loadContent, fileChar, mergeContents, representativeLootSummaries, DEFAULT_TRACKER_PREFS, type ContentKind, type LoadedContent, type TrackerStatus, type TrackingMode, type TrackerPrefs } from './content';
+import { kindFromName, labelFromName, loadContent, fileChar, representativeLootSummaries, groupMultiboxPaths, DEFAULT_TRACKER_PREFS, type ContentKind, type LoadedContent, type TrackerStatus, type TrackingMode, type TrackerPrefs } from './content';
+import { materializeGroup, type ViewSpec } from './viewMaterialize';
+import { loadViews, saveViews, pruneViews, type ViewEntry } from './viewManifest';
 import type { EncounterMetrics } from '@/lib/combatStats';
 
 const DIR_KEY = 'ff_data_dir';
@@ -154,6 +156,7 @@ function AppMain() {
     return () => { alive = false; };
   }, []);
   const [paths, setPaths] = useState<string[]>([]);
+  const [views, setViews] = useState<ViewEntry[]>([]);
   const encSummaries = useSummariesRecord();
   const lootSummaries = useLootsRecord();
   const enemyHistory = useEnemyKillHistory();
@@ -381,6 +384,10 @@ function AppMain() {
 
       const alive = new Set(files);
       pruneStore(alive);
+      // NOTE: views are intentionally NOT read here. The manifest is loaded once
+      // per dir by a dedicated effect below; after that, React state is the sole
+      // authority and persistViews keeps disk in sync. refresh() must never call
+      // setViews or a periodic disk read can clobber an in-flight local edit.
 
       if (opts?.synthLoot) {
         storeRequestLoots(files);
@@ -499,7 +506,7 @@ function AppMain() {
     }
   };
 
-  const openGroup = async (members: string[]) => {
+  const openGroup = async (members: string[], view?: ViewSpec) => {
     const myId = ++loadIdRef.current;
     setOrigin(null);
     setSelected(members[0]);
@@ -508,9 +515,9 @@ function AppMain() {
     }
     setLoading(true);
     try {
-      const loaded = await Promise.all(members.map(async p => loadContent(p, await readText(p))));
+      const loaded = await Promise.all(members.map(async p => ({ path: p, text: await readText(p) })));
       if (loadIdRef.current !== myId) return;
-      setContent(mergeContents(loaded));
+      setContent(materializeGroup(loaded, view));
       setError(null);
     } catch (e) {
       if (loadIdRef.current !== myId) return;
@@ -522,6 +529,21 @@ function AppMain() {
     }
   };
 
+  const persistViews = useCallback(async (next: ViewEntry[]) => {
+    setViews(next);
+    try { await saveViews(dir, next); } catch (e) { setError(String(e)); }
+  }, [dir]);
+
+  useEffect(() => {
+    if (!inTauri || !dir) return;
+    let alive = true;
+    (async () => {
+      const loaded = await loadViews(dir);
+      if (alive) setViews(loaded);
+    })();
+    return () => { alive = false; };
+  }, [dir]);
+
   const removeGroup = async (members: string[]) => {
     try {
       for (const p of members) await deleteFile(p);
@@ -529,6 +551,8 @@ function AppMain() {
       setPaths(prev => {
         const next = prev.filter(p => !set.has(p));
         pruneStore(new Set(next));
+        const prunedViews = pruneViews(views, new Set(next));
+        if (prunedViews.changed) void persistViews(prunedViews.views);
         return next;
       });
       if (selected && set.has(selected)) { setSelected(null); setContent(null); }
@@ -543,31 +567,12 @@ function AppMain() {
       .catch(e => setError(String(e)));
 
   const autoOpenGroupFor = useCallback((p: string): string[] => {
-    const BUCKET = 30;
     const kind = kindFromName(p);
     if (!kind || !KIND_ORDER.includes(kind)) return [p];
-    const zoneSig = (q: string): string => {
-      const k = kindFromName(q);
-      if (k !== 'encounter') return 'content-module';
-      const enc = encSummaries[q];
-      if (!enc) return `unparsed::${q}`;
-      const zones = enc.zones?.length ? enc.zones : (enc.zone ? [enc.zone] : []);
-      if (zones.length === 0) return `unzoned::${q}`;
-      return zones.slice().sort().join('|');
-    };
-    const bucketKey = Math.round(fileTs(p) / BUCKET);
-    const mySig = zoneSig(p);
-    const siblings = paths.filter(other => {
-      if (other === p) return true;
-      if (kindFromName(other) !== kind) return false;
-      if (Math.round(fileTs(other) / BUCKET) !== bucketKey) return false;
-      return zoneSig(other) === mySig;
-    });
-    if (siblings.length < 2) return [p];
-    const chars = siblings.map(fileChar);
-    if (!chars.every(Boolean) || new Set(chars).size !== chars.length) return [p];
-    return siblings;
-  }, [paths, encSummaries]);
+    const gs = groupMultiboxPaths(paths, encSummaries, views);
+    const g = gs.find(gg => gg.members.includes(p));
+    return g ? g.members : [p];
+  }, [paths, encSummaries, views]);
 
   useEffect(() => {
     if (!autoOpenPath) return;
@@ -644,6 +649,9 @@ function AppMain() {
     mergeStatus !== 'idle' ? mergeStatus : splitStatus !== 'idle' ? splitStatus : 'idle';
   const merging = longRunningOp !== null;
   const [mergeProgress, setMergeProgress] = useState<{ current: number; total: number; label: string } | null>(null);
+  useEffect(() => {
+    if (mergeStatus === 'complete' || splitStatus === 'complete') void refresh();
+  }, [mergeStatus, splitStatus, refresh]);
 
   const viewKey = (section === 'home' || section === 'history')
     ? (selected ?? `${section}-idle`)
@@ -692,6 +700,8 @@ function AppMain() {
           lootSummaries={lootSummaries}
           selected={selected}
           error={error}
+          views={views}
+          onViewsChange={persistViews}
           onOpenGroup={openGroup}
           onRemoveGroup={removeGroup}
           onPickFile={loadPicked}
@@ -711,6 +721,7 @@ function AppMain() {
                   encSummaries={encSummaries}
                   lootSummaries={lootSummaries}
                   activityEntries={activityEntries}
+                  views={views}
                   onOpenRun={(p) => {
                     setSection('history');
                     const members = autoOpenGroupFor(p);

@@ -262,8 +262,8 @@ export default function SortieOverview({ r, runDurationSeconds, onJumpToFight, f
         progressionLog={r.progressionLog ?? null}
         progressionStart={r.progressionStart ?? null}
         progressionEnd={r.progressionEnd ?? null}
-        currencyStart={r.currencyStart ?? null}
-        currencyEnd={r.currencyEnd ?? null}
+        currencyStart={r.currencyStart ?? (r.gallimaufry && r.gallimaufry > 0 && r.gallimaufry < 200000 ? { Gallimaufry: 0 } : null)}
+        currencyEnd={r.currencyEnd ?? (r.gallimaufry && r.gallimaufry > 0 && r.gallimaufry < 200000 ? { Gallimaufry: r.gallimaufry } : null)}
         gearByPlayer={r.gearByPlayer ?? null}
         dropLog={r.drop_log ?? null}
       />

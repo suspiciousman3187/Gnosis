@@ -90,6 +90,7 @@ export function computeHomeData(
   paths: string[],
   encSummaries: Record<string, EncSummary>,
   lootSummaries: Record<string, LootEncounterSummary>,
+  views?: { id: string; members: string[]; boundaries?: number[] }[],
 ): HomeData {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 1000;
@@ -116,7 +117,7 @@ export function computeHomeData(
   }
 
   const sortedPaths = [...paths].sort((a, b) => fileTs(b) - fileTs(a));
-  const recentGroups = groupMultiboxPaths(sortedPaths, encSummaries).slice(0, 8);
+  const recentGroups = groupMultiboxPaths(sortedPaths, encSummaries, views).slice(0, 8);
 
   const flagged = new Set<string>();
   for (const def of CONTENT_REGISTRY) for (const h of def.highlightDrops ?? []) flagged.add(h);
@@ -155,6 +156,7 @@ interface Props {
   encSummaries: Record<string, EncSummary>;
   lootSummaries: Record<string, LootEncounterSummary>;
   activityEntries: ActivityEncounter[];
+  views?: { id: string; members: string[]; boundaries?: number[] }[];
   onOpenRun: (path: string) => void;
   onNavigate: (section: Section) => void;
   dataDir: string;
@@ -163,8 +165,8 @@ interface Props {
 export default function HomeDashboard(props: Props) {
   const boxes = useBoxes();
   const homeData = useMemo(
-    () => computeHomeData(props.paths, props.encSummaries, props.lootSummaries),
-    [props.paths, props.encSummaries, props.lootSummaries],
+    () => computeHomeData(props.paths, props.encSummaries, props.lootSummaries, props.views),
+    [props.paths, props.encSummaries, props.lootSummaries, props.views],
   );
   const { todayKpis, recentGroups, todayDrops, recentEnemies, nowSec } = homeData;
 

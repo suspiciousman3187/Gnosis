@@ -169,6 +169,7 @@ export function mergeEncountersForCharacter(parts: Encounter[]): Encounter {
     petLog:           shiftAndConcat(sorted.map(e => e.petLog), deltas),
     battleMsgRaw:     shiftAndConcat(sorted.map(e => e.battleMsgRaw ?? null), deltas),
     jobExtendedLog:   shiftAndConcat(sorted.map(e => e.jobExtendedLog ?? null), deltas),
+    jobChangeLog:     shiftAndConcat(sorted.map(e => e.jobChangeLog ?? null), deltas),
     effectLog:        shiftAndConcat(sorted.map(e => e.effectLog ?? null), deltas),
     bossHpLog:        shiftAndConcat(sorted.map(e => e.bossHpLog), deltas),
     partyHpLog:       shiftAndConcat(sorted.map(e => e.partyHpLog), deltas),
@@ -181,7 +182,7 @@ export function mergeEncountersForCharacter(parts: Encounter[]): Encounter {
     partyPositionLog: shiftAndConcat(sorted.map(e => e.partyPositionLog), deltas),
     killLog:          shiftAndConcat(sorted.map(e => e.killLog), deltas),
     deathLog:         shiftAndConcat(sorted.map(e => e.deathLog), deltas),
-    dropLog:          unionDrops(sorted.map(e => e.dropLog), deltas),
+    dropLog:          unionDrops(sorted.map(e => stampDropOwners(e.dropLog, e.localCharacter)), deltas),
     progressionLog:   shiftAndConcat(sorted.map(e => e.progressionLog), deltas),
     progressionStart: first.progressionStart ?? null,
     progressionEnd:   last.progressionEnd ?? null,
@@ -218,6 +219,49 @@ function dedupByElapsed<T extends { elapsed: number }>(
     if (prev != null && e.elapsed - prev <= CROSS_BOX_DEDUP_WINDOW_SEC) continue;
     lastByKey.set(k, e.elapsed);
     out.push(e);
+  }
+  return out;
+}
+
+type DropLike = { elapsed: number; name?: string; itemId?: number; type?: string; source?: string; by?: string; poolIndex?: number };
+
+function dropDedupKey(e: DropLike): string {
+  if (e.type === 'pool') {
+    if (e.poolIndex != null) return `pool:${e.itemId ?? 0}:${e.poolIndex}`;
+    return `pool:${e.name ?? ''}:${e.itemId ?? 0}`;
+  }
+  return `${e.name ?? ''}:${e.itemId ?? 0}:${e.type ?? ''}:${e.by ?? ''}`;
+}
+
+function stampDropOwners<T extends DropLike>(log: T[] | null | undefined, owner: string | null | undefined): T[] | null | undefined {
+  if (!log || !owner) return log;
+  return log.map(d => (d.type !== 'pool' && !d.by ? { ...d, by: owner } : d));
+}
+
+function dedupDrops<T extends DropLike>(arr: T[] | null | undefined): T[] | null {
+  if (!arr || arr.length === 0) return null;
+  const sorted = [...arr].sort((a, b) => a.elapsed - b.elapsed);
+  const out: T[] = [];
+  const groups = new Map<string, { idx: number; anchor: number; byVotes: Map<string, number> }>();
+  for (const e of sorted) {
+    const key = dropDedupKey(e);
+    const g = groups.get(key);
+    if (g && e.elapsed - g.anchor <= CROSS_BOX_DEDUP_WINDOW_SEC) {
+      const kept = out[g.idx] as DropLike;
+      if (!kept.source && e.source) kept.source = e.source;
+      if (e.by) {
+        g.byVotes.set(e.by, (g.byVotes.get(e.by) ?? 0) + 1);
+        let best: string | undefined; let bestN = 0;
+        for (const [n, c] of g.byVotes) if (c > bestN) { best = n; bestN = c; }
+        kept.by = best;
+      }
+      continue;
+    }
+    const copy = { ...e };
+    out.push(copy);
+    const votes = new Map<string, number>();
+    if (e.by) votes.set(e.by, 1);
+    groups.set(key, { idx: out.length - 1, anchor: e.elapsed, byVotes: votes });
   }
   return out;
 }
@@ -267,8 +311,7 @@ export function mergeEncountersAcrossBoxes(parts: Encounter[]): Encounter {
       h => `${h.player}`),
     partyTpLog: dedupByElapsed(merged.partyTpLog,
       h => `${h.player}`),
-    dropLog: dedupByElapsed(merged.dropLog,
-      d => `${d.name}:${d.source ?? ''}:${d.by ?? ''}:${d.itemId ?? 0}`),
+    dropLog: dedupDrops(merged.dropLog),
   };
 }
 
@@ -315,9 +358,42 @@ export function mergeRunRecords(parts: RunRecord[]): RunRecord {
     return out;
   })();
 
+  const dropsMerged: RunRecord['drops'] = (() => {
+    if (!parts.some(p => p.drops)) return rep.drops ?? null;
+    const out: Record<string, number> = {};
+    for (const p of parts) {
+      for (const [k, v] of Object.entries(p.drops ?? {})) {
+        if (typeof v === 'number') out[k] = (out[k] ?? 0) + v;
+      }
+    }
+    return out as unknown as RunRecord['drops'];
+  })();
+
+  const pointsMerged = (() => {
+    let xp = 0, cp = 0, ep = 0, lp = 0, any = false;
+    for (const p of parts) {
+      if (!p.points) continue;
+      any = true;
+      xp += p.points.xp || 0; cp += p.points.cp || 0; ep += p.points.ep || 0; lp += p.points.lp || 0;
+    }
+    return any ? { xp, cp, ep, lp } : (rep.points ?? null);
+  })();
+
+  const galliMerged = (() => {
+    let best = 0, any = false;
+    for (const p of parts) {
+      const g = p.gallimaufry;
+      if (typeof g === 'number' && g > 0 && g < 200000) { best = Math.max(best, g); any = true; }
+    }
+    return any ? best : (rep.gallimaufry ?? null);
+  })();
+
   return {
     ...rep,
     party: partyMerged,
+    drops: dropsMerged,
+    points: pointsMerged,
+    gallimaufry: galliMerged,
     playerIds: Object.keys(playerIds).length > 0 ? playerIds : (rep.playerIds ?? null),
     party_max_hp: Object.keys(party_max_hp).length > 0 ? party_max_hp : (rep.party_max_hp ?? null),
     party_max_mp: Object.keys(party_max_mp).length > 0 ? party_max_mp : (rep.party_max_mp ?? null),
@@ -350,8 +426,7 @@ export function mergeRunRecords(parts: RunRecord[]): RunRecord {
     position_log: concatLogs(parts.map(p => p.position_log)),
     boss_hp_log: dedupByElapsed(concatLogs(parts.map(p => p.boss_hp_log)),
       h => `${h.id ?? 0}:${h.name ?? ''}:${h.hpp}`),
-    drop_log: dedupByElapsed(concatLogs(parts.map(p => p.drop_log)),
-      d => `${d.name}:${d.source ?? ''}:${d.by ?? ''}:${d.itemId ?? 0}`),
+    drop_log: dedupDrops(concatLogs(parts.map(p => stampDropOwners(p.drop_log, p.localCharacter)))),
     zone_log: dedupByElapsed(concatLogs(parts.map(p => p.zone_log)),
       z => `${z.area}`),
     chest_log: dedupByElapsed(concatLogs(parts.map(p => p.chest_log)),

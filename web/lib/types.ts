@@ -219,6 +219,7 @@ export interface DropLogEntry {
   count?: number;
   source?: string;  // dropper mob name
   by?: string;      // looter name (filled in via 0x0D3 correlation)
+  poolIndex?: number;
 }
 
 export interface NaakualSectorData {
@@ -450,6 +451,15 @@ export interface KillLogEntry {
   name: string;
   area: string;
   elapsed: number; // seconds from sortie start
+}
+
+export interface JobChangeEntry {
+  elapsed: number;
+  player: string;
+  mainJob: string;
+  mainLevel: number;
+  subJob: string;
+  subLevel: number;
 }
 
 export interface ItemUseLogEntry {

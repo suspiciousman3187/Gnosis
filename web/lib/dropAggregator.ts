@@ -172,7 +172,11 @@ export function aggregateLoot(
   let dropCount = 0;
   for (const enc of passed) {
     for (const d of enc.dropLog) {
-      const dropKey = `${enc.ts}:${d.name}:${d.source ?? ''}:${d.itemId ?? 0}`;
+      const dropKey = d.type !== 'pool'
+        ? `${enc.ts}:${d.name}:${d.itemId ?? 0}:${d.type ?? ''}:${d.by ?? ''}`
+        : d.poolIndex != null
+          ? `${enc.ts}:pool:${d.itemId ?? 0}:${d.poolIndex}`
+          : `${enc.ts}:pool:${d.name}:${d.itemId ?? 0}`;
       const prevElapsed = seenDropKey.get(dropKey);
       if (prevElapsed != null && Math.abs(d.elapsed - prevElapsed) <= CROSS_BOX_DROP_WINDOW) continue;
       seenDropKey.set(dropKey, d.elapsed);

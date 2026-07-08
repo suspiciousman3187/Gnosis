@@ -1,20 +1,15 @@
 import { useEffect, useState } from 'react';
 import Modal from '@/components/Modal';
-import { scanArchives, restoreArchive, type ArchiveEntry, type RestoreResult } from './restoreArchive';
+import { scanArchives, restoreArchive, peekArchiveZone, type ArchiveEntry, type RestoreResult } from './restoreArchive';
 
 type Status = { kind: 'idle' } | { kind: 'restoring' } | { kind: 'done'; result: RestoreResult } | { kind: 'error'; message: string };
 
 function fmtTime(unixSeconds: number): string {
   if (!unixSeconds) return '?';
-  return new Date(unixSeconds * 1000).toLocaleString();
-}
-
-function summarizeZones(archive: ArchiveEntry): string {
-  const zones = new Set<string>();
-  for (const m of archive.members) if (m.zoneName) zones.add(m.zoneName);
-  if (zones.size === 0) return 'Unknown zone';
-  if (zones.size === 1) return [...zones][0];
-  return `${zones.size} zones`;
+  return new Date(unixSeconds * 1000).toLocaleString(undefined, {
+    year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
 }
 
 function summarizeChars(archive: ArchiveEntry): string {
@@ -38,6 +33,7 @@ export default function RestoreArchiveModal({
   const [loading, setLoading] = useState(true);
   const [archives, setArchives] = useState<ArchiveEntry[]>([]);
   const [statusByDir, setStatusByDir] = useState<Record<string, Status>>({});
+  const [zoneByDir, setZoneByDir] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let alive = true;
@@ -51,6 +47,20 @@ export default function RestoreArchiveModal({
     })();
     return () => { alive = false; };
   }, [dataDir]);
+
+  useEffect(() => {
+    if (archives.length === 0) return;
+    let alive = true;
+    (async () => {
+      for (const a of archives) {
+        if (!alive) return;
+        const zone = await peekArchiveZone(a);
+        if (!alive) return;
+        if (zone) setZoneByDir(prev => (prev[a.archiveDir] ? prev : { ...prev, [a.archiveDir]: zone }));
+      }
+    })();
+    return () => { alive = false; };
+  }, [archives]);
 
   const runRestore = async (archive: ArchiveEntry) => {
     setStatusByDir(prev => ({ ...prev, [archive.archiveDir]: { kind: 'restoring' } }));
@@ -73,8 +83,8 @@ export default function RestoreArchiveModal({
         <>
           <h3 className="text-sm font-bold text-accent uppercase tracking-wide mb-3">Restore Archived Encounters</h3>
           <p className="text-xs text-gray-400 mb-4">
-            When you merge or split encounters, the originals get copied to <code className="text-[10px] bg-black/40 px-1 rounded">data/_merged/</code> first.
-            You can restore those originals back to their zone folder here. The merged outputs in the zone folder are left alone.
+            When you merge, split, or bulk-delete encounters, the originals get copied to <code className="text-[10px] bg-black/40 px-1 rounded">data/_merged/</code> or <code className="text-[10px] bg-black/40 px-1 rounded">data/_deleted/</code> first.
+            You can restore those originals back to their zone folder here.
           </p>
 
           {loading && (
@@ -89,17 +99,25 @@ export default function RestoreArchiveModal({
             <div className="space-y-2 overflow-y-auto flex-1 -mx-1 px-1">
               {archives.map(archive => {
                 const status = statusByDir[archive.archiveDir] ?? { kind: 'idle' as const };
-                const zones = summarizeZones(archive);
                 const chars = summarizeChars(archive);
                 return (
                   <div key={archive.archiveDir} className="border border-white/10 rounded-lg px-3 py-2.5 bg-white/[0.02]">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs text-gray-200 font-mono">{fmtTime(archive.mergedStart)}</div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${archive.kind === 'deleted' ? 'bg-rose-500/15 text-rose-300 border-rose-500/40' : archive.kind === 'split' ? 'bg-sky-500/15 text-sky-300 border-sky-500/40' : 'bg-violet-500/15 text-violet-300 border-violet-500/40'}`}>
+                            {archive.kind === 'deleted' ? 'Deleted' : archive.kind === 'split' ? 'Split' : 'Merged'}
+                          </span>
+                          <span className="text-xs text-gray-200 font-mono">{fmtTime(archive.mergedStart)}</span>
+                        </div>
                         <div className="text-[11px] text-gray-400 mt-1">
                           <span className="text-gray-300">{archive.members.length} files</span>
-                          <span className="mx-1.5 text-gray-600">·</span>
-                          <span>{zones}</span>
+                          {zoneByDir[archive.archiveDir] && (
+                            <>
+                              <span className="mx-1.5 text-gray-600">·</span>
+                              <span className="text-amber-200/80">{zoneByDir[archive.archiveDir]}</span>
+                            </>
+                          )}
                           <span className="mx-1.5 text-gray-600">·</span>
                           <span>{chars}</span>
                         </div>
