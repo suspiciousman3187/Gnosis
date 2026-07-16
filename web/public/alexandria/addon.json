@@ -1,8 +1,8 @@
 {
-    "addon":  {
-                  "version":  "0.0.9",
-                  "url":  "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.12/Alexandria-addon-0.0.9.zip",
-                  "sha256":  "8a0fa5f2ffd3912461b5ecd96b9f84839833d156e779282ab52d074363d2f1f1",
-                  "notes":  "v0.0.12"
-              }
+  "addon": {
+    "version": "0.0.10",
+    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.13/Alexandria-addon-0.0.10.zip",
+    "sha256": "de078be97015d1ccd4c337a156cfb215142ff6287e285ba02060b6b23ee93e71",
+    "notes": "# New\n* When selecting the character to lot on an item in the pool, Alexandria now shows the total amount of item that character owns.\n* Added the ability to list multiple single items on the AH at once.\n* Added a \"Hide Temp\" toggle in Recent Items which allows filtering out Temporary Items.\n* Moved Auto-Sort out of Organize to the main Settings tab under Behavior.\n* Reworked Organize keep/bring list settings to be more simpler. Now includes 3 options:\nKeep All - Keeps all of the specified item in inventory.\nBring Singles - Keeps a user defined amount of the item in inventory and brings items out of storage to meet the amount.\nBring Stacks - Keeps a user defined amount of stacks of an item in inventory and brings items out of storage to meet the amount.\n\n# Bugfixes\n* Fixed an issue where Auto-Lot/Auto-Pass actions when applied to All Characters would sometimes fail to apply to all characters.\n* Fixed the Refresh button on AH Browse/Wishlist to now properly provide feedback that it is refreshing the results.\n* Fixed an issue where the clickable area to add a currency to Starred was smaller than intended.\n* Fixed an issue where Auction House stock listings for single/stack items in the Treasure Pool were showing incorrectly in some situations.\n"
+  }
 }

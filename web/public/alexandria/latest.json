@@ -1,11 +1,11 @@
 {
-    "version":  "0.0.12",
-    "notes":  "v0.0.12",
-    "pub_date":  "2026-07-14T13:29:55Z",
-    "platforms":  {
-                      "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeStZQXhMdVNFYWJkZlVWclVZY2I4L2kzTXZCQ3FiOFNteC81akNtMUoxVzc3OXpxTTV4SzhLYkdJcDZGVUpTVWMzK0U1TERWWGpJcVF0d1FSYTkzUFE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0MDM1Nzk0CWZpbGU6QWxleGFuZHJpYV8wLjAuMTJfeDY0LXNldHVwLmV4ZQpnbS8yeUMzUlhleFBpR2hNSG53SUVKRlpJZ1U3bGl4MkgvZlNjeFRLRmtuTDNLTXJ4V1pBMFBMaFY5dlgzNlBicW9NVlFEY0J1MjhrallrS2xnRWlCdz09Cg==",
-                                             "url":  "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.12/Alexandria_0.0.12_x64-setup.exe"
-                                         }
-                  }
+  "version": "0.0.13",
+  "notes": "# New\n* When selecting the character to lot on an item in the pool, Alexandria now shows the total amount of item that character owns.\n* Added the ability to list multiple single items on the AH at once.\n* Added a \"Hide Temp\" toggle in Recent Items which allows filtering out Temporary Items.\n* Moved Auto-Sort out of Organize to the main Settings tab under Behavior.\n* Reworked Organize keep/bring list settings to be more simpler. Now includes 3 options:\nKeep All - Keeps all of the specified item in inventory.\nBring Singles - Keeps a user defined amount of the item in inventory and brings items out of storage to meet the amount.\nBring Stacks - Keeps a user defined amount of stacks of an item in inventory and brings items out of storage to meet the amount.\n\n# Bugfixes\n* Fixed an issue where Auto-Lot/Auto-Pass actions when applied to All Characters would sometimes fail to apply to all characters.\n* Fixed the Refresh button on AH Browse/Wishlist to now properly provide feedback that it is refreshing the results.\n* Fixed an issue where the clickable area to add a currency to Starred was smaller than intended.\n* Fixed an issue where Auction House stock listings for single/stack items in the Treasure Pool were showing incorrectly in some situations.\n",
+  "pub_date": "2026-07-16T18:16:10Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeTVBODIzcEV2R01VaTVQWFZlRXdEVEEwcEh4b2w5RDM5dlJsMkJFYkoxdXFNTWZtZitvSFZ1ZFdrL3dyV21KeVF6cjQyS0k4bk1MTjBYSFplV1FISHdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0MjIzNDQzCWZpbGU6QWxleGFuZHJpYV8wLjAuMTNfeDY0LXNldHVwLmV4ZQpuaFc4eG93Zm0rVEtuZzhWRVVYMXRCcU50amFjaERGTWlqYnRNSEhXby9JWTZicm91Si9DN0xCSTRIUFVYVEFCSFJPWnZqMkUzelA4cTh0S1BrRFRCZz09Cg==",
+      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.13/Alexandria_0.0.13_x64-setup.exe"
+    }
+  }
 }
