@@ -1,17 +1,17 @@
 {
-    "version":  "0.0.5",
-    "notes":  "v0.0.5",
-    "pub_date":  "2026-07-08T04:29:18Z",
+    "version":  "0.0.6",
+    "notes":  "v0.0.6",
+    "pub_date":  "2026-07-23T04:19:32Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRWhDa0pXczk2b1ZqbTdxbG12RjdEVUI1Y3FvRVBxUmd3ODMvQ253UnFYUGIyYXVZZTNOSE1oSXNCOHo3UE5iQitwdnJYcGg0MFVMd0VCTXc0aThwaGdwWWwzN3Voc0FzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNDg0OTUzCWZpbGU6R25vc2lzXzAuMC41X3g2NC1zZXR1cC5leGUKYzQvUG5XR0hyTmRCWEMvcWVJMEx0MUhablpPRnExUnpSb0h6czRXcGlmdHVYeTF4YXpEVkp4RnpCbmJSTzVodklKSVZKQ1VZcG85ajVTdFppL09aREE9PQo=",
-                                             "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.5/Gnosis_0.0.5_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRWhDa0pXczk2b2ZBVkNwTTNLZjZZbFJPVkFmZXl6RDU1c3J4dFkrNWVzOEhiL0hYL0RKY3JGTC9FNkRuMGFGU2VaazZqNzZNbWNBcElGZEE4alF1VXVRajlEaXdydFFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0NzgwMzY2CWZpbGU6R25vc2lzXzAuMC42X3g2NC1zZXR1cC5leGUKRWFzbXNQQ0tVb1JRcFJ1cG84NWZuek9vUzNBVHFtSW52aS9nOVBjN0t3T0ZLeFByV2Q3bWFKazNneW02SzJ1Ym1TUWNLZmJpMXJBVkgzSXNzczJIQVE9PQo=",
+                                             "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.6/Gnosis_0.0.6_x64-setup.exe"
                                          }
                   },
     "addon":  {
-                  "version":  "0.0.5",
-                  "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.5/Gnosis-addon-0.0.5.zip",
-                  "sha256":  "069d7dec08ee8fd21d8b30f4339cb81376d822d3dc1914796699394913cbe2e9",
-                  "notes":  "v0.0.5"
+                  "version":  "0.0.6",
+                  "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.0.6/Gnosis-addon-0.0.6.zip",
+                  "sha256":  "570ada23d716fea9388b8fdaac39cbca3983ee631386fdd31caee8553181e3f7",
+                  "notes":  "v0.0.6"
               }
 }
