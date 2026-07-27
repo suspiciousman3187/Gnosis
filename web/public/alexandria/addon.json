@@ -1,8 +1,8 @@
 {
   "addon": {
-    "version": "0.0.13",
-    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.16/Alexandria-addon-0.0.13.zip",
-    "sha256": "4b4b8c8deed9590e3e559d0f44b4788cca83119f3e72f86733bf166d0a15483f",
-    "notes": "# New\n\n### General\n* Added a proper progress UI for several missing actions in Library Mode.\n* //find & //findall now combine the same item held in the same bag into a single line with a total count.\n* Added a global toggle setting in Lot List that can be used to temporarily turn auto-lotting on/off for all characters.\n* Added toggling auto-lot on/off per character in Lot List.\n\n### Use Amount...\n* New \"Use Amount窶ｦ\" option on usable items, alongside Use One and Use All: pick a number of times with a slider.\n* //ax use <item> [count|all] allows you to use the same feature from ingame.\n\n### Distribute To...\n* Distribute a single stack across several characters. Useful for situations distributing Geas Fete pop items, Einherjar lamps, etc. across your party.\n\n### Drop Everywhere\n* New \"Drop Everywhere\" action drops every copy of an item from every connected character's inventory.\n* //ax dropall <item> added as the ingame equivalent.\n\n### Storage NPCs\nAdded the following storage NPCs, each accepting the listed items:\n* Waypoint and Proto-Waypoints: All Crystal/Clusters\n* Gobbie Mystery Box NPCs: Habitox, Mystrix, Bountibox, Specilox, Arbitrix, Funtrox, Sweepstox, Priztrix, Wondrix, Rewardox, Winrix: All Coffer Keys\n* Anomaly Expert (Eastern Adoulin): All Yggrete Rocks\n\n# Bugfixes\n* Fixed a bug where //find & //findall would show multiple items with multiple characters on the same account.\n* Fixed a bug where Consolidate and Consolidate By Preference only sent a single stack of items per run.\n* Fixed a bug where Curio & Organize when run together would create an infinite supply loop.\n* Fixed various dropdown and search menus being cut off or hidden behind other panels across the app.\n"
+    "version": "0.0.14",
+    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.16/Alexandria-addon-0.0.14.zip",
+    "sha256": "4714e17271d04c3c130f1bdf490056b2a4b45fe413a86d782a3f5b9b1daae5cf",
+    "notes": "Fixed Waypoint / Proto-Waypoint storage not appearing in the Store panel when standing next to one."
   }
 }
