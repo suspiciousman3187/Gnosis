@@ -1,8 +1,8 @@
 {
   "addon": {
-    "version": "0.0.14",
-    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.16/Alexandria-addon-0.0.14.zip",
-    "sha256": "4714e17271d04c3c130f1bdf490056b2a4b45fe413a86d782a3f5b9b1daae5cf",
-    "notes": "Fixed Waypoint / Proto-Waypoint storage not appearing in the Store panel when standing next to one."
+    "version": "0.0.15",
+    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.17/Alexandria-addon-0.0.15.zip",
+    "sha256": "089f3bfb4a7498c229ded3dce6e49f89d42b142a5b9f561ea96243b32f91b4b2",
+    "notes": "# New\n* Added an All Players list in Organize presets. Per-character presets can still be used as overrides to this list.\n\n### Tagging System\n* Added a new tagging system used by Organize to assign groups of items to specific bags through your inventory.\n* The tagging system can be accessed through Tools > Tagging and comes with a tag editor and rules settings.\n* Comes with some basic tag lists for Omen, Sortie, Ambuscade, & Divergence.\n\n# Bugfixes\n* Fixed a bug where Curio's supply count was not properly counting non-inventory bags like Mog Satchel / Sack / Case in resupply checks.\n"
   }
 }
