@@ -1,8 +1,8 @@
 {
   "addon": {
-    "version": "0.0.15",
-    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.17/Alexandria-addon-0.0.15.zip",
-    "sha256": "089f3bfb4a7498c229ded3dce6e49f89d42b142a5b9f561ea96243b32f91b4b2",
-    "notes": "# New\n* Added an All Players list in Organize presets. Per-character presets can still be used as overrides to this list.\n\n### Tagging System\n* Added a new tagging system used by Organize to assign groups of items to specific bags through your inventory.\n* The tagging system can be accessed through Tools > Tagging and comes with a tag editor and rules settings.\n* Comes with some basic tag lists for Omen, Sortie, Ambuscade, & Divergence.\n\n# Bugfixes\n* Fixed a bug where Curio's supply count was not properly counting non-inventory bags like Mog Satchel / Sack / Case in resupply checks.\n"
+    "version": "0.0.16",
+    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.17/Alexandria-addon-0.0.16.zip",
+    "sha256": "86541623e711cd767da7d8bb9ec2e1687f9962c52c32ca64abaa9cc612b369de",
+    "notes": "# Bugfixes\n* Fixed Mog Storage and Mog Locker not appearing for characters out in the field. They now show wherever they hold items, like the other bags.\n* Fixed Storage Slip contents from one character showing up on another character on the same account.\n"
   }
 }
