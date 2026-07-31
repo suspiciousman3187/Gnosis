@@ -1,11 +1,11 @@
 {
-  "version": "0.0.17",
-  "notes": "# New\n* Added an All Players list in Organize presets. Per-character presets can still be used as overrides to this list.\n\n### Tagging System\n* Added a new tagging system used by Organize to assign groups of items to specific bags through your inventory.\n* The tagging system can be accessed through Tools > Tagging and comes with a tag editor and rules settings.\n* Comes with some basic tag lists for Omen, Sortie, Ambuscade, & Divergence.\n\n# Bugfixes\n* Fixed a bug where Curio's supply count was not properly counting non-inventory bags like Mog Satchel / Sack / Case in resupply checks.\n",
-  "pub_date": "2026-07-28T09:27:22Z",
+  "version": "0.0.18",
+  "notes": "# New\n* Added a Tag filter to Library and Inventory views which lets you filter items based on tags.\n* In the tag editor, you can now drag selected items into any tag in the left tag list to add them directly there.\n* Consolidate now lets you check off multiple items to add to the queue when filtering by Items.\n* Added a Pass option to the right-click \"Add To List\" menu in Library mode.\n* Added an optional Auto-Update feature in Currency that automatically updates the UI based on a user-defined cadence.\n* Pool auto-pass now defaults to on.\n\n# Bugfixes\n* Fixed a bug where the Distribute To... window could close shortly after doing a huge distribution operation.\n* Fixed Library mode resetting custom window sizes when navigating back and forth between it.\n* Fixed Library right-click menu getting cut off when opened at the bottom edge of the window.\n* Fixed being unable to use some temporary items such as Revitalizer.\n",
+  "pub_date": "2026-07-31T23:13:11Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeTRHK0VJVEF4YThKd2RvWXJIdVNYUW1rWDVKSFRLeXRKV21LTU13aktMWnhGcjVXU2VWaGxGcmxKckFIZk1kK2ROdnkwKzVNaXA1S0NjUjljSFdhYndrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MjMwODQxCWZpbGU6QWxleGFuZHJpYV8wLjAuMTdfeDY0LXNldHVwLmV4ZQpZaWpPRGQ1Y0Q0dWFQZllwMzlKZytwLzBMekptQy82NnB5R240ajVTVVhsL1R5N2FuU3Zpa0MrS1NpSjBsZHNSb2VCSUxpOXhvcERhR2JBSmdqak1DZz09Cg==",
-      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.17/Alexandria_0.0.17_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeThhamFETWZiQXZRbkJHRjJMdXM0dWRyeFZBZzREUU0zZktSUUQ5S3M0THNmTkJCbnQ4TXk3UlFiSE4wNnQ3dXBPM1EzQ3pEZUw0T2JlS2dPQWZZekF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1NTM5NTkwCWZpbGU6QWxleGFuZHJpYV8wLjAuMThfeDY0LXNldHVwLmV4ZQorSXA3clFtSVlRaGZIeWdsU1d3dkRBekRtSkZZYkZkamNLTlVkWlRrbk41VG5JRkVWUzR6WGhVTGFHM2tKUndNSVhLMk9FUzc5NXlSOXh2RVl3bVNBdz09Cg==",
+      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.18/Alexandria_0.0.18_x64-setup.exe"
     }
   }
 }
