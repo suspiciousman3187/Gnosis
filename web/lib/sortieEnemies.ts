@@ -6,6 +6,7 @@ import { BATTLE_MESSAGE_DICT } from './battleMessages';
 const SPAWN_TOLERANCE_SEC = 5;
 const PHANTOM_DMG_MAX = 1000;
 const REAL_FIGHT_DMG_MIN = 10000;
+const FRIENDLY_TGT_ROLES = new Set(['pc', 'trust', 'pet', 'outsider']);
 
 const DEATH_MSG_IDS = new Set<number>(
   Object.entries(BATTLE_MESSAGE_DICT)
@@ -58,6 +59,7 @@ export function deriveEnemiesFromActionLog(
     for (const t of e.targets ?? []) {
       const nm = t.mob;
       if (!nm) continue;
+      if (t.tgtRole && FRIENDLY_TGT_ROLES.has(t.tgtRole)) continue;
       if (partyNames.has(nm) || isPetName(nm, partyNames, taggedPetNames)) continue;
       const seq = t.id != null ? spawnSeqFor(t.id, e.elapsed) : 1;
       const key = t.id != null ? `${nm}#${t.id}#${seq}` : nm;

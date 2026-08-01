@@ -10,6 +10,7 @@ import NavRail, { type Section } from './NavRail';
 import { useAdminStatus } from './useAdminStatus';
 import LootView from './LootView';
 import ActivitiesView from './ActivitiesView';
+import CleanupView from './CleanupView';
 import HistoryView from './HistoryView';
 import HomeDashboard from './HomeDashboard';
 import IdleQuote from './IdleQuote';
@@ -45,6 +46,7 @@ import UpdateBannerDemo from './UpdateBannerDemo';
 import WelcomeWizard, { isFtueCompleted } from './WelcomeWizard';
 import DialogHost from '@/components/DialogHost';
 import TooltipHost from '@/components/TooltipHost';
+import ReportErrorBoundary from '@/components/ReportErrorBoundary';
 import { startMemoryMonitor, setMonitorSection } from './memoryMonitor';
 import { getDisplayLanguage } from '@/lib/displayLanguage';
 import { ensureBundlesLoaded, TRANSLATE_BUNDLES } from '@/lib/translate';
@@ -157,6 +159,7 @@ function AppMain() {
   }, []);
   const [paths, setPaths] = useState<string[]>([]);
   const [views, setViews] = useState<ViewEntry[]>([]);
+  const [cleanupBusy, setCleanupBusy] = useState<{ current: number; total: number; label: string } | null>(null);
   const encSummaries = useSummariesRecord();
   const lootSummaries = useLootsRecord();
   const enemyHistory = useEnemyKillHistory();
@@ -561,6 +564,18 @@ function AppMain() {
     }
   };
 
+  const runCleanupDelete = async (members: string[]) => {
+    if (members.length === 0) return;
+    setCleanupBusy({ current: 0, total: members.length, label: 'Preparing…' });
+    try {
+      const { archiveForDelete } = await import('./bulkDeleteDisk');
+      await archiveForDelete(members, p => setCleanupBusy(p));
+      await removeGroup(members);
+    } finally {
+      setCleanupBusy(null);
+    }
+  };
+
   const loadPicked = (f: File) =>
     f.text()
       .then(t => { setContent(loadContent(f.name, t)); setSelected(f.name); setError(null); })
@@ -756,6 +771,22 @@ function AppMain() {
             </div>
           </div>
         )}
+        {section === 'cleanup' && (
+          <div className="h-full">
+            <div className="mx-auto max-w-6xl px-6 py-6">
+              <CleanupView
+                paths={paths}
+                encSummaries={encSummaries}
+                views={views}
+                busy={cleanupBusy}
+                dataDir={dir.replace(/[\\/]+$/, '')}
+                onInspect={(g) => { setSection('history'); if (g.members.length > 1 || g.view) openGroup(g.members, g.view); else open(g.rep); }}
+                onDelete={runCleanupDelete}
+                onRestored={() => void refresh()}
+              />
+            </div>
+          </div>
+        )}
         {section === 'trends' && (
           <div className="h-full">
             <div className="mx-auto max-w-6xl px-6 py-6">
@@ -863,11 +894,13 @@ function AppMain() {
                       should never fire in practice. If a race slips
                       through, the user sees a single blank tick instead
                       of the loader animation popping in. */}
-                  <Suspense fallback={null}>
-                    {displayContent.kind === 'encounter'
-                      ? <EncounterView enc={displayContent.encounter} headerAction={share} enemyHistory={enemyHistory} />
-                      : <ContentView content={displayContent} headerAction={share} enemyHistory={enemyHistory} />}
-                  </Suspense>
+                  <ReportErrorBoundary resetKey={selected}>
+                    <Suspense fallback={null}>
+                      {displayContent.kind === 'encounter'
+                        ? <EncounterView enc={displayContent.encounter} headerAction={share} enemyHistory={enemyHistory} />
+                        : <ContentView content={displayContent} headerAction={share} enemyHistory={enemyHistory} />}
+                    </Suspense>
+                  </ReportErrorBoundary>
                 </>
               );
             })()

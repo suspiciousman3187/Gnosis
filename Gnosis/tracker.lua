@@ -376,7 +376,7 @@ local AMBUSCADE_ZONE_IDS = { [183]=true, [287]=true }
 local LIMBUS_ZONE_IDS    = { [37]=true, [38]=true }
 local ODYSSEY_ZONE_IDS   = { [279]=true, [298]=true }
 local function detect_source(zid, zname)
-    if zname and zname:lower():find("ra'kaznar") and (zname:find('%[U2%]') or zname:find('%[U3%]')) then
+    if zname and zname:lower():find("ra'kaznar") and (zname:find('%[U1%]') or zname:find('%[U2%]') or zname:find('%[U3%]')) then
         return 'sortie'
     end
     if zid and AMBUSCADE_ZONE_IDS[zid] then return 'ambuscade' end

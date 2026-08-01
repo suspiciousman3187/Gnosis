@@ -119,6 +119,13 @@ function buildMap(data: AnyObj): Record<string, string> {
   for (const e of arr(data.deathLog ?? data.death_log)) add((e as AnyObj).player);
   for (const e of arr(data.itemUseLog ?? data.item_use_log)) add((e as AnyObj).player);
   for (const e of arr(data.petLog ?? data.pet_log)) add((e as AnyObj).owner);
+  // Outsider PCs surface only in the action log (actorRole/tgtRole 'pc'); load-bearing for privacy.
+  for (const a of arr(data.actionLog ?? data.action_log)) {
+    if ((a as AnyObj).actorRole === 'pc') add((a as AnyObj).player);
+    for (const t of arr((a as AnyObj).targets)) {
+      if ((t as AnyObj).tgtRole === 'pc') add((t as AnyObj).mob);
+    }
+  }
 
   const seenInCombat = new Set<string>();
   eachCombatPlayer(data, (n) => seenInCombat.add(n));
