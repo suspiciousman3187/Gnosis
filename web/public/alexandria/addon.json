@@ -1,8 +1,8 @@
 {
   "addon": {
-    "version": "0.0.17",
-    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.18/Alexandria-addon-0.0.17.zip",
-    "sha256": "7b1e8db8af48f409984e3abfafe6d5cb11ca8cbf7c72b863ad68bce255ea2743",
-    "notes": "# New\n* Added a Tag filter to Library and Inventory views which lets you filter items based on tags.\n* In the tag editor, you can now drag selected items into any tag in the left tag list to add them directly there.\n* Consolidate now lets you check off multiple items to add to the queue when filtering by Items.\n* Added a Pass option to the right-click \"Add To List\" menu in Library mode.\n* Added an optional Auto-Update feature in Currency that automatically updates the UI based on a user-defined cadence.\n* Pool auto-pass now defaults to on.\n\n# Bugfixes\n* Fixed a bug where the Distribute To... window could close shortly after doing a huge distribution operation.\n* Fixed Library mode resetting custom window sizes when navigating back and forth between it.\n* Fixed Library right-click menu getting cut off when opened at the bottom edge of the window.\n* Fixed being unable to use some temporary items such as Revitalizer.\n"
+    "version": "0.0.18",
+    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.19/Alexandria-addon-0.0.18.zip",
+    "sha256": "7745cb181f7cf81af32595ef4adac9ec4a097f5353b460d8c32ee0d1c66b4098",
+    "notes": "# New\n\n### General\n* Library Mode now allows sorting. Additionally, you can now sort by Tags in both Library and Inventory modes.\n* Added \"Inventory\" as an option in tag organization rules.\n* Added a Pass All and Lot All button to the pop-out treasure pool UI.\n\n### Vendors\nAdded a new tool that works the same as the Curio tool, allowing automatic restocking of common supplies like Frontier Soda, Trump Card Case, Angon, etc. from their respective vendors.\n"
   }
 }
