@@ -103,7 +103,21 @@ export default function SortieOverview({ r, runDurationSeconds, onJumpToFight, f
             { key: 'hexahedrite',  label: 'Hexahedrite' },
             { key: 'mesosiderite', label: 'Mesosiderite' },
           ];
-          const found = r.drops ? DROP_LABELS.filter(({ key }) => (r.drops![key] ?? 0) > 0) : [];
+          // Multibox merge concatenates every box's drop_log, so a shared chest each character obtained shows once per character. True count = the most any single character logged; personal loot stays with its one winner.
+          const dropLog = Array.isArray(r.drop_log) ? r.drop_log : [];
+          const dropCount = (label: string, key: keyof SortieDrops): number => {
+            const perOwner = new Map<string, number>();
+            for (const d of dropLog) {
+              if (d.name !== label) continue;
+              const owner = d.by ?? '';
+              perOwner.set(owner, (perOwner.get(owner) ?? 0) + (d.count ?? 1));
+            }
+            return perOwner.size > 0 ? Math.max(...perOwner.values()) : (r.drops?.[key] ?? 0);
+          };
+          const dropCounts = new Map<keyof SortieDrops, number>(
+            DROP_LABELS.map(({ key, label }) => [key, dropCount(label, key)] as [keyof SortieDrops, number])
+          );
+          const found = DROP_LABELS.filter(({ key }) => (dropCounts.get(key) ?? 0) > 0);
           if (displayGalli <= 0 && found.length === 0) return <div />;
           return (
             <section className="bg-row-even border border-white/10 rounded-xl p-5">
@@ -128,7 +142,7 @@ export default function SortieOverview({ r, runDurationSeconds, onJumpToFight, f
                           )}
                         </td>
                         <td className="py-2 text-gray-100 text-sm">{label}</td>
-                        <td className="py-2 text-right text-amber-400 font-bold font-mono text-lg">{r.drops![key]}</td>
+                        <td className="py-2 text-right text-amber-400 font-bold font-mono text-lg">{dropCounts.get(key)}</td>
                       </tr>
                     ))}
                   </tbody>
