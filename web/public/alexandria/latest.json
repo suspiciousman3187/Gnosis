@@ -1,11 +1,11 @@
 {
-  "version": "0.0.19",
-  "notes": "# New\n\n### General\n* Library Mode now allows sorting. Additionally, you can now sort by Tags in both Library and Inventory modes.\n* Added \"Inventory\" as an option in tag organization rules.\n* Added a Pass All and Lot All button to the pop-out treasure pool UI.\n\n### Vendors\nAdded a new tool that works the same as the Curio tool, allowing automatic restocking of common supplies like Frontier Soda, Trump Card Case, Angon, etc. from their respective vendors.\n",
-  "pub_date": "2026-08-06T22:31:55Z",
+  "version": "0.0.20",
+  "notes": "# New\n\n### Curio\n* Added a Profiles feature which allows creating and applying buy profiles to characters.\n* Added a small one time note that Curio only works with a fully unlocked shop.\n\n### Library\n* Added a Resize Window In Library to global settings (On by default) that, when turned off, will disable Library Mode resizing Alexandria.\n* Additionally reworked window resizing to more consistently save custom window positions when moving in and out of the Library.\n\n### General\n* Added a Text Size setting that allows scaling the text of the entire app up/down.\n",
+  "pub_date": "2026-08-08T23:53:31Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeTJOb0NkSmREeDg2aEtUNmlqblp3ZDRrMFJRSmxhMEZuNG15K0l3aE9IV29sUkh1YlF6REtYdTJ2NlpDNC9HckhPTi9tRlNRbU11MHROdEhPaVZvMVFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MDU1NTEzCWZpbGU6QWxleGFuZHJpYV8wLjAuMTlfeDY0LXNldHVwLmV4ZQo5QWRzWDNuVjhSWVFyYUlGcGdsdWVZTlVMdllpVlR0a3VXbTM3WGpkdlB1TDhZK0N2VzYxbWhXVFh0MnpVZG0vWVl4Q2ZlZFNqU1V3Q2p5cFU5eEdEUT09Cg==",
-      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.19/Alexandria_0.0.19_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeStZU2ZmMk9vV3VvNy96SnoxbkhmQmJOamhGNkdONHBKcERqdlJibExodkd3T2p3ZzN3eElCM2l6ekhKVVhBYldEelROVUhTSlFQNytDaG1lUTIzVHdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MjMzMjEwCWZpbGU6QWxleGFuZHJpYV8wLjAuMjBfeDY0LXNldHVwLmV4ZQpNQmFFUHFvRmx1UlpyOWx4eWZxY2g1M1FsaitVaVpMdEhGTWptMUliMDV3NWg1YUlzRDhUVEoxWm1mNiswWTNMSDVESXdDY3VZVjFHOUFGNENVbGNBdz09Cg==",
+      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.20/Alexandria_0.0.20_x64-setup.exe"
     }
   }
 }
