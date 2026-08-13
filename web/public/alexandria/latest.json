@@ -1,11 +1,11 @@
 {
-  "version": "0.0.20",
-  "notes": "# New\n\n### Curio\n* Added a Profiles feature which allows creating and applying buy profiles to characters.\n* Added a small one time note that Curio only works with a fully unlocked shop.\n\n### Library\n* Added a Resize Window In Library to global settings (On by default) that, when turned off, will disable Library Mode resizing Alexandria.\n* Additionally reworked window resizing to more consistently save custom window positions when moving in and out of the Library.\n\n### General\n* Added a Text Size setting that allows scaling the text of the entire app up/down.\n",
-  "pub_date": "2026-08-08T23:53:31Z",
+  "version": "0.0.21",
+  "notes": "# New\n\n### Bazaar\n* Added \"Put On Bazaar\" actions to both Inventory and Library views, allowing you to put one or multiple items on your bazaar.\n* Items in the bazaar now show with a visual indicator in both views.\n* Added a \"Max All\" function which maxes out all stackable items when buying multiple items from another player's Bazaar.\n\n### Inventory\n* Multi-select now works when searching items in \"All Characters\" view.\n* Added a \"Large Item Popups\" setting in Settings which creates full sized tooltips in Inventory view.\n\n### Library\n* Filters now additionally hide empty bags and characters.\n\n### Storage NPC\n* Added SP Gobbie Key to all Mystery Box goblins. Use a set amount or use all (up to however much free slots you have in your inventory)\n\n# Bugfixes\n* Fixed an issue where the pop-out Treasure Pool ui was resetting both position and size when restarted.\n* Fixed a bug where Lootblox was not trading the proper amount of Ordelle Bronzepieces to exchange for Montiont Silverpiece.\n* Fixed a bug where Inventory and Library sort order did not persist across sessions.\n",
+  "pub_date": "2026-08-13T02:57:27Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeStZU2ZmMk9vV3VvNy96SnoxbkhmQmJOamhGNkdONHBKcERqdlJibExodkd3T2p3ZzN3eElCM2l6ekhKVVhBYldEelROVUhTSlFQNytDaG1lUTIzVHdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MjMzMjEwCWZpbGU6QWxleGFuZHJpYV8wLjAuMjBfeDY0LXNldHVwLmV4ZQpNQmFFUHFvRmx1UlpyOWx4eWZxY2g1M1FsaitVaVpMdEhGTWptMUliMDV3NWg1YUlzRDhUVEoxWm1mNiswWTNMSDVESXdDY3VZVjFHOUFGNENVbGNBdz09Cg==",
-      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.20/Alexandria_0.0.20_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeTFuQ3Zhc3hWbllmQkpnMVNwT0hmYnNZWTdoTXJFMUdvaHpYQ2x5dFd2elBUaUFGSnUwcU9SUHp6cEIyM2hOclpPQnEvNjl2ZXptanFYV1VyOWFnSmdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2NTg5ODQ2CWZpbGU6QWxleGFuZHJpYV8wLjAuMjFfeDY0LXNldHVwLmV4ZQpvNlhLaU1PODJsZHJxUW44RUFVY2IvN3BKNzRsckJUZXAyUlJidXVqUWNPOGtrblZLcnpOWVhIZkJqZU5HVlg4OG1ydGdKSTdTZEFvVVI1LzRiQ0pCQT09Cg==",
+      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.21/Alexandria_0.0.21_x64-setup.exe"
     }
   }
 }

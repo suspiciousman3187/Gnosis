@@ -1,8 +1,8 @@
 {
   "addon": {
-    "version": "0.0.18",
-    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.19/Alexandria-addon-0.0.18.zip",
-    "sha256": "7745cb181f7cf81af32595ef4adac9ec4a097f5353b460d8c32ee0d1c66b4098",
-    "notes": "# New\n\n### General\n* Library Mode now allows sorting. Additionally, you can now sort by Tags in both Library and Inventory modes.\n* Added \"Inventory\" as an option in tag organization rules.\n* Added a Pass All and Lot All button to the pop-out treasure pool UI.\n\n### Vendors\nAdded a new tool that works the same as the Curio tool, allowing automatic restocking of common supplies like Frontier Soda, Trump Card Case, Angon, etc. from their respective vendors.\n"
+    "version": "0.0.19",
+    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.21/Alexandria-addon-0.0.19.zip",
+    "sha256": "51d3fdb9127dd74a6b11fe4ff8834354bdecf18927258dec4b8bc98a45c85810",
+    "notes": "# New\n\n### Bazaar\n* Added \"Put On Bazaar\" actions to both Inventory and Library views, allowing you to put one or multiple items on your bazaar.\n* Items in the bazaar now show with a visual indicator in both views.\n* Added a \"Max All\" function which maxes out all stackable items when buying multiple items from another player's Bazaar.\n\n### Inventory\n* Multi-select now works when searching items in \"All Characters\" view.\n* Added a \"Large Item Popups\" setting in Settings which creates full sized tooltips in Inventory view.\n\n### Library\n* Filters now additionally hide empty bags and characters.\n\n### Storage NPC\n* Added SP Gobbie Key to all Mystery Box goblins. Use a set amount or use all (up to however much free slots you have in your inventory)\n\n# Bugfixes\n* Fixed an issue where the pop-out Treasure Pool ui was resetting both position and size when restarted.\n* Fixed a bug where Lootblox was not trading the proper amount of Ordelle Bronzepieces to exchange for Montiont Silverpiece.\n* Fixed a bug where Inventory and Library sort order did not persist across sessions.\n"
   }
 }
