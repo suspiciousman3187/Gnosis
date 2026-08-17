@@ -4,6 +4,7 @@ import { emit } from '@tauri-apps/api/event';
 import type { LivePlayer, TrackerLive } from './content';
 import { startMultibox, useBoxes, useLiveOverlayGroups, type KillEvent } from './multibox';
 import { inTauri } from './library';
+import { saveOverlayGeom } from './overlayGeom';
 import { JOB_FULL_NAMES } from '@/lib/anonymize';
 import { JOB_ICONS, mainJobKey } from '@/components/JobIcon';
 import { imgSrc } from '@/lib/img';
@@ -119,7 +120,30 @@ export default function OverlayApp() {
   const [followMyTarget, setFollowMyTarget]         = useState<boolean>(() => localStorage.getItem(FOLLOW_TARGET_KEY) === '1');
   const [followCharName, setFollowCharName]         = useState<string>(()  => localStorage.getItem(FOLLOW_CHAR_KEY) ?? '');
   const win = useMemo(() => (inTauri ? getCurrentWindow() : null), []);
-  const togglePin = () => { const n = !pinned; setPinned(n); win?.setAlwaysOnTop(n).catch(() => {}); };
+  // Un-pinned the overlay drops behind the game; with skipTaskbar it would then be unreachable and
+  // read as "disappeared". Surface it in the taskbar while un-pinned so it can always be raised again.
+  const togglePin = () => { const n = !pinned; setPinned(n); win?.setAlwaysOnTop(n).catch(() => {}); win?.setSkipTaskbar(n).catch(() => {}); };
+  useEffect(() => {
+    if (!win) return;
+    let timer: number | undefined;
+    const save = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(async () => {
+        try {
+          const sf = await win.scaleFactor();
+          const sz = await win.innerSize();
+          const pos = await win.outerPosition();
+          const w = Math.round(sz.width / sf), h = Math.round(sz.height / sf);
+          if (w > 0 && h > 0) saveOverlayGeom({ x: Math.round(pos.x / sf), y: Math.round(pos.y / sf), w, h });
+        } catch { /* ignore */ }
+      }, 500);
+    };
+    let unMoved: (() => void) | undefined;
+    let unResized: (() => void) | undefined;
+    win.onMoved(save).then((u) => { unMoved = u; }).catch(() => {});
+    win.onResized(save).then((u) => { unResized = u; }).catch(() => {});
+    return () => { if (timer) window.clearTimeout(timer); unMoved?.(); unResized?.(); };
+  }, [win]);
   type ResizeDir = 'NorthWest' | 'North' | 'NorthEast' | 'East' | 'SouthEast' | 'South' | 'SouthWest' | 'West';
   const startResize = (dir: ResizeDir) => (e: React.PointerEvent) => {
     if (!win) return;

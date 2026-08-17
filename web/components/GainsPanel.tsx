@@ -15,6 +15,11 @@ export type GainsDrop = {
   type?: string;
 };
 
+const CURRENCY_LABELS: Record<string, string> = { gil: 'Gil', mog_segments: 'Mog Segments', gallimaufry: 'Gallimaufry' };
+function currencyLabel(k: string): string {
+  return CURRENCY_LABELS[k] ?? k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 const nf = (n: number) => n.toLocaleString();
 const ratePerHour = (total: number, durationSec: number) =>
   durationSec > 0 ? Math.round((total / durationSec) * 3600) : 0;
@@ -489,7 +494,7 @@ export default function GainsPanel({
                 <tbody>
                   {currency.sortedCurrencies.map(cur => (
                     <tr key={cur} className="border-b border-white/[0.04] last:border-0">
-                      <td className="py-1.5 pr-3 text-gray-200 font-medium whitespace-nowrap">{cur}</td>
+                      <td className="py-1.5 pr-3 text-gray-200 font-medium whitespace-nowrap">{currencyLabel(cur)}</td>
                       {currency.perChar.map(c => {
                         const v = c.deltas[cur] ?? 0;
                         return (

@@ -73,6 +73,12 @@ local _temp_log_armed_at = os.clock() + 5
 -- where enc was nil. Persists across encounters within an addon session.
 local currency_cache = {}
 
+local function _read_gil()
+    local ok, it = pcall(windower.ffxi.get_items)
+    if ok and it and type(it.gil) == 'number' then return it.gil end
+    return nil
+end
+
 -- The open encounter (in-memory), or nil. Logs are appended to live; everything
 -- is serialized once, on close.
 local enc = nil
@@ -445,6 +451,8 @@ local function open_encounter(segmentation)
         progression_end    = nil,
         currency_start     = nil,  -- merged from 0x0113 + 0x0118 at encounter open
         currency_end       = nil,  -- merged from 0x0113 + 0x0118 at encounter close
+        gil_start          = nil,
+        gil_end            = nil,
         key_item_log       = {},   -- {elapsed, kiId, kiName} for each KI flipped 0->1 in 0x0055
         party_jobs         = {},   -- name -> {main,sub,...}; enemy = NOT in this map
         job_change_log     = {},   -- {elapsed, player, mainJob, mainLevel, subJob, subLevel} per job change
@@ -506,6 +514,7 @@ local function open_encounter(segmentation)
     -- values via ff_currency_snapshot_merge.
     if not live_only then
         if cfg.track_currency then
+            enc.gil_start = _read_gil()
             if next(currency_cache) then
                 enc.currency_start = {}
                 for k, v in pairs(currency_cache) do enc.currency_start[k] = v end
@@ -827,6 +836,7 @@ local function close_encounter()
     enc.log_writer = nil
     local track_currency = cfg.track_currency
     if track_currency then
+        enc.gil_end = _read_gil()
         enc._currency_close_phase = true
         enc._currency_close_0113 = false
         enc._currency_close_0118 = false
@@ -851,6 +861,12 @@ local function close_encounter()
                 cur_missing = '0x0118'
             end
             encounter.currencyEnd = enc_ref.currency_end or json.null
+            if enc_ref.gil_start or enc_ref.gil_end then
+                if encounter.currencyStart == json.null then encounter.currencyStart = {} end
+                if encounter.currencyEnd == json.null then encounter.currencyEnd = {} end
+                encounter.currencyStart.gil = enc_ref.gil_start or 0
+                encounter.currencyEnd.gil = enc_ref.gil_end or 0
+            end
         else
             encounter.currencyStart = json.null
             encounter.currencyEnd = json.null
@@ -1139,6 +1155,7 @@ ff_register_action_handler(function(act)
                 is_actor_boss    = function(name) return jobs[name] == nil end,
                 capture_swings   = true,
                 party_id_to_name = enc.id_to_name,
+                dead_ids         = enc.dead_ids,
                 on_actor_reconcile = reconcile_enc,
                 relabel_outsider = cfg.track_outsiders and assign_outsider_label or nil,
                 pet_ids          = enc.pet_ids,

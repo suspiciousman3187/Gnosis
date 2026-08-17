@@ -1,6 +1,7 @@
 import { Window } from '@tauri-apps/api/window';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { inTauri } from './library';
+import { loadOverlayGeom } from './overlayGeom';
 
 const OVERLAY_LABEL = 'overlay';
 
@@ -10,11 +11,13 @@ async function existing(): Promise<Window | null> {
 }
 
 function createOverlay(alwaysOnTop: boolean): WebviewWindow {
+  const g = loadOverlayGeom();
   return new WebviewWindow(OVERLAY_LABEL, {
     url: '/index.html#overlay',
     title: 'Gnosis Overlay',
-    width: 420,
-    height: 340,
+    width: g?.w ?? 420,
+    height: g?.h ?? 340,
+    ...(g ? { x: g.x, y: g.y } : {}),
     minWidth: 280,
     minHeight: 36,
     decorations: false,

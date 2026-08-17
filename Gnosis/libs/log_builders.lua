@@ -261,17 +261,18 @@ function ff_log_action_event(action_log, skillchain_log, run_start_time, act, op
     local include_target_fn = opts.include_target
     local capture_swings   = opts.capture_swings
     local relabel_outsider = opts.relabel_outsider
+    local dead_ids         = opts.dead_ids
 
     if opts.on_actor_reconcile and opts.party_id_to_name and opts.party_id_to_name[act.actor_id] then
         opts.on_actor_reconcile(act.actor_id, actor_mob.name)
     end
 
     local pname = actor_mob.name
-    local actor_is_boss = is_actor_boss_fn(pname) and true or false
     local aname, atype = ff_resolve_action_name_type(act, pname, party_jobs)
 
     local party_pets = build_party_pet_map(party_jobs)
     local actor_pet_of = party_pets[act.actor_id]
+    local actor_is_boss = (is_actor_boss_fn(pname) and not actor_pet_of) and true or false
     local pet_ids_out = opts.pet_ids
     local pet_names_out = opts.pet_names
     if pet_ids_out then
@@ -302,7 +303,7 @@ function ff_log_action_event(action_log, skillchain_log, run_start_time, act, op
     for _, tgt in ipairs(act.targets or {}) do
         if tgt and tgt.id then
             local tgt_mob = windower.ffxi.get_mob_by_id(tgt.id)
-            if tgt_mob then
+            if tgt_mob and not (dead_ids and dead_ids[tgt.id] and tgt_mob.hpp == 0) then
                 local target_pet_of = party_pets[tgt.id]
                 local tgt_is_party = party_jobs[tgt_mob.name] ~= nil
                 local tgt_is_mob_entity = (tgt_mob.spawn_type == FF_SPAWN_TYPE_MOB)
