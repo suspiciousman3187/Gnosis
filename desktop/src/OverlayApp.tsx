@@ -719,7 +719,7 @@ export default function OverlayApp() {
         )}
 
         {/* Players */}
-        <div className="flex-1 overflow-y-auto px-2 py-1.5 space-y-1">
+        <div className="flex-1 flex flex-col overflow-y-auto px-2 py-1.5 space-y-1">
           {!recording ? (
             <div className="text-[11px] text-gray-500 italic px-1 py-3 text-center">Idle - start tracking to see live damage.</div>
           ) : effPlayers.length === 0 ? (
@@ -731,9 +731,9 @@ export default function OverlayApp() {
               const jk = mainJobKey(p.job);
               if (compact) {
                 return (
-                  <div key={p.name} className="player-row-in relative rounded px-2 py-0.5 overflow-hidden">
+                  <div key={p.name} className="player-row-in relative rounded px-2 py-0.5 overflow-hidden flex-1 min-h-[15px] max-h-[22px]">
                     <div className="absolute inset-0 dmg-bar-fill bg-accent/15 rounded" style={{ width: `${(p.damage / max) * 100}%` }} />
-                    <div className="relative flex items-center gap-1.5 text-[11px]">
+                    <div className="relative flex items-center gap-1.5 text-[11px] h-full">
                       {p.job === 'CLOWN'
                         ? <span className="shrink-0 text-[13px] leading-none">🤡</span>
                         : <span className={`${JOB_BADGE[p.job ?? ''] ?? 'bg-slate-700'} text-white text-[9px] font-bold px-1 py-0.5 rounded shrink-0`}>{p.job || '?'}</span>}
@@ -746,9 +746,9 @@ export default function OverlayApp() {
                 );
               }
               return (
-              <div key={p.name} className="player-row-in relative rounded px-2 py-1 overflow-hidden">
+              <div key={p.name} className="player-row-in relative rounded px-2 py-1 overflow-hidden flex-1 min-h-[38px] max-h-[50px]">
                 <div className="absolute inset-0 dmg-bar-fill bg-accent/15 rounded" style={{ width: `${(p.damage / max) * 100}%` }} />
-                <div className="relative flex items-center gap-2.5">
+                <div className="relative flex items-center gap-2.5 h-full">
                   {p.job === 'CLOWN'
                     ? <span className="w-9 h-9 shrink-0 flex items-center justify-center text-2xl leading-none">🤡</span>
                     : jk

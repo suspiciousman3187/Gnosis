@@ -541,7 +541,9 @@ function request_currency_snapshot()
     if now - _last_currency_req < CURRENCY_REQ_MIN_GAP_SEC then return end
     _last_currency_req = now
     pcall(function() packets.inject(packets.new('outgoing', 0x010F, {})) end)
-    pcall(function() packets.inject(packets.new('outgoing', 0x0115, {})) end)
+    coroutine.schedule(function()
+        pcall(function() packets.inject(packets.new('outgoing', 0x0115, {})) end)
+    end, 1)
 end
 
 -- Per-enemy rollup derived from the action log: any non-party target a party
@@ -1665,11 +1667,13 @@ windower.register_event('zone change', function()
         local zname = zone_name_for(zid)
         local src = detect_source(zid, zname)
         local entering_owned_content = (src ~= 'generic' and src ~= 'sortie')
-        if enc and enc.segmentation == 'content-auto' and (not zid or enc.zone_id ~= zid) then
+        if entering_owned_content then
+            -- Owned content is one zone-bracketed encounter; the user's fight/zone preset must not re-slice it (would fragment currency).
+            if enc and (not zid or enc.zone_id ~= zid) then close_encounter() end
+            if not enc then open_encounter('content-auto') end
+            return
+        elseif enc and enc.segmentation == 'content-auto' and (not zid or enc.zone_id ~= zid) then
             close_encounter()
-        end
-        if entering_owned_content and not enc then
-            open_encounter('content-auto')
         end
     end
     if cfg.gate == 'off' then return end
