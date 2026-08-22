@@ -1,8 +1,8 @@
 {
   "addon": {
-    "version": "0.0.21",
-    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.23/Alexandria-addon-0.0.21.zip",
-    "sha256": "e75ba4a3869b227d0cca2136b7668212ae2d2817ff3c14b97235829361153b8c",
-    "notes": "# New\n* Added a Confirmation function when augmenting Ambuscade Capes where Alexandria will wait until the user confirms the stats were correct before proceeding.\n\n# Bugfixes\n* Fixed a bug where augmenting ambuscade capes could expend materials without augmenting the cape in some scenarios.\n* Fixed a bug where the blacklist button on Net Worth could sometimes become unreachable in some scenarios.\n"
+    "version": "0.0.22",
+    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.24/Alexandria-addon-0.0.22.zip",
+    "sha256": "7e42bd569b6e915aec71af47908f836af6bb686b5a65dcbc8f7078bb4e498262",
+    "notes": "# New\n\n### Reforge\nA new feature under Augmentation that allows you to create queues to reforge Artifact, Relic, and Empyrean armor at the respective upgrade NPCs. You must remain nearby the npc within trading distance for it to work.\n\n### Storage Slips\n* Added a search box.\n\n### Storage NPC\n* Added a \"Drop Extra\" toggle that drops excess Rem's Tales when using Store All if you already have the max amount stored with Monisette. (255)\n\n### Auto-Sell\n* Added a Export/Import feature for sharing Sell Lists from Alexandria.\n\n# Bugfixes\n* Fixed an issue where //get, //gets, and //find only searched against abbreviated names instead of both abbreviated and full names of items.\n"
   }
 }

@@ -1,11 +1,11 @@
 {
-  "version": "0.0.23",
-  "notes": "# New\n* Added a Confirmation function when augmenting Ambuscade Capes where Alexandria will wait until the user confirms the stats were correct before proceeding.\n\n# Bugfixes\n* Fixed a bug where augmenting ambuscade capes could expend materials without augmenting the cape in some scenarios.\n* Fixed a bug where the blacklist button on Net Worth could sometimes become unreachable in some scenarios.\n",
-  "pub_date": "2026-08-19T05:02:19Z",
+  "version": "0.0.24",
+  "notes": "# New\n\n### Reforge\nA new feature under Augmentation that allows you to create queues to reforge Artifact, Relic, and Empyrean armor at the respective upgrade NPCs. You must remain nearby the npc within trading distance for it to work.\n\n### Storage Slips\n* Added a search box.\n\n### Storage NPC\n* Added a \"Drop Extra\" toggle that drops excess Rem's Tales when using Store All if you already have the max amount stored with Monisette. (255)\n\n### Auto-Sell\n* Added a Export/Import feature for sharing Sell Lists from Alexandria.\n\n# Bugfixes\n* Fixed an issue where //get, //gets, and //find only searched against abbreviated names instead of both abbreviated and full names of items.\n",
+  "pub_date": "2026-08-22T08:04:22Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeTlJME55WGhNMEw4QWtlUCsvL1gycTNGL2pVQjB3TVkxWi9DeERLeWVwOWM3UWl0L25odHo3Yjc1TjJrdEZ5RGNJcnlFaXlTamgrMVdnSDZaV0kzTXcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MTE1NzM4CWZpbGU6QWxleGFuZHJpYV8wLjAuMjNfeDY0LXNldHVwLmV4ZQpQOGNVL2dhQjl1NEpXdGhYN0IzOFRPTzJuMzlsYlRtWURKdnM0YWNTdUVjMEtERHduUHBsdG5QOTdGcEJVemRETzZoK0dnUmlueU1lc1U4cU1zdlNEQT09Cg==",
-      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.23/Alexandria_0.0.23_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeXhDeVorYWViMmNOckQ5NzMrcW5Ga05nRUxIMFU2ZnJ3UGhTNXBZZTQ2QVd5RGYrUmZscTFzenpnSitLemkwRWhLcW5aejN5ZWc3T0pFOUdmcElLc0E4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3Mzg1ODYxCWZpbGU6QWxleGFuZHJpYV8wLjAuMjRfeDY0LXNldHVwLmV4ZQpuVDRicUlRM2tyODAzV0JUOVd2ZHVjY2JhTzJtaTlrYkg1NTZiVjBXSzZrY1JLb1RvUk9PYmtXRkJYYnZqTXRxMms4SS9TY2RnK1ZvcERuQzh4RUtDZz09Cg==",
+      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.24/Alexandria_0.0.24_x64-setup.exe"
     }
   }
 }
