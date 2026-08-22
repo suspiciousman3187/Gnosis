@@ -520,6 +520,7 @@ local function open_encounter(segmentation)
                 for k, v in pairs(currency_cache) do enc.currency_start[k] = v end
                 enc.currency_end = {}
                 for k, v in pairs(currency_cache) do enc.currency_end[k] = v end
+                enc._currency_start_done = true
             end
             request_currency_snapshot()
         end
@@ -545,6 +546,19 @@ function request_currency_snapshot()
         pcall(function() packets.inject(packets.new('outgoing', 0x0115, {})) end)
     end, 1)
 end
+
+-- Keep content-zone currency fresh with periodic in-zone requests (mirrors Sortie): the
+-- zone-out snapshot is unreliable (load screen), so refresh every 20s while stable.
+local _last_content_cur_req = 0
+windower.register_event('prerender', function()
+    if not cfg.track_currency then return end
+    if not enc or enc.segmentation ~= 'content-auto' then return end
+    local now = os.time()
+    if now - _last_content_cur_req >= 20 then
+        _last_content_cur_req = now
+        request_currency_snapshot()
+    end
+end)
 
 -- Per-enemy rollup derived from the action log: any non-party target a party
 -- member hit. firstSeen/damageTaken from the log; killedAt left nil (the view
@@ -842,7 +856,6 @@ local function close_encounter()
         enc._currency_close_phase = true
         enc._currency_close_0113 = false
         enc._currency_close_0118 = false
-        request_currency_snapshot()
     end
 
     coroutine.schedule(function()
@@ -850,9 +863,38 @@ local function close_encounter()
         local cur_missing
         if track_currency then
             local t0 = os.clock()
-            while os.clock() - t0 < 3.0 do
-                if enc_ref._currency_close_0113 and enc_ref._currency_close_0118 then break end
-                coroutine.sleep(0.05)
+            -- Zoning out drops us into a load screen that ignores currency requests. Wait for a
+            -- genuine arrival (mirrors Cadmus IS_LOADED: player + logged_in + non-zero zone + a
+            -- rendered mob with a real position; the position check rules out the zone-in tail),
+            -- then re-request at 3s/5s/10s, stopping once the packet balance confirms (>=) the
+            -- chat-built total. Double-check only, never summed - chat total stays authoritative.
+            while os.clock() - t0 < 18.0 do
+                local me = windower.ffxi.get_player()
+                local info = windower.ffxi.get_info()
+                local mob = (me and me.id) and windower.ffxi.get_mob_by_id(me.id) or nil
+                if me and me.id and info and info.logged_in and (info.zone or 0) ~= 0
+                   and mob and mob.x and not (mob.x == 0 and mob.y == 0 and mob.z == 0) then break end
+                coroutine.sleep(0.1)
+            end
+            local seg_start = (enc_ref.currency_start and enc_ref.currency_start['Mog Segments']) or 0
+            local seg_chat = (enc_ref.currency_end and enc_ref.currency_end['Mog Segments']) or seg_start
+            local arrival = os.clock()
+            for _, delay in ipairs({3, 5, 10}) do
+                while os.clock() - arrival < delay do coroutine.sleep(0.1) end
+                enc_ref._currency_close_0113 = false
+                enc_ref._currency_close_0118 = false
+                request_currency_snapshot()
+                local w = os.clock()
+                while os.clock() - w < 2.0 do
+                    if enc_ref._currency_close_0113 and enc_ref._currency_close_0118 then break end
+                    coroutine.sleep(0.05)
+                end
+                local pkt = currency_cache['Mog Segments']
+                if type(pkt) == 'number' and pkt >= seg_chat and pkt >= seg_start then
+                    if not enc_ref.currency_end then enc_ref.currency_end = {} end
+                    enc_ref.currency_end['Mog Segments'] = pkt
+                    break
+                end
             end
             cur_wait_ms = (os.clock() - t0) * 1000
             if not enc_ref._currency_close_0113 and not enc_ref._currency_close_0118 then
@@ -1357,9 +1399,10 @@ local function _chunk_misc(id, data)
                 if enc._currency_close_phase then
                     if id == 0x0113 then enc._currency_close_0113 = true end
                     if id == 0x0118 then enc._currency_close_0118 = true end
-                else
+                elseif not enc._currency_start_done then
                     if not enc.currency_start then enc.currency_start = {} end
                     ff_currency_snapshot_merge(enc.currency_start, p)
+                    enc._currency_start_done = true
                 end
             end
         end
@@ -1596,6 +1639,23 @@ end
 windower.register_event('incoming text', ff_perf_event('incoming_text', function(original)
     if not enc then return end
     local s = strip_escape_codes(original):gsub('[\r\n]', '')
+    -- Moogle segments (Odyssey Sheol): the reward line carries the authoritative running
+    -- balance, so parse it directly - captures the end-of-run chunk the instant it prints,
+    -- with no dependency on the zone-out currency packet.
+    if cfg.track_currency and enc.segmentation == 'content-auto' then
+        local seg_n, seg_total = s:lower():match('you receive (%d+) moogle segments for a total of (%d+)')
+        if seg_total then
+            seg_total = tonumber(seg_total)
+            if not enc.currency_end then enc.currency_end = {} end
+            enc.currency_end['Mog Segments'] = seg_total
+            if not enc.currency_start then enc.currency_start = {} end
+            if enc.currency_start['Mog Segments'] == nil then
+                enc.currency_start['Mog Segments'] = seg_total - (tonumber(seg_n) or 0)
+            end
+            enc._currency_start_done = true
+            currency_cache['Mog Segments'] = seg_total
+        end
+    end
     local elapsed = math.floor(os.difftime(os.time(), enc.start_os))
 
     -- Temporary item: "You obtain the temporary item: <name>!"
