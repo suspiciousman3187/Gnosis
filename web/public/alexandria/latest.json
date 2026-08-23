@@ -1,11 +1,11 @@
 {
-  "version": "0.0.24",
-  "notes": "# New\n\n### Reforge\nA new feature under Augmentation that allows you to create queues to reforge Artifact, Relic, and Empyrean armor at the respective upgrade NPCs. You must remain nearby the npc within trading distance for it to work.\n\n### Storage Slips\n* Added a search box.\n\n### Storage NPC\n* Added a \"Drop Extra\" toggle that drops excess Rem's Tales when using Store All if you already have the max amount stored with Monisette. (255)\n\n### Auto-Sell\n* Added a Export/Import feature for sharing Sell Lists from Alexandria.\n\n# Bugfixes\n* Fixed an issue where //get, //gets, and //find only searched against abbreviated names instead of both abbreviated and full names of items.\n",
-  "pub_date": "2026-08-22T08:04:22Z",
+  "version": "0.0.27",
+  "notes": "# Bugfixes\n* Fixed a bug in Reforge where the AH Buy feature would be displayed even if the user was in an area with no AH access.\n* Fixed a bug in Reforge where the user had a required ingredient but was in an unreachable bag not correctly displaying an orange box.\n* Fixed a bug in Reforge where the queue could sometimes hang when adding new reforge items while it was already in progress.\n* Fixed a bug where the Use Dark Matter setting in Geas Fete Augmentation would be unable to be set to 0. Now turned into a full toggle on/off setting.\n* Fixed a bug where Item tooltips would render off the screen in some scenarios where the app was maximized to fullscreen.\n",
+  "pub_date": "2026-08-23T17:48:48Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeXhDeVorYWViMmNOckQ5NzMrcW5Ga05nRUxIMFU2ZnJ3UGhTNXBZZTQ2QVd5RGYrUmZscTFzenpnSitLemkwRWhLcW5aejN5ZWc3T0pFOUdmcElLc0E4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3Mzg1ODYxCWZpbGU6QWxleGFuZHJpYV8wLjAuMjRfeDY0LXNldHVwLmV4ZQpuVDRicUlRM2tyODAzV0JUOVd2ZHVjY2JhTzJtaTlrYkg1NTZiVjBXSzZrY1JLb1RvUk9PYmtXRkJYYnZqTXRxMms4SS9TY2RnK1ZvcERuQzh4RUtDZz09Cg==",
-      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.24/Alexandria_0.0.24_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeTk4QzBkbXdLczgzV2lXbHRHRG1mOEZWMEVqZ1UzMHhzVUx6Zm04TkV0L0svc1ZHZURxZWgwYVhEdUhGcVhYS25kbzZKNFlBc000Ukd0NTAwcldwRHdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NTA3MzI3CWZpbGU6QWxleGFuZHJpYV8wLjAuMjdfeDY0LXNldHVwLmV4ZQprcFBOcE0vZ29sNG0yWGlTSjN1cFhvUWtKRmZ6OUdKcm4wOWs0c25nNzRDb29WMUtHR1pjZUV6bzNyM3hXZlRSczBTWllzNDhoV3dtRzB1ZVBSWTdCQT09Cg==",
+      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.27/Alexandria_0.0.27_x64-setup.exe"
     }
   }
 }

@@ -1,8 +1,8 @@
 {
   "addon": {
-    "version": "0.0.22",
-    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.24/Alexandria-addon-0.0.22.zip",
-    "sha256": "7e42bd569b6e915aec71af47908f836af6bb686b5a65dcbc8f7078bb4e498262",
-    "notes": "# New\n\n### Reforge\nA new feature under Augmentation that allows you to create queues to reforge Artifact, Relic, and Empyrean armor at the respective upgrade NPCs. You must remain nearby the npc within trading distance for it to work.\n\n### Storage Slips\n* Added a search box.\n\n### Storage NPC\n* Added a \"Drop Extra\" toggle that drops excess Rem's Tales when using Store All if you already have the max amount stored with Monisette. (255)\n\n### Auto-Sell\n* Added a Export/Import feature for sharing Sell Lists from Alexandria.\n\n# Bugfixes\n* Fixed an issue where //get, //gets, and //find only searched against abbreviated names instead of both abbreviated and full names of items.\n"
+    "version": "0.0.23",
+    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.27/Alexandria-addon-0.0.23.zip",
+    "sha256": "6630b3c1ed428a0308d507f3e4d954d5e4e590257a91b558f4bb248b65db4e13",
+    "notes": "# Bugfixes\n* Fixed a bug in Reforge where the AH Buy feature would be displayed even if the user was in an area with no AH access.\n* Fixed a bug in Reforge where the user had a required ingredient but was in an unreachable bag not correctly displaying an orange box.\n* Fixed a bug in Reforge where the queue could sometimes hang when adding new reforge items while it was already in progress.\n* Fixed a bug where the Use Dark Matter setting in Geas Fete Augmentation would be unable to be set to 0. Now turned into a full toggle on/off setting.\n* Fixed a bug where Item tooltips would render off the screen in some scenarios where the app was maximized to fullscreen.\n"
   }
 }
