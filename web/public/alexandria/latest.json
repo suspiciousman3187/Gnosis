@@ -1,11 +1,11 @@
 {
-  "version": "0.0.27",
-  "notes": "# Bugfixes\n* Fixed a bug in Reforge where the AH Buy feature would be displayed even if the user was in an area with no AH access.\n* Fixed a bug in Reforge where the user had a required ingredient but was in an unreachable bag not correctly displaying an orange box.\n* Fixed a bug in Reforge where the queue could sometimes hang when adding new reforge items while it was already in progress.\n* Fixed a bug where the Use Dark Matter setting in Geas Fete Augmentation would be unable to be set to 0. Now turned into a full toggle on/off setting.\n* Fixed a bug where Item tooltips would render off the screen in some scenarios where the app was maximized to fullscreen.\n",
-  "pub_date": "2026-08-23T17:48:48Z",
+  "version": "0.0.28",
+  "notes": "# New\n* Enhanced the Consolidate By Preference UI to allow Bulk Add operations with two main modes: From Tag (consolidate all items from a tag) & From Bag (pick which items to consolidate from a character's bag(s))\n* Added debug logging to reforge queues to help better diagnose any potential issues that may come up in the future.\n",
+  "pub_date": "2026-08-25T00:06:23Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeTk4QzBkbXdLczgzV2lXbHRHRG1mOEZWMEVqZ1UzMHhzVUx6Zm04TkV0L0svc1ZHZURxZWgwYVhEdUhGcVhYS25kbzZKNFlBc000Ukd0NTAwcldwRHdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NTA3MzI3CWZpbGU6QWxleGFuZHJpYV8wLjAuMjdfeDY0LXNldHVwLmV4ZQprcFBOcE0vZ29sNG0yWGlTSjN1cFhvUWtKRmZ6OUdKcm4wOWs0c25nNzRDb29WMUtHR1pjZUV6bzNyM3hXZlRSczBTWllzNDhoV3dtRzB1ZVBSWTdCQT09Cg==",
-      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.27/Alexandria_0.0.27_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeTducUdzWkJXMUtzeE9aVldiTXV2dFh3VUVIZGRhR3FpYWJaSWFLT2ZsZG9nRmd5M0dMYlJ0UzBodFpwdXpUcmFKL0pTV05MVi94Z0p1YXdQNE0yYlFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NjE2MzgyCWZpbGU6QWxleGFuZHJpYV8wLjAuMjhfeDY0LXNldHVwLmV4ZQo5UEROMVkzS3AyUzVtK21wdWQ1a3h5bGtvWHYwTk1MdVM3WGRNdHRzeWc2R0pLTzVHbGExM2Zwa1hPRnJmSVU0Ny9kWE0vR25TZy9zZWVibEV1R3lCdz09Cg==",
+      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.28/Alexandria_0.0.28_x64-setup.exe"
     }
   }
 }
