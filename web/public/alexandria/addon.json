@@ -1,8 +1,8 @@
 {
   "addon": {
-    "version": "0.0.24",
-    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.28/Alexandria-addon-0.0.24.zip",
-    "sha256": "01018ff96c14ecce5aadf87f51631ef85e45a668760f95a9ac77724b824ebc28",
-    "notes": "# New\n* Enhanced the Consolidate By Preference UI to allow Bulk Add operations with two main modes: From Tag (consolidate all items from a tag) & From Bag (pick which items to consolidate from a character's bag(s))\n* Added debug logging to reforge queues to help better diagnose any potential issues that may come up in the future.\n"
+    "version": "0.0.25",
+    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.29/Alexandria-addon-0.0.25.zip",
+    "sha256": "38c56d6237fa6e9cd5ab81d813fcadb4a0a0c503073bd61af5186ae3eb7204d1",
+    "notes": "v0.0.29"
   }
 }

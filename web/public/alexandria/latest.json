@@ -1,11 +1,11 @@
 {
-  "version": "0.0.28",
-  "notes": "# New\n* Enhanced the Consolidate By Preference UI to allow Bulk Add operations with two main modes: From Tag (consolidate all items from a tag) & From Bag (pick which items to consolidate from a character's bag(s))\n* Added debug logging to reforge queues to help better diagnose any potential issues that may come up in the future.\n",
-  "pub_date": "2026-08-25T00:06:23Z",
+  "version": "0.0.29",
+  "notes": "v0.0.29",
+  "pub_date": "2026-08-30T10:43:47Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeTducUdzWkJXMUtzeE9aVldiTXV2dFh3VUVIZGRhR3FpYWJaSWFLT2ZsZG9nRmd5M0dMYlJ0UzBodFpwdXpUcmFKL0pTV05MVi94Z0p1YXdQNE0yYlFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NjE2MzgyCWZpbGU6QWxleGFuZHJpYV8wLjAuMjhfeDY0LXNldHVwLmV4ZQo5UEROMVkzS3AyUzVtK21wdWQ1a3h5bGtvWHYwTk1MdVM3WGRNdHRzeWc2R0pLTzVHbGExM2Zwa1hPRnJmSVU0Ny9kWE0vR25TZy9zZWVibEV1R3lCdz09Cg==",
-      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.28/Alexandria_0.0.28_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeTdRU09OK21JcHZWNE1rbnFRazF4WlIyODV0SGRXNEpyeE9GaEFBbkpEQnBBa0ZHRE0vRWpFdzduTjVjcURNMCt1VHllQUNodVFEek4yaEFoZ3NBQVFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MDg2NjI1CWZpbGU6QWxleGFuZHJpYV8wLjAuMjlfeDY0LXNldHVwLmV4ZQowb1FjNEJXb29PL2h0WUltMmprSTFTZkVhNTVxN3RrT3VScThmMFg0ZEI2K1NGUDhCbVhRaUwvRzk2dHZSeUIycXFnT2d2d0sweEZzN1ZpOGoxTkRDUT09Cg==",
+      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.29/Alexandria_0.0.29_x64-setup.exe"
     }
   }
 }
