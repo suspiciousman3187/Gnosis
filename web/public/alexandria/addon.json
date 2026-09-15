@@ -1,8 +1,8 @@
 {
   "addon": {
-    "version": "0.0.26",
-    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.30/Alexandria-addon-0.0.26.zip",
-    "sha256": "bc6635686895a4d50fd650b1d203c2976447a0e534428deffd39924903c3109b",
-    "notes": "v0.0.30"
+    "version": "0.0.27",
+    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.31/Alexandria-addon-0.0.27.zip",
+    "sha256": "6f7bb3c400d099928ec556b3192d2daee7cfc85c85cb06bdd097ed0ed7dbe5c2",
+    "notes": "# Alexandria v0.0.31\n\n# New\n\n### Inventory\n* Item rows now show a loading spinner while the AH price is being fetched and a faint dash when an item has no recent sale..\n* AH price displays now fall back to a connected character's home server when no server is set instead of just showing blank.\n\n### Alerts\n* Added a new \"Alerts\" section under Pool, where you can add items to watch for and play a sound when they are in the pool.\n\n### Tagging\n* Added an Import/Export feature for tags, which allows sharing tags with other users.\n* Tag routing can now send items to wardrobes.\n\n### Auto-Lot\n* Added the ability to define a limit to how many items a character should auto-lot on an item. The character will then auto-lot on the item until they reach the specified amount of that item in their inventory.\n\n### Currency & Key Items\n* Added Deselect/Select All functions to the character pickers in both views.\n\n### Sparks / Unity Conversion\n* Reworked to be more reliable. It should now properly detect and keep track of currency values in real-time and reasonably retry if an operation failed mid-conversion.\n\n### Consolidate\n* Each trade round is now capped to the collector's free slots and sends the smallest stacks first so a nearly-full receiver merges them away instead of over-trading past a full inventory.\n\n### Augmentation\n* Start / Roll buttons are now properly disabled while a run is already in progress.\n\n# Bugfixes\n* Fixed an issue where inventory and key-item snapshots would not update properly in some scenarios.\n"
   }
 }
