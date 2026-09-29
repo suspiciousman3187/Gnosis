@@ -11,6 +11,7 @@ import {
 } from './db';
 import type { EncSummary } from './App';
 import type { LootEncounterSummary } from '@/lib/dropAggregator';
+import { LOOT_SCHEMA_VERSION } from '@/lib/dropAggregator';
 
 const PARSE_CONCURRENCY = 4;
 const PERSIST_DEBOUNCE_MS = 1500;
@@ -22,6 +23,8 @@ const loots = new Map<string, LootEncounterSummary>();
 
 function isStaleLoot(path: string, loot: LootEncounterSummary): boolean {
   if (kindFromName(path) === 'sortie') {
+    // Reparse pre-v2 sortie slices so they gain enemies[] + the aminon{} record.
+    if ((loot.sv ?? 0) < LOOT_SCHEMA_VERSION) return true;
     if (!Array.isArray(loot.enemies) || loot.enemies.length === 0) return true;
     if (loot.enemies.every(e => (e.damageTaken ?? 0) === 0)) return true;
   }
@@ -385,6 +388,30 @@ export function requestSummaries(paths: string[]): void {
       queued = true;
     }
     if (queued) pumpSummaryQueue();
+  });
+}
+
+// Force a reparse of specific paths even when a (stale) slice is already cached
+// in memory or was requested before. requestLoots deliberately skips anything
+// in the loots map, so stale sortie slices loaded earlier would never rebuild;
+// this clears the guards and re-queues them through the normal parse path.
+export function forceReparseLoots(paths: string[]): void {
+  if (!activeDir) return;
+  const targets = paths.filter(p => { const k = kindFromName(p); return k === 'encounter' || k === 'sortie'; });
+  if (targets.length === 0) return;
+  for (const p of targets) {
+    loots.delete(p);
+    lootRequested.delete(p);
+    summaryRequested.delete(p);
+  }
+  void ensureDbReady(activeDir).then(() => {
+    for (const p of targets) {
+      if (summaryRequested.has(p)) continue;
+      summaryRequested.add(p);
+      lootRequested.add(p);
+      summaryQueue.push(p);
+    }
+    pumpSummaryQueue();
   });
 }
 

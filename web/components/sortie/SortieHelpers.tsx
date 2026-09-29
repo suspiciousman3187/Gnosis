@@ -17,16 +17,16 @@ export const SORTIE_DURATION = 3600;
 export const NAAKUAL_ORDER = ['Bztavian', 'Rockfin', 'Gabbrath', 'Waktza', 'Yggdreant', 'Cehuetzi'];
 
 export function formatDuration(seconds: number) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  const t = Math.max(0, Math.round(seconds));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 export function fmtSortieClock(elapsedSeconds: number) {
-  const remaining = Math.max(0, SORTIE_DURATION - elapsedSeconds);
-  const m = Math.floor(remaining / 60);
-  const sec = Math.floor(remaining % 60);
-  return `${m}:${String(sec).padStart(2, '0')}`;
+  const remaining = Math.max(0, Math.round(SORTIE_DURATION - elapsedSeconds));
+  const m = Math.floor(remaining / 60), sec = remaining % 60;
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
 export function formatAreaTime(seconds: number) {

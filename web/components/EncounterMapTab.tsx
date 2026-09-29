@@ -9,18 +9,17 @@ import {
 } from '@/lib/zoneMaps';
 
 function fmtClock(s: number) {
-  const m = Math.floor(s / 60);
-  const sec = Math.floor(s % 60);
-  return `${m}:${String(sec).padStart(2, '0')}`;
+  const t = Math.max(0, Math.round(s));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 function fmtDur(s: number) {
-  if (s < 60) return `${Math.round(s)}s`;
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = Math.round(s % 60);
-  if (h > 0) return sec === 0 ? `${h}h ${m}m` : `${h}h ${m}m ${sec}s`;
-  return sec === 0 ? `${m}m` : `${m}m ${sec}s`;
+  const t = Math.max(0, Math.round(s));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 interface Props {

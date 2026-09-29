@@ -13,6 +13,11 @@ export const M = {
   wsHit: new Set([185, 187, 197]), wsMiss: new Set([188]),
   enfeebLand: new Set([82, 236, 754, 755]), enfeebMiss: new Set([85, 284, 653, 654, 655, 656]),
   defHit: new Set([1, 67]), defEvade: new Set([15, 282]),
+  // 31 = "N of <target>'s shadows absorbs the damage" (target = the PC using
+  // Utsusemi/Blink). Its own outcome: not an evade, not a parry. Must be tested
+  // BEFORE reaction, because a shadow-absorbed swing can still carry reaction
+  // 11/12 and would otherwise be miscounted as a parry/block (NIN parry inflation).
+  defShadow: new Set([31]),
 };
 
 export type Swing = { m?: number; d?: number; r?: number };
@@ -23,11 +28,11 @@ const pct = (n: number, d: number) => +((n / d) * 100).toFixed(2);
 
 export function statsForEnemy(actionLog: ActionLogEntry[] | null | undefined, mobName: string, start: number, end: number, entityId?: number) {
   type Off = { mHit: number; mCrit: number; mMiss: number; mDmg: number; mCritDmg: number; rHit: number; rCrit: number; rMiss: number; rDmg: number; rCritDmg: number; wsHit: number; wsMiss: number; wsDmg: number; magLand: number; magMiss: number; mRounds: number; mStrikes: number };
-  type Def = { hit: number; evade: number; block: number; parry: number };
+  type Def = { hit: number; evade: number; block: number; parry: number; shadow: number };
   const off: Record<string, Off> = {};
   const def: Record<string, Def> = {};
   const getOff = (n: string) => (off[n] ??= { mHit: 0, mCrit: 0, mMiss: 0, mDmg: 0, mCritDmg: 0, rHit: 0, rCrit: 0, rMiss: 0, rDmg: 0, rCritDmg: 0, wsHit: 0, wsMiss: 0, wsDmg: 0, magLand: 0, magMiss: 0, mRounds: 0, mStrikes: 0 });
-  const getDef = (n: string) => (def[n] ??= { hit: 0, evade: 0, block: 0, parry: 0 });
+  const getDef = (n: string) => (def[n] ??= { hit: 0, evade: 0, block: 0, parry: 0, shadow: 0 });
 
   for (const e of actionLog ?? []) {
     if (e.elapsed < start || e.elapsed > end) continue;
@@ -40,7 +45,8 @@ export function statsForEnemy(actionLog: ActionLogEntry[] | null | undefined, mo
       for (const t of e.targets ?? []) {
         const d = getDef(t.mob);
         for (const s of swingsOf(t)) {
-          if (s.r === 12) d.block++;
+          if (s.m != null && M.defShadow.has(s.m)) d.shadow++;
+          else if (s.r === 12) d.block++;
           else if (s.r === 11) d.parry++;
           else if (s.m != null && M.defEvade.has(s.m)) d.evade++;
           else if (s.m != null && M.defHit.has(s.m)) d.hit++;
@@ -172,7 +178,8 @@ export function combatStatsFromActionLog(
         if (!partySet.has(t.mob)) continue;
         const def = player(mob, t.mob).defense!;
         for (const s of swingsOf(t)) {
-          if (s.r === 12) inc(def, 'block');
+          if (s.m != null && M.defShadow.has(s.m)) inc(def, 'shadow');
+          else if (s.r === 12) inc(def, 'block');
           else if (s.r === 11) inc(def, 'parry');
           else if (s.m != null && M.defEvade.has(s.m)) inc(def, 'evade');
           else if (s.m != null && M.defHit.has(s.m)) { inc(def, 'hit', s.d || 0); inc(def, 'nonblock'); inc(def, 'nonparry'); }

@@ -161,7 +161,12 @@ function ff_combat_accumulate(cs, act)
                             local pk = target.name
                             local action = DEFENSE_MSG[msg]
                             local engaged = (target.status == 1)
-                            if m.reaction == 12 and act.category == 1 then
+                            -- msg 31 = "N of <PC>'s shadows absorbs the damage": its own
+                            -- outcome. Test before reaction, else a shadow swing carrying
+                            -- reaction 11/12 gets miscounted as a parry/block (NIN parry inflation).
+                            if msg == 31 then
+                                cs_register(cs, mk, pk, 'shadow')
+                            elseif m.reaction == 12 and act.category == 1 then
                                 cs_register(cs, mk, pk, 'block', m.param)
                                 if engaged then cs_register(cs, mk, pk, 'nonparry') end
                             elseif m.reaction == 11 and act.category == 1 then

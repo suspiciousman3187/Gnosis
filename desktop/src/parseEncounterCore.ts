@@ -1,5 +1,6 @@
 import type { Encounter, EncounterDrop, EncounterEnemy } from '@/lib/encounter';
 import type { LootEncounterSummary } from '@/lib/dropAggregator';
+import { LOOT_SCHEMA_VERSION } from '@/lib/dropAggregator';
 import { playerMetricsForEncounter, type EncounterMetrics } from '@/lib/combatStats';
 import { classify, mobNamesFromLootSummary, itemNamesFromLootSummary } from '@/lib/contentRegistry';
 import { deriveEnemiesFromActionLog } from '@/lib/sortieEnemies';
@@ -128,10 +129,14 @@ export function parseEncounterText(
       if (Array.isArray(e.enemies) && e.enemies.length > 0) return e.enemies;
       const r = e as unknown as RunRecord;
       const isSortie = isSortiePath(path);
-      const actionLog = isSortie ? (r.action_log ?? null) : (e.actionLog ?? null);
-      const killLog   = isSortie ? (r.kill_log ?? null)   : (e.killLog ?? null);
-      const party     = isSortie ? (r.party ?? null)      : (e.party ?? null);
-      const battleMsgRaw = isSortie ? (r.battle_msg_raw ?? null) : (e.battleMsgRaw ?? null);
+      // This function parses the RAW capture JSON, which is camelCase for both
+      // encounter and sortie files. Prefer camelCase, keep the snake_case
+      // RunRecord fields only as a fallback (older/record-shaped inputs). Reading
+      // r.kill_log first zeroed sortie enemies[] - the raw file has killLog.
+      const actionLog = isSortie ? (e.actionLog ?? r.action_log ?? null) : (e.actionLog ?? null);
+      const killLog   = isSortie ? (e.killLog ?? r.kill_log ?? null)     : (e.killLog ?? null);
+      const party     = isSortie ? (e.party ?? r.party ?? null)          : (e.party ?? null);
+      const battleMsgRaw = isSortie ? (e.battleMsgRaw ?? r.battle_msg_raw ?? null) : (e.battleMsgRaw ?? null);
       const derived = deriveEnemiesFromActionLog(actionLog, killLog, party, battleMsgRaw);
       if (derived.length > 0) return derived;
       if (isSortie && Array.isArray(killLog) && killLog.length > 0) {
@@ -139,6 +144,13 @@ export function parseEncounterText(
         return enemiesFromKills(killLog, bossReports);
       }
       return [];
+    })();
+    const aminonRec = ((): LootEncounterSummary['aminon'] => {
+      if (!isSortiePath(path)) return undefined;
+      const am = (e as unknown as { aminon?: { mode?: string; killed?: boolean; fightDurationSeconds?: number } }).aminon;
+      if (!am || typeof am !== 'object') return undefined;
+      const mode = am.mode === 'hardmode' ? 'hardmode' : 'normal';
+      return { mode, killed: !!am.killed, durationSeconds: am.fightDurationSeconds ?? 0 };
     })();
     const loot: LootEncounterSummary = {
       path,
@@ -149,6 +161,9 @@ export function parseEncounterText(
       killLog: Array.isArray(e.killLog) ? e.killLog : [],
       dropLog: dedupePoolText(Array.isArray(e.dropLog) ? e.dropLog : []),
       enemies: enemiesArr,
+      sv: LOOT_SCHEMA_VERSION,
+      aminon: aminonRec,
+      party: Array.isArray(e.party) ? e.party.map(pl => pl?.name).filter((n): n is string => !!n) : [],
     };
     const fileKind: 'encounter' | 'sortie' = isSortiePath(path) ? 'sortie' : 'encounter';
     const contentDef = classify({

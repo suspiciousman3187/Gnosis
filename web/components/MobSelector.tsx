@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CONTENT_COLOR_PALETTE, type ContentColorKey } from '@/lib/contentRegistry';
+import AnchoredPopover from './AnchoredPopover';
 
 export const ALL_MOBS = '_all_';
 
@@ -33,6 +34,7 @@ export default function MobSelector({ mobs, options, value, onChange, allLabel =
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   const opts: MobOption[] = options ?? (mobs ?? []).map(n => ({ value: n, label: mobDisplay(n), group: mobGroup(n) }));
   const groupOf = (o: MobOption) => o.group ?? 'other';
@@ -50,8 +52,9 @@ export default function MobSelector({ mobs, options, value, onChange, allLabel =
   const pick = (v: string) => { onChange(v); setOpen(false); setQuery(''); };
 
   return (
-    <div className="relative max-w-sm">
+    <div className="max-w-sm">
       <button
+        ref={btnRef}
         onClick={() => setOpen(o => !o)}
         className="le-tap w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg border border-white/10 bg-panel hover:bg-white/[0.04] transition-colors"
       >
@@ -59,21 +62,18 @@ export default function MobSelector({ mobs, options, value, onChange, allLabel =
         <span className="text-gray-400 text-xs shrink-0">{open ? '▲' : '▼'}</span>
       </button>
 
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 mt-1 w-full rounded-lg border border-white/15 bg-black/95 shadow-xl overflow-hidden">
-            <div className="p-2 border-b border-white/10">
-              <input
-                autoFocus
-                type="text"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Search…"
-                className="w-full px-2 py-1.5 text-sm rounded-md bg-white/[0.04] border border-white/10 text-gray-200 placeholder-gray-600 focus:outline-none focus:border-accent/40"
-              />
-            </div>
-            <ul className="max-h-72 overflow-y-auto py-1 text-sm">
+      <AnchoredPopover anchorRef={btnRef} open={open} onClose={() => setOpen(false)}>
+        <div className="p-2 border-b border-white/10 sticky top-0 bg-black/95">
+          <input
+            autoFocus
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search…"
+            className="w-full px-2 py-1.5 text-sm rounded-md bg-white/[0.04] border border-white/10 text-gray-200 placeholder-gray-600 focus:outline-none focus:border-accent/40"
+          />
+        </div>
+        <ul className="py-1 text-sm">
               <li>
                 <button
                   onClick={() => pick(ALL_MOBS)}
@@ -113,10 +113,8 @@ export default function MobSelector({ mobs, options, value, onChange, allLabel =
               {filtered.length === 0 && (
                 <li className="px-3 py-2 text-xs text-gray-400 italic">No matches for “{query}”.</li>
               )}
-            </ul>
-          </div>
-        </>
-      )}
+        </ul>
+      </AnchoredPopover>
     </div>
   );
 }

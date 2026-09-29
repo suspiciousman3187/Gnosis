@@ -1,5 +1,6 @@
 import { Window } from '@tauri-apps/api/window';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { invoke } from '@tauri-apps/api/core';
 import { inTauri } from './library';
 import { loadOverlayGeom } from './overlayGeom';
 
@@ -60,6 +61,13 @@ export async function setOverlayAlwaysOnTop(on: boolean) {
 export async function setOverlayClickthrough(on: boolean) {
   const w = await existing();
   if (w) await w.setIgnoreCursorEvents(on);
+}
+
+// "Show Only Over FFXI": the Rust watcher auto-hides the overlay unless the
+// game (pol.exe) or this app is foreground. Off by default (no behavior change).
+export async function setOverlayFocusFollow(on: boolean) {
+  if (!inTauri) return;
+  try { await invoke('set_overlay_focus_follow', { enabled: on }); } catch { /* host not ready */ }
 }
 
 export async function isOverlayVisible(): Promise<boolean> {

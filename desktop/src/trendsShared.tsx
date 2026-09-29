@@ -31,12 +31,12 @@ export const METRICS: { key: MetricKey; label: string; pct?: boolean }[] = [
 
 export const fmtDate = (ts: number) => new Date(ts * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 export const fmtDateTime = (ts: number) => new Date(ts * 1000).toLocaleString();
+// Canonical duration display used app-wide: MM:SS, and H:MM:SS only when >= 1h.
 export function fmtDur(s: number) {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}h ${m}m ${sec}s`;
-  return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+  const t = Math.max(0, Math.round(s));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 export const pmValue = (pm: PlayerMetric | undefined, k: MetricKey): number | null => {

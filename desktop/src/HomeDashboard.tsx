@@ -28,10 +28,10 @@ function dayBoundaries() {
 
 const fmtDur = (s: number) => {
   if (s <= 0) return '-';
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
+  const t = Math.round(s);
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 };
 const fmtRelative = (ts: number | null) => {
   if (ts == null || ts === 0) return '-';

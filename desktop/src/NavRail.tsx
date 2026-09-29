@@ -1,6 +1,6 @@
 import { openExternal } from './library';
 
-export type Section = 'home' | 'history' | 'activities' | 'loot' | 'trends' | 'compare' | 'overlay' | 'settings' | 'diagnostics';
+export type Section = 'home' | 'history' | 'activities' | 'loot' | 'records' | 'cleanup' | 'trends' | 'compare' | 'overlay' | 'settings' | 'diagnostics';
 
 const DISCORD_URL = 'https://discord.com/invite/vSgYvdh8gT';
 const GITHUB_URL = 'https://github.com/suspiciousman3187';
@@ -41,6 +41,21 @@ const ICONS: Record<Section, React.ReactNode> = {
       <circle cx="12" cy="13.5" r="0.9" fill="currentColor" stroke="none" />
     </svg>
   ),
+  // Trophy: lifetime per-boss records.
+  records: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 4h10v4a5 5 0 0 1-10 0V4z" />
+      <path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3" />
+      <path d="M12 13v4M9 20h6M10 20l.5-3h3l.5 3" />
+    </svg>
+  ),
+  cleanup: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 4 11.5 12.5" />
+      <path d="M9 10 4.5 14.5 9.5 19.5 14 15" />
+      <path d="M11 12 7 16M12.5 13.5 9 17" />
+    </svg>
+  ),
   trends: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 3v18h18" /><path d="M7 14l4-5 3 3 5-7" />
@@ -68,8 +83,8 @@ const ICONS: Record<Section, React.ReactNode> = {
     </svg>
   ),
 };
-const LABELS: Record<Section, string> = { home: 'Home', history: 'History', activities: 'Activities', loot: 'Loot', trends: 'Trends', compare: 'Compare', overlay: 'Overlay', settings: 'Settings', diagnostics: 'Diag' };
-const ORDER: Section[] = ['home', 'history', 'loot', 'overlay', 'settings', 'diagnostics'];
+const LABELS: Record<Section, string> = { home: 'Home', history: 'History', activities: 'Activities', loot: 'Loot', records: 'Records', cleanup: 'Cleanup', trends: 'Trends', compare: 'Compare', overlay: 'Overlay', settings: 'Settings', diagnostics: 'Diag' };
+const ORDER: Section[] = ['home', 'history', 'loot', 'records', 'overlay', 'cleanup', 'settings', 'diagnostics'];
 
 export default function NavRail({ section, onSelect, isAdmin = false }: { section: Section; onSelect: (s: Section) => void; isAdmin?: boolean }) {
   const visibleOrder = isAdmin ? ORDER : ORDER.filter(s => s !== 'diagnostics');

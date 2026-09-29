@@ -30,6 +30,7 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
 
 export default function OverlayView({
   open, onToggleOpen, ct, onToggleCT, scale, onScaleChange, demo, onToggleDemo, compact, onToggleCompact, opacity, onOpacityChange,
+  focusFollow, onToggleFocusFollow,
 }: {
   open: boolean;
   onToggleOpen: () => void;
@@ -43,6 +44,8 @@ export default function OverlayView({
   onToggleCompact: () => void;
   opacity: number;
   onOpacityChange: (o: number) => void;
+  focusFollow: boolean;
+  onToggleFocusFollow: () => void;
 }) {
   if (!inTauri) {
     return (
@@ -81,6 +84,14 @@ export default function OverlayView({
             <div className="text-[11px] text-gray-500">Let clicks pass through the overlay to the game. Turn off here to move/resize it again.</div>
           </div>
           <Toggle on={ct} onClick={onToggleCT} />
+        </div>
+
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
+          <div>
+            <div className="text-sm text-gray-200">Show Only Over FFXI</div>
+            <div className="text-[11px] text-gray-500">Only show the overlay when an FFXI game window (or Gnosis) is in focus. It auto-hides when you tab to a browser or Discord.</div>
+          </div>
+          <Toggle on={focusFollow} onClick={onToggleFocusFollow} />
         </div>
 
         <div className="mt-4 pt-4 border-t border-white/5">
@@ -124,6 +135,7 @@ export default function OverlayView({
           </div>
           <Toggle on={compact} onClick={onToggleCompact} />
         </div>
+
       </Card>
 
       <Card title="Preview">

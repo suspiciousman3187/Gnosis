@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { LootEncounterSummary } from '@/lib/dropAggregator';
-import { dbLootSlicesForPaths, dbKnownPathsSet, requestLoots, getActiveDir } from './summaryStore';
+import { dbLootSlicesForPaths, dbKnownPathsSet, requestLoots, forceReparseLoots, getActiveDir } from './summaryStore';
 import { kindFromName, fileTs, representativeLootSummaries } from './content';
+import { LOOT_SCHEMA_VERSION } from '@/lib/dropAggregator';
 
 export type AggPhase = 'idle' | 'ingesting' | 'parsing' | 'ready';
 
@@ -10,6 +11,9 @@ export interface AggregationState {
   loading: boolean;
   phase: AggPhase;
   progress: { loaded: number; total: number };
+  /** true when stale sortie slices are still reparsing in the background, so
+   *  entries are usable but not yet final (kill times / aminon mode pending). */
+  pending: boolean;
 }
 
 const EMPTY: AggregationState = {
@@ -17,15 +21,21 @@ const EMPTY: AggregationState = {
   loading: false,
   phase: 'idle',
   progress: { loaded: 0, total: 0 },
+  pending: false,
 };
 
 interface UseAggOpts {
   paths?: string[];
   enabled: boolean;
   scope: '30d' | '90d' | 'all';
+  // Loot/drops tabs are encounter-only. Records wants sortie bosses too
+  // (Aminon, Aita, Gartell...), so it opts sortie files in.
+  includeSortie?: boolean;
+  // Bump to force a fresh DB re-read (e.g. after a background reparse settles).
+  nonce?: number;
 }
 
-export function useLootAggregation({ paths, enabled, scope }: UseAggOpts): AggregationState {
+export function useLootAggregation({ paths, enabled, scope, includeSortie = false, nonce = 0 }: UseAggOpts): AggregationState {
   const [state, setState] = useState<AggregationState>(EMPTY);
 
   useEffect(() => {
@@ -38,29 +48,47 @@ export function useLootAggregation({ paths, enabled, scope }: UseAggOpts): Aggre
 
     const cutoffSecs = scope === 'all' ? null : Math.floor(Date.now() / 1000) - (scope === '30d' ? 30 : 90) * 24 * 60 * 60;
     const scopedPaths = paths.filter(p => {
-      if (kindFromName(p) !== 'encounter') return false;
+      const kind = kindFromName(p);
+      if (kind !== 'encounter' && !(includeSortie && kind === 'sortie')) return false;
       if (cutoffSecs != null && fileTs(p) < cutoffSecs) return false;
       return true;
     });
 
     if (scopedPaths.length === 0) {
-      setState({ entries: [], loading: false, phase: 'ready', progress: { loaded: 0, total: 0 } });
+      setState({ entries: [], loading: false, phase: 'ready', progress: { loaded: 0, total: 0 }, pending: false });
       return;
     }
 
     const total = scopedPaths.length;
-    setState({ entries: [], loading: true, phase: 'ingesting', progress: { loaded: 0, total } });
+    setState({ entries: [], loading: true, phase: 'ingesting', progress: { loaded: 0, total }, pending: false });
 
+    const onProg = (parsed: number, t: number) => {
+      if (cancelled) return;
+      setState(s => (s.progress.loaded === parsed ? s : { ...s, phase: 'parsing', progress: { loaded: parsed, total: t } }));
+    };
     const parseFromDb = async () => {
       if (cancelled) return;
       setState(s => ({ ...s, phase: 'parsing', progress: { loaded: 0, total } }));
-      const entries = await dbLootSlicesForPaths(scopedPaths, (parsed, t) => {
-        if (cancelled) return;
-        setState(s => (s.progress.loaded === parsed ? s : { ...s, phase: 'parsing', progress: { loaded: parsed, total: t } }));
-      });
+      const entries = await dbLootSlicesForPaths(scopedPaths, onProg);
       if (cancelled) return;
+
+      // Old sortie slices were cached before the enemies[]/aminon derivation
+      // (sv < current). Kick a NON-BLOCKING background reparse and mark the
+      // result pending - kills/drops already work from the current slices, so
+      // the view renders immediately and refills (via nonce) once reparse ends.
+      let pending = false;
+      if (includeSortie) {
+        const stale = entries
+          .filter(e => kindFromName(e.path) === 'sortie' && (e.sv ?? 0) < LOOT_SCHEMA_VERSION)
+          .map(e => e.path);
+        if (stale.length > 0) {
+          pending = true;
+          forceReparseLoots(stale);
+        }
+      }
+
       const reps = representativeLootSummaries(entries);
-      setState({ entries: reps, loading: false, phase: 'ready', progress: { loaded: total, total } });
+      setState({ entries: reps, loading: false, phase: 'ready', progress: { loaded: total, total }, pending });
     };
 
     void (async () => {
@@ -98,7 +126,7 @@ export function useLootAggregation({ paths, enabled, scope }: UseAggOpts): Aggre
       cancelled = true;
       if (pollTimer != null) window.clearTimeout(pollTimer);
     };
-  }, [enabled, paths, scope]);
+  }, [enabled, paths, scope, includeSortie, nonce]);
 
   return state;
 }

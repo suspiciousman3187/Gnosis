@@ -66,6 +66,7 @@ export interface EncounterDrop {
   by?: string;
   type?: 'pool' | 'direct' | 'temporary';
   poolIndex?: number;
+  area?: string;    // sortie sector/boss room the drop occurred in (e.g. 'Aminon', 'Boss H')
 }
 
 // Self gear capture types live in the shared spec (types.ts); re-exported here

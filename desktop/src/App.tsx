@@ -6,6 +6,7 @@ import LoadingScreen from './LoadingScreen';
 import TitleBar from './TitleBar';
 const TrendsView = lazy(() => import('./TrendsView'));
 const CompareView = lazy(() => import('./CompareView'));
+const RecordsView = lazy(() => import('./RecordsView'));
 import NavRail, { type Section } from './NavRail';
 import { useAdminStatus } from './useAdminStatus';
 import LootView from './LootView';
@@ -38,8 +39,8 @@ import { BuffIconContext } from '@/components/BuffIcon';
 import { anonymize } from './anonymize';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { inTauri, listReportFiles, readText, deleteFile, fileTs, writeTrackerControl, readTrackerPrefs, writeTrackerPrefs, compressIdleFiles } from './library';
-import { useTrackerStatus, startMultibox } from './multibox';
-import { showOverlay, hideOverlay, setOverlayClickthrough } from './overlay';
+import { useTrackerStatus, startMultibox, onBoxConnected } from './multibox';
+import { showOverlay, hideOverlay, setOverlayClickthrough, setOverlayFocusFollow } from './overlay';
 import { getCheckOnStartupEnabled } from './updater';
 import StartupUpdateCheck from './StartupUpdateCheck';
 import UpdateBannerDemo from './UpdateBannerDemo';
@@ -73,6 +74,8 @@ const OVERLAY_SCALE_KEY = 'ff_overlay_scale';
 const OVERLAY_DEMO_KEY = 'ff_overlay_demo';
 const OVERLAY_COMPACT_KEY = 'ff_overlay_compact';
 const OVERLAY_OPACITY_KEY = 'ff_overlay_opacity';
+const OVERLAY_AUTOOPEN_KEY = 'ff_overlay_autoopen';
+const OVERLAY_FOCUS_FOLLOW_KEY = 'ff_overlay_focus_follow';
 
 type Theme = 'gnosis' | 'dawn' | 'crimson' | 'minimal';
 const THEME_IDS: Theme[] = ['gnosis', 'dawn', 'crimson', 'minimal'];
@@ -242,6 +245,10 @@ function AppMain() {
   const [overlayDemo, setOverlayDemo] = useState<boolean>(() => localStorage.getItem(OVERLAY_DEMO_KEY) === '1');
   const [overlayCompact, setOverlayCompact] = useState<boolean>(() => localStorage.getItem(OVERLAY_COMPACT_KEY) === '1');
   const [overlayOpacity, setOverlayOpacity] = useState<number>(() => parseFloat(localStorage.getItem(OVERLAY_OPACITY_KEY) || '0.72') || 0.72);
+  const [overlayFocusFollow, setOverlayFocusFollowState] = useState<boolean>(() => localStorage.getItem(OVERLAY_FOCUS_FOLLOW_KEY) === '1');
+  // Whether the overlay was open when the app last closed (captured at first render, before the
+  // persist effect below can overwrite the stored value with the initial closed state).
+  const wasOpenAtLaunch = useRef(localStorage.getItem(OVERLAY_AUTOOPEN_KEY) === '1');
 
   const toggleOverlay = async () => {
     if (overlayOpen) { await hideOverlay(); setOverlayOpen(false); }
@@ -284,6 +291,23 @@ function AppMain() {
   useEffect(() => { localStorage.setItem(OVERLAY_DEMO_KEY, overlayDemo ? '1' : '0'); }, [overlayDemo]);
   useEffect(() => { localStorage.setItem(OVERLAY_COMPACT_KEY, overlayCompact ? '1' : '0'); }, [overlayCompact]);
   useEffect(() => { localStorage.setItem(OVERLAY_OPACITY_KEY, String(overlayOpacity)); }, [overlayOpacity]);
+  // Persist + push focus-follow to the host (runs on mount, so the stored value is applied at launch).
+  useEffect(() => { localStorage.setItem(OVERLAY_FOCUS_FOLLOW_KEY, overlayFocusFollow ? '1' : '0'); void setOverlayFocusFollow(overlayFocusFollow); }, [overlayFocusFollow]);
+  // Persist the live open state so the next launch can restore it.
+  useEffect(() => { localStorage.setItem(OVERLAY_AUTOOPEN_KEY, overlayOpen ? '1' : '0'); }, [overlayOpen]);
+  // Reopen the overlay on launch if it was open when the app last closed.
+  const didAutoOpenRef = useRef(false);
+  useEffect(() => {
+    if (!inTauri || didAutoOpenRef.current || !wasOpenAtLaunch.current) return;
+    didAutoOpenRef.current = true;
+    (async () => {
+      try {
+        await showOverlay(true);
+        if (overlayCT) await setOverlayClickthrough(true);
+        setOverlayOpen(true);
+      } catch { /* overlay open best-effort */ }
+    })();
+  }, []);
 
   // Persisted tracking defaults (mode + fight idle timeout). Loaded from the
   // shared prefs file the addon also restores on load.
@@ -303,6 +327,25 @@ function AppMain() {
       pendingMode.current = { mode: next.mode, until: Date.now() + 6000 };
       setStatus(prev => (prev ? { ...prev, mode: next.mode, idleTimeout: next.idleTimeout } : prev));
     } catch (e) { setError(String(e)); }
+  }, [dir]);
+
+  // Re-push the current tracker prefs whenever a box (re)connects, so a late-joining
+  // or reloaded addon adopts the live settings (e.g. Track Currency) instead of its
+  // on-disk default. The toggle's one-shot broadcast only reaches boxes connected at
+  // that instant; this closes the gap for boxes that join or reload afterward.
+  const trackPrefsRef = useRef(trackPrefs);
+  trackPrefsRef.current = trackPrefs;
+  useEffect(() => {
+    if (!inTauri) return;
+    let timer: number | undefined;
+    const off = onBoxConnected(() => {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        const p = trackPrefsRef.current;
+        void writeTrackerControl(dir, { mode: p.mode, idleTimeout: p.idleTimeout, lightweight: p.lightweight, disableMovement: p.disableMovement, trackCurrency: p.trackCurrency });
+      }, 750);
+    });
+    return () => { if (timer) window.clearTimeout(timer); off(); };
   }, [dir]);
 
   const ipcStatus = useTrackerStatus();
@@ -758,6 +801,17 @@ function AppMain() {
             </div>
           </div>
         )}
+        {section === 'records' && (
+          <div className="h-full">
+            <div className="mx-auto max-w-6xl px-6 py-6">
+              <ItemIconContext.Provider value={iconResolver}>
+                <Suspense fallback={<div className="text-gray-600 text-xs py-12 text-center">Loading Records…</div>}>
+                  <RecordsView paths={paths} enabled={section === 'records'} onOpen={(p) => { setSection('history'); open(p); }} />
+                </Suspense>
+              </ItemIconContext.Provider>
+            </div>
+          </div>
+        )}
         {section === 'activities' && (
           <div className="h-full">
             <div className="mx-auto max-w-6xl px-6 py-6">
@@ -857,6 +911,8 @@ function AppMain() {
               onToggleCompact={() => setOverlayCompact(c => !c)}
               opacity={overlayOpacity}
               onOpacityChange={setOverlayOpacity}
+              focusFollow={overlayFocusFollow}
+              onToggleFocusFollow={() => setOverlayFocusFollowState(v => !v)}
             />
           ) : section === 'diagnostics' ? (
             <DiagnosticsView content={content} />

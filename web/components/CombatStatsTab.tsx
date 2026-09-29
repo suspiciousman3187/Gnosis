@@ -16,10 +16,10 @@ import type {
 } from '@/lib/types';
 
 function fmtClock(elapsed: number): string {
-  const s = Math.max(0, Math.round(elapsed));
-  const mm = Math.floor(s / 60);
-  const ss = s % 60;
-  return `${mm}:${String(ss).padStart(2, '0')}`;
+  const t = Math.max(0, Math.round(elapsed));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 type TakenKind = 'auto' | 'ws' | 'spell' | 'mb' | 'ja' | 'ranged' | 'enfeeb';
@@ -737,6 +737,10 @@ function DefenseSection({ defense, magicDefense, hpStress }: { defense: ParsePla
     ? pct(tally(def.retrate), tally(def.retrate) + tally(def.nonret))
     : null;
   const critRate = (hitCount + critCount) > 0 ? pct(critCount, hitCount + critCount) : null;
+  // Shadows as a share of every incoming swing (its own outcome, not an evade
+  // or parry). Lets a NIN see how much of the round Utsusemi ate vs true evade.
+  const defTotal = hitCount + critCount + blockCount + parryCount + evadeCount + shadowCount + anticCount + intimCount;
+  const shR = defTotal > 0 && shadowCount > 0 ? pct(shadowCount, defTotal) : null;
 
   const spellResistRate = magicDefense && magicDefense.spellAttempts > 0
     ? pct(magicDefense.spellResists, magicDefense.spellAttempts) : null;
@@ -753,7 +757,7 @@ function DefenseSection({ defense, magicDefense, hpStress }: { defense: ParsePla
             {hitCount   > 0 &&                    <StatPill label="Times Hit"        value={hitCount} color="orange" />}
             {critCount  > 0 && critRate !== null && <StatPill label="Crit Hits Taken" value={`${critCount} (${critRate}%)`} color="rose" />}
             {critCount  > 0 && avgCrit !== null && <StatPill label="Avg Crit Taken" value={avgCrit.toLocaleString()} color="rose" />}
-            {shadowCount > 0 &&                   <StatPill label="Shadows"          value={shadowCount} color="purple" />}
+            {shadowCount > 0 &&                   <StatPill label={`Shadows${shR !== null ? ` (${shR}%)` : ''}`} value={shadowCount} color="purple" />}
             {evadeCount > 0 &&                    <StatPill label={`Evades${er !== null ? ` (${er}%)` : ''}`} value={evadeCount} color="sky" />}
             {blockCount > 0 && br !== null &&      <StatPill label="Block Rate"      value={`${br}%`} color="green" />}
             {blockCount > 0 && avgBlk !== null &&  <StatPill label="Avg Block"       value={avgBlk.toLocaleString()} color="green" />}

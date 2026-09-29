@@ -2,6 +2,12 @@
 import type { EncounterDrop, EncounterEnemy } from './encounter';
 import type { KillLogEntry } from './types';
 
+/** Bump when the loot-slice parse output shape changes so stale cached slices
+ *  get reparsed (see isStaleLoot + useLootAggregation backfill).
+ *  2 = added enemies[] derivation for sortie + aminon{} record.
+ *  3 = added party[] roster for per-character kill attribution. */
+export const LOOT_SCHEMA_VERSION = 3;
+
 export interface LootEncounterSummary {
   path: string;
   ts: number;                 // unix-second startTime; sorts a kill across the whole library
@@ -13,6 +19,12 @@ export interface LootEncounterSummary {
   /** enemies[] gives us the per-instance firstSeen/killedAt window, mainly
    *  useful when a same-named mob died multiple times in one encounter. */
   enemies: EncounterEnemy[];
+  /** Loot-slice schema version this slice was parsed with. Absent = pre-v2. */
+  sv?: number;
+  /** Sortie final-boss (Aminon) record, present only when the run reached it. */
+  aminon?: { mode: 'normal' | 'hardmode'; killed: boolean; durationSeconds: number };
+  /** Party/alliance roster present for this run (for per-character kills). */
+  party?: string[];
 }
 
 /** Filters applied BEFORE aggregation. UI keeps these in component state.

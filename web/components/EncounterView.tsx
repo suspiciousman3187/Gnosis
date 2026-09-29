@@ -26,12 +26,10 @@ import { buildIdNameMap } from '@/lib/idNameResolver';
 import { imgSrc } from '@/lib/img';
 
 function fmtDur(s: number) {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}h ${m}m ${sec}s`;
-  if (m > 0) return `${m}m ${sec}s`;
-  return `${sec}s`;
+  const t = Math.max(0, Math.round(s));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 function mmss(s: number) {
   const m = Math.floor(s / 60);

@@ -266,7 +266,10 @@ export async function checkAddonUpdate(opts: { dataDir: string | null; manifestU
       return;
     }
     rememberLatestAddon(manifest.addon.version);
-    if (!isNewerSemver(manifest.addon.version, installed)) {
+    // installed==null means we resolved a dir but couldn't read _addon.version
+    // (wrong/second addon dir, unreadable Gnosis.lua). Don't nag with a phantom
+    // "v? -> vX" offer that installs the same files and returns every launch.
+    if (!installed || !isNewerSemver(manifest.addon.version, installed)) {
       await holdChecking();
       emitAddon({ kind: 'none' });
       return;

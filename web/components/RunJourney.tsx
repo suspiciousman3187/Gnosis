@@ -43,18 +43,18 @@ function rowBorder(area: string): string {
 }
 
 function fmtTimer(secs: number) {
-  const clamped = Math.max(0, secs);
-  const m = Math.floor(clamped / 60);
-  const s = clamped % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
+  const t = Math.max(0, Math.round(secs));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 function fmtDuration(secs: number) {
   if (secs <= 0) return '-';
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  if (m === 0) return `${s}s`;
-  return s === 0 ? `${m}m` : `${m}m ${s}s`;
+  const t = Math.round(secs);
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 const CHEST_COLOR: Record<string, string> = {

@@ -18,6 +18,11 @@ static IPC_BOUND: AtomicBool = AtomicBool::new(false);
 static SILENT_MODE_ON_MINIMIZE: AtomicBool = AtomicBool::new(false);
 static SILENT_MODE_HIDE_OVERLAY: AtomicBool = AtomicBool::new(false);
 static USER_QUITTING: AtomicBool = AtomicBool::new(false);
+// "Show Only Over FFXI": when on, the overlay is auto-hidden unless the FFXI
+// game (pol.exe) or this app itself is the foreground window. Default off so
+// existing behavior is unchanged until the user opts in.
+static OVERLAY_FOCUS_FOLLOW: AtomicBool = AtomicBool::new(false);
+static FOCUS_WATCHER_STARTED: AtomicBool = AtomicBool::new(false);
 static STARTUP_CHECK_DONE: AtomicBool = AtomicBool::new(false);
 
 #[tauri::command]
@@ -1014,6 +1019,99 @@ fn scan_glog_dir(dir: String) -> Result<Vec<String>, String> {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+// ── "Show Only Over FFXI" (focus-follow) ────────────────────────────────────
+// Returns true when the foreground window belongs to FFXI (pol.exe) or to this
+// app itself, so interacting with the app/overlay never hides it.
+#[cfg(windows)]
+fn foreground_is_game_or_self() -> bool {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+    use windows_sys::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if hwnd.is_null() {
+            return false;
+        }
+        let mut pid: u32 = 0;
+        GetWindowThreadProcessId(hwnd, &mut pid);
+        if pid == 0 {
+            return false;
+        }
+        if pid == std::process::id() {
+            return true;
+        }
+        let h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+        if h.is_null() {
+            return false;
+        }
+        let mut buf = [0u16; 260];
+        let mut len = buf.len() as u32;
+        let ok = QueryFullProcessImageNameW(h, PROCESS_NAME_WIN32, buf.as_mut_ptr(), &mut len);
+        CloseHandle(h);
+        if ok == 0 {
+            return false;
+        }
+        let full = String::from_utf16_lossy(&buf[..len as usize]);
+        let base = full.rsplit(|c| c == '\\' || c == '/').next().unwrap_or("");
+        base.eq_ignore_ascii_case("pol.exe")
+    }
+}
+
+#[cfg(not(windows))]
+fn foreground_is_game_or_self() -> bool {
+    true
+}
+
+// Polls the foreground every 250ms and hides/shows the overlay window when
+// focus-follow is on. Only ever toggles visibility it changed itself (tracked
+// by `hidden_by_ff`), so it never fights the user's own close/minimize.
+fn start_focus_watcher(app: tauri::AppHandle) {
+    use tauri::Manager;
+    if FOCUS_WATCHER_STARTED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    std::thread::spawn(move || {
+        let mut hidden_by_ff = false;
+        loop {
+            std::thread::sleep(Duration::from_millis(250));
+            let win = match app.get_webview_window("overlay") {
+                Some(w) => w,
+                None => {
+                    hidden_by_ff = false;
+                    continue;
+                }
+            };
+            if !OVERLAY_FOCUS_FOLLOW.load(Ordering::Relaxed) {
+                if hidden_by_ff {
+                    let w = win.clone();
+                    let _ = app.run_on_main_thread(move || { let _ = w.show(); });
+                    hidden_by_ff = false;
+                }
+                continue;
+            }
+            let over = foreground_is_game_or_self();
+            if over && hidden_by_ff {
+                let w = win.clone();
+                let _ = app.run_on_main_thread(move || { let _ = w.show(); });
+                hidden_by_ff = false;
+            } else if !over && !hidden_by_ff {
+                if win.is_visible().unwrap_or(false) {
+                    let w = win.clone();
+                    let _ = app.run_on_main_thread(move || { let _ = w.hide(); });
+                    hidden_by_ff = true;
+                }
+            }
+        }
+    });
+}
+
+#[tauri::command]
+fn set_overlay_focus_follow(enabled: bool) {
+    OVERLAY_FOCUS_FOLLOW.store(enabled, Ordering::Relaxed);
+}
+
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
@@ -1031,6 +1129,7 @@ pub fn run() {
       start_box_server(app.handle().clone());
       let _ = setup_tray(app.handle());
       start_minimize_watcher(app.handle().clone());
+      start_focus_watcher(app.handle().clone());
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
@@ -1040,6 +1139,7 @@ pub fn run() {
       derive_addon_dir, read_installed_addon_version, install_addon_update,
       set_silent_mode_on_minimize, get_silent_mode_on_minimize, destroy_main_window,
       set_silent_mode_hide_overlay, get_silent_mode_hide_overlay, enter_silent_mode, quit_app,
+      set_overlay_focus_follow,
       was_startup_check_done, mark_startup_check_done,
       db::db_open, db::db_get_summaries, db::db_get_loots, db::db_list_known_paths,
       db::db_put_summary, db::db_put_summaries, db::db_put_loot, db::db_put_loots,

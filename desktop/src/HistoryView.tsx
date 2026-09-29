@@ -12,8 +12,6 @@ import { requestSummaries as storeRequestSummaries, useSummary } from './summary
 import { alertDialog } from '@/lib/dialogs';
 import { ADDON_SOURCE_COLOR, CONTENT_COLOR_PALETTE, contentById, type ContentColorKey } from '@/lib/contentRegistry';
 import type { EncounterSource } from '@/lib/encounter';
-import RestoreArchiveModal from './RestoreArchiveModal';
-import CleanupModal from './CleanupModal';
 
 function titleColorFor(sourceOrKind: string): { off: string; on: string } | null {
   const def = contentById(sourceOrKind);
@@ -104,21 +102,14 @@ function matchesQuery(hay: SearchHay, q: string): boolean {
 }
 
 function fmtDur(s: number) {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}h ${m}m ${sec}s`;
-  if (m > 0) return `${m}m ${sec}s`;
-  return `${sec}s`;
+  const t = Math.max(0, Math.round(s));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 function fmtDurCompact(s: number) {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${sec}s`;
-  return `${sec}s`;
+  return fmtDur(s);
 }
 
 function fmtRowDate(unixSec: number) {
@@ -590,8 +581,6 @@ function HistoryViewImpl({
   const [splitError, setSplitError] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ groupId: string; x: number; y: number } | null>(null);
   const [mergeMode, setMergeMode] = useState(false);
-  const [restoreOpen, setRestoreOpen] = useState(false);
-  const [cleanupOpen, setCleanupOpen] = useState(false);
   const [mergeSelection, setMergeSelection] = useState<Set<string>>(() => new Set());
   const [mergeStep, setMergeStep] = useState<'idle' | 'confirm' | 'working' | 'done' | 'error'>('idle');
   const [mergeError, setMergeError] = useState<string | null>(null);
@@ -987,32 +976,6 @@ function HistoryViewImpl({
                     </svg>
                     <span>{mergeLabel}</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setCleanupOpen(true)}
-                    disabled={paths.length === 0 || mergeBusy}
-                    data-tooltip="Bulk-delete incidental/garbage encounters by rule"
-                    className={`le-tap ${baseBtn} border-white/15 text-gray-300 hover:text-white hover:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed`}
-                  >
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M3 6h18" />
-                      <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6" />
-                    </svg>
-                    <span>Clean Up</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRestoreOpen(true)}
-                    disabled={paths.length === 0}
-                    data-tooltip="Restore originals from a prior merge, split, or bulk delete"
-                    className={`le-tap ${baseBtn} border-white/15 text-gray-300 hover:text-white hover:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed`}
-                  >
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M3 12a9 9 0 1 0 3-6.7" />
-                      <path d="M3 4v5h5" />
-                    </svg>
-                    <span>Restore</span>
-                  </button>
                 </div>
               );
             })()}
@@ -1208,30 +1171,6 @@ function HistoryViewImpl({
               setBulkDeleteStep('error');
               setBulkDeleteError(e instanceof Error ? e.message : String(e));
             }
-          }}
-        />
-      )}
-      {restoreOpen && paths.length > 0 && (() => {
-        const sample = paths[0];
-        const zoneDir = sample.replace(/[\\/][^\\/]+$/, '');
-        const dataDir = zoneDir.replace(/[\\/][^\\/]+$/, '');
-        return (
-          <RestoreArchiveModal
-            dataDir={dataDir}
-            onClose={() => setRestoreOpen(false)}
-            onRestored={() => { /* parent watcher picks up new files */ }}
-          />
-        );
-      })()}
-      {cleanupOpen && (
-        <CleanupModal
-          groups={groups}
-          encSummaries={encSummaries}
-          onClose={() => setCleanupOpen(false)}
-          onDelete={async (members) => {
-            const { archiveForDelete } = await import('./bulkDeleteDisk');
-            await archiveForDelete(members);
-            onRemoveGroup(members);
           }}
         />
       )}
@@ -1470,7 +1409,7 @@ function BulkDeleteConfirmModal({
           <>
             <p className="text-xs text-gray-300 mb-3">
               {selection.length} encounter{selection.length === 1 ? '' : 's'} ({fileCount} file{fileCount === 1 ? '' : 's'}) will be deleted.
-              A copy is moved to <code className="text-[10px] bg-black/40 px-1 rounded">data/_deleted/</code> first, so you can restore it from the Restore button.
+              A copy is moved to <code className="text-[10px] bg-black/40 px-1 rounded">data/_deleted/</code> first, so you can bring it back from the Restore tab in Cleanup.
             </p>
             <ul className="text-[11px] text-gray-400 mb-3 space-y-0.5 max-h-40 overflow-y-auto">
               {sorted.map((g, i) => {
@@ -1656,11 +1595,7 @@ function SplitScrubber({
     }
   };
 
-  const fmtSecs = (s: number) => {
-    const m = Math.floor(s / 60);
-    const ss = Math.floor(s % 60);
-    return `${m}:${ss.toString().padStart(2, '0')}`;
-  };
+  const fmtSecs = (s: number) => fmtDur(s);
 
   return (
     <div className="mb-3 mt-1">
@@ -1808,11 +1743,7 @@ function SplitConfirmModal({
   const title = zones.length > 0 ? zones.join(' + ') : '…';
   const dur = encSummary?.dur ?? loadedEnc?.durationSeconds ?? 0;
 
-  const fmtSecs = (s: number) => {
-    const m = Math.floor(s / 60);
-    const ss = Math.floor(s % 60);
-    return `${m}:${ss.toString().padStart(2, '0')}`;
-  };
+  const fmtSecs = (s: number) => fmtDur(s);
 
   return createPortal((
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/60" onClick={onCancel}>

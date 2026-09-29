@@ -535,6 +535,13 @@ local function open_encounter(segmentation)
             enc.log_writer = log_writer.open(_prefix, enc, GN_LOG_MAP)
         end
     end
+    if enc and enc.segmentation == 'content-auto' then
+        pcall(function()
+            local dc = ff_local_char and ff_local_char() or '?'
+            local dh = io.open(windower.addon_path .. 'data/gnosis_diag_' .. tostring(dc) .. '.log', 'a')
+            if dh then dh:write(('[%d] open  %s seg=content-auto zone=%s\n'):format(os.time(), tostring(dc), tostring(enc.zone_name))); dh:close() end
+        end)
+    end
 end
 
 function request_currency_snapshot()
@@ -714,17 +721,35 @@ local function close_encounter()
     _trace.kill_log_n = #(enc.kill_log or {})
     -- Keep rules:
     --   session - explicit user bracket; keep if anything was captured.
-    --   fight/zone - require genuine enemy combat (so trust-summon / buff-only
-    --                stretches and combatless zone walks are discarded).
+    --   content-auto - owned content the user deliberately entered; keep if the box
+    --                did ANYTHING (raw actions), not only when combat/enemy
+    --                CLASSIFICATION tripped, so a box whose enemy classification
+    --                lagged still saves its currency/loot instead of being silently
+    --                discarded (the missing-character bug).
+    --   fight/zone - require genuine enemy combat.
     local keep
     if ff_is_local() then
         keep = enc.had_combat
     elseif enc.segmentation == 'session' then
         keep = #enc.action_log > 0
     elseif enc.segmentation == 'content-auto' then
-        keep = enc.had_combat and #enemies > 0
+        keep = enc.had_combat or #enemies > 0 or #enc.action_log > 0
     else
         keep = enc.had_combat and #enemies > 0
+    end
+    pcall(function()
+        local dc = ff_local_char and ff_local_char() or '?'
+        local dh = io.open(windower.addon_path .. 'data/gnosis_diag_' .. tostring(dc) .. '.log', 'a')
+        if dh then
+            dh:write(('[%d] close %s seg=%s zone=%s had_combat=%s enemies=%d actions=%d kills=%d dur=%ds keep=%s\n')
+                :format(os.time(), tostring(dc), tostring(enc.segmentation), tostring(enc.zone_name),
+                        tostring(enc.had_combat), #enemies, #enc.action_log, #(enc.kill_log or {}), duration, tostring(keep)))
+            dh:close()
+        end
+    end)
+    if enc.segmentation == 'content-auto' then
+        gn_chat(('[diag] close: had_combat=%s enemies=%d actions=%d keep=%s')
+            :format(tostring(enc.had_combat), #enemies, #enc.action_log, tostring(keep)))
     end
     if not keep then
         if enc.segmentation ~= 'content-auto' then
@@ -2014,6 +2039,12 @@ function ff_tracker_set_mode(mode)
         gn_chat_err('Unknown track mode: ' .. tostring(mode))
         return
     end
+    -- Idempotent guard: a redundant set of the SAME mode while an encounter is open
+    -- must NOT tear it down. The Viewer re-pushes the mode whenever a box reconnects
+    -- (currency-prefs re-sync); without this, that close_encounter() reset live_state
+    -- and blanked the DPS overlay mid-run (and could discard the in-progress report).
+    -- `enc` is nil at load time, so the initial open still runs.
+    if mode == cfg.mode and enc then return end
     close_encounter()  -- switching modes closes whatever was open
     cfg.mode, cfg.gate, cfg.boundary = mode, preset.gate, preset.boundary
     write_tracker_prefs()

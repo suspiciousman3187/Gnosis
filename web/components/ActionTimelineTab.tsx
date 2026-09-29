@@ -1165,7 +1165,7 @@ export function BuffsPanel({ buffLog: rawBuffLog, bossSet, party, actionLog, zon
     for (const [buff, start] of open) bump(buff, Math.max(0, denom - start), true);
     return total;
   };
-  const dur = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const dur = (s: number) => { const t = Math.max(0, Math.round(s)); const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60; const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0'); return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`; };
   // Human-readable span: "15s", "1m 40s", "2m".
   const durHuman = (s: number) => {
     s = Math.floor(s);
@@ -1389,12 +1389,10 @@ export function BuffsPanel({ buffLog: rawBuffLog, bossSet, party, actionLog, zon
 }
 
 function fmtDurHMS(s: number) {
-  s = Math.max(0, Math.floor(s));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}h ${m}m ${sec}s`;
-  return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+  const t = Math.max(0, Math.round(s));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 function buildSelfRows(buffLog: BuffLogEntry[]) {
@@ -2004,13 +2002,31 @@ export default function ActionTimelineTab({
 
   const partyNameSet = useMemo(() => new Set(party.map(p => p.name)), [party]);
   const bossSet = useMemo(() => {
-    const raw = new Set([
+    const raw = new Set<string>([
       ...Object.keys(bossReports ?? {}),
       ...(aminon ? ['Aminon'] : []),
     ]);
+    // An enemy is a mob a ROSTER member dealt damage to. This is the safe
+    // signal: players heal/buff each other and attack enemies, but the party
+    // never damages its own players (no friendly fire), so this can't misclassify
+    // a real player as a boss - unlike "took damage", which players also do.
+    // Covers NMs/naakuals with no bossReport so they never leak into the player
+    // swimlanes. Only runs with a real roster to anchor on; the empty-party
+    // heuristic in partySet handles roster-less runs.
+    if (partyNameSet.size > 0) {
+      const pets = buildPetNameSet(actionLog);
+      for (const e of actionLog) {
+        if (!partyNameSet.has(e.player)) continue; // attacker must be a party member
+        for (const t of (e.targets ?? [])) {
+          if (t.mob && (t.damage ?? 0) > 0 && !partyNameSet.has(t.mob) && !isPetName(t.mob, partyNameSet, pets)) {
+            raw.add(t.mob);
+          }
+        }
+      }
+    }
     for (const n of partyNameSet) raw.delete(n);
     return raw;
-  }, [bossReports, aminon, partyNameSet]);
+  }, [bossReports, aminon, partyNameSet, actionLog]);
 
   const partySet = useMemo(() => {
     const set = new Set(party.map(p => p.name));
@@ -2336,9 +2352,9 @@ export function BossActionTimeline({
         pEntries.some(e => e.player === n) || bfEntries.some(e => e.player === n) ||
         iEntries.some(e => e.player === n) || fightBuffTargets.has(n),
       ),
-      ...pEntries.map(e => e.player).filter(n => !partyNamesLocal.includes(n) && !isPet(n)),
-      ...bfEntries.map(e => e.player).filter(n => !partyNamesLocal.includes(n) && !isPet(n)),
-      ...iEntries.map(e => e.player).filter(n => !partyNamesLocal.includes(n) && !isPet(n)),
+      ...pEntries.map(e => e.player).filter(n => !partyNamesLocal.includes(n) && !isPet(n) && !bossSet.has(n)),
+      ...bfEntries.map(e => e.player).filter(n => !partyNamesLocal.includes(n) && !isPet(n) && !bossSet.has(n)),
+      ...iEntries.map(e => e.player).filter(n => !partyNamesLocal.includes(n) && !isPet(n) && !bossSet.has(n)),
     ]));
     const by: Record<string, ActionLogEntry[]> = {};
     for (const p of players) {
@@ -2356,7 +2372,7 @@ export function BossActionTimeline({
       allPlayers: players,
       byPlayer: by,
     };
-  }, [fight, normalizedLog, partySet, itemUseLog, buffIntervals]);
+  }, [fight, normalizedLog, partySet, itemUseLog, buffIntervals, bossSet]);
   const allFightEntries = useMemo(
     () => [...playerEntries, ...bossEntries, ...buffEntries, ...itemEntries],
     [playerEntries, bossEntries, buffEntries, itemEntries],

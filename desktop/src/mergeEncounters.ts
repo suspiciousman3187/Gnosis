@@ -37,7 +37,7 @@ function unionEnemies(parts: (EncounterEnemy[] | null | undefined)[], deltas: nu
   const byEntity = new Map<string, EncounterEnemy>();
   for (const e of all) {
     if (e.id == null) continue;
-    const key = `${e.name}#${e.id}`;
+    const key = `${e.name}#${e.id}#${e.spawnSeq ?? 0}`;
     const existing = byEntity.get(key);
     if (!existing) { byEntity.set(key, e); continue; }
     const merged: EncounterEnemy = {

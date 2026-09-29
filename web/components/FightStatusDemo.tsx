@@ -391,15 +391,16 @@ function StatusSection({
 
 
 function fmtClock(s: number): string {
-  s = Math.max(0, Math.round(s));
-  const m = Math.floor(s / 60), sec = s % 60;
-  return `${m}:${String(sec).padStart(2, '0')}`;
+  const t = Math.max(0, Math.round(s));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 function fmtDur(s: number): string {
-  s = Math.max(0, Math.round(s));
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60), r = s % 60;
-  return r ? `${m}m ${r}s` : `${m}m`;
+  const t = Math.max(0, Math.round(s));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), r = t % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(r).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 interface PackedBand extends BuffInterval {
