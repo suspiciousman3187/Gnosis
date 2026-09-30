@@ -735,7 +735,7 @@ function DefenseSection({ defense, magicDefense, hpStress }: { defense: ParsePla
   if (!meleeData && !magicData && !hpData) return null;
 
   const br     = blockRate(def);
-  const pr     = parryRate(def);
+  const pr     = parryRate(def);   // Potential: parry / swings that weren't evaded
   const er     = evadeRate(def);
   const avgHit = avg(def.hit);
   const avgCrit = avg(def.crit_taken);
@@ -749,6 +749,9 @@ function DefenseSection({ defense, magicDefense, hpStress }: { defense: ParsePla
   // much of the round Utsusemi ate vs true evade.
   const defTotal = hitCount + critCount + blockCount + parryCount + evadeCount + shadowCount + anticCount;
   const shR = defTotal > 0 && shadowCount > 0 ? pct(shadowCount, defTotal) : null;
+  // Overall parry rate = parries / ALL swings (incl. evaded). Potential (pr) is
+  // parries / swings that could've been parried (evaded ones removed).
+  const overallPr = defTotal > 0 && parryCount > 0 ? pct(parryCount, defTotal) : null;
 
   const spellResistRate = magicDefense && magicDefense.spellAttempts > 0
     ? pct(magicDefense.spellResists, magicDefense.spellAttempts) : null;
@@ -767,7 +770,9 @@ function DefenseSection({ defense, magicDefense, hpStress }: { defense: ParsePla
             {critCount  > 0 && avgCrit !== null && <StatPill label="Avg Crit Taken" value={avgCrit.toLocaleString()} color="rose" />}
             {shadowCount > 0 &&                   <StatPill label={`Shadows${shR !== null ? ` (${shR}%)` : ''}`} value={shadowCount} color="purple" />}
             {evadeCount > 0 &&                    <StatPill label={`Evades${er !== null ? ` (${er}%)` : ''}`} value={evadeCount} color="sky" />}
-            {parryCount > 0 &&                    <StatPill label={`Parries${pr !== null ? ` (${pr}%)` : ''}`} value={parryCount} color="green" />}
+            {parryCount > 0 &&                    <StatPill label="Parries" value={parryCount} color="green" />}
+            {parryCount > 0 && overallPr !== null && <StatPill label="Overall Parry Rate" value={`${overallPr}%`} color="green" />}
+            {parryCount > 0 && pr !== null &&      <StatPill label="Potential Parry Rate" value={`${pr}%`} color="green" />}
             {blockCount > 0 &&                    <StatPill label={`Blocks${br !== null ? ` (${br}%)` : ''}`} value={blockCount} color="green" />}
             {blockCount > 0 && avgBlk !== null &&  <StatPill label="Avg Block"       value={avgBlk.toLocaleString()} color="green" />}
             {anticCount > 0 &&                    <StatPill label="Anticipate"       value={anticCount} color="teal" />}
