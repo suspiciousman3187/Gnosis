@@ -439,10 +439,14 @@ function parryRate(d: ParsePlayerCombat['defense']): number | null {
 
 function evadeRate(d: ParsePlayerCombat['defense']): number | null {
   const e = tally(d?.evade);
-  const h = tally(d?.hit);
-  const total = e + h;
-  if (!total) return null;
-  return pct(e, total);
+  // Evasion is the FIRST avoidance check in FFXI - every swing the enemy makes
+  // rolls against it. So the denominator is ALL actual swings, including the
+  // ones later eaten by shadows/parry/block. Dividing by only evade+hit (the
+  // post-shadow count) over-reports evasion badly on a shadow-tanking NIN.
+  const denom = e + tally(d?.hit) + tally(d?.crit_taken) + tally(d?.block)
+    + tally(d?.parry) + tally(d?.shadow) + tally(d?.anticipate);
+  if (!denom) return null;
+  return pct(e, denom);
 }
 
 function multiAvg(multi: ParsePlayerCombat['multi']): number | null {
@@ -737,9 +741,10 @@ function DefenseSection({ defense, magicDefense, hpStress }: { defense: ParsePla
     ? pct(tally(def.retrate), tally(def.retrate) + tally(def.nonret))
     : null;
   const critRate = (hitCount + critCount) > 0 ? pct(critCount, hitCount + critCount) : null;
-  // Shadows as a share of every incoming swing (its own outcome, not an evade
-  // or parry). Lets a NIN see how much of the round Utsusemi ate vs true evade.
-  const defTotal = hitCount + critCount + blockCount + parryCount + evadeCount + shadowCount + anticCount + intimCount;
+  // Shadows as a share of every actual swing (its own outcome, not an evade or
+  // parry). Intimidate is excluded - the enemy never swung. Lets a NIN see how
+  // much of the round Utsusemi ate vs true evade.
+  const defTotal = hitCount + critCount + blockCount + parryCount + evadeCount + shadowCount + anticCount;
   const shR = defTotal > 0 && shadowCount > 0 ? pct(shadowCount, defTotal) : null;
 
   const spellResistRate = magicDefense && magicDefense.spellAttempts > 0

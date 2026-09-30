@@ -106,8 +106,13 @@ export function statsForEnemy(actionLog: ActionLogEntry[] | null | undefined, mo
   }
   for (const [name, d] of Object.entries(def)) {
     const total = d.hit + d.evade + d.block + d.parry;
+    // Evasion is the first avoidance check, so it's over EVERY swing - including
+    // ones shadows later absorbed. Parry/block stay over the post-evasion pool.
+    const swings = total + d.shadow;
+    if (swings > 0) {
+      evadeRate.push({ name, pct: pct(d.evade, swings), count: swings });
+    }
     if (total > 0) {
-      evadeRate.push({ name, pct: pct(d.evade, total), count: total });
       if (d.parry > 0) parryRate.push({ name, pct: pct(d.parry, total), count: total });
       if (d.block > 0) blockRate.push({ name, pct: pct(d.block, total), count: total });
     }
