@@ -767,10 +767,9 @@ function DefenseSection({ defense, magicDefense, hpStress }: { defense: ParsePla
             {critCount  > 0 && avgCrit !== null && <StatPill label="Avg Crit Taken" value={avgCrit.toLocaleString()} color="rose" />}
             {shadowCount > 0 &&                   <StatPill label={`Shadows${shR !== null ? ` (${shR}%)` : ''}`} value={shadowCount} color="purple" />}
             {evadeCount > 0 &&                    <StatPill label={`Evades${er !== null ? ` (${er}%)` : ''}`} value={evadeCount} color="sky" />}
-            {blockCount > 0 && br !== null &&      <StatPill label="Block Rate"      value={`${br}%`} color="green" />}
+            {parryCount > 0 &&                    <StatPill label={`Parries${pr !== null ? ` (${pr}%)` : ''}`} value={parryCount} color="green" />}
+            {blockCount > 0 &&                    <StatPill label={`Blocks${br !== null ? ` (${br}%)` : ''}`} value={blockCount} color="green" />}
             {blockCount > 0 && avgBlk !== null &&  <StatPill label="Avg Block"       value={avgBlk.toLocaleString()} color="green" />}
-            {parryCount > 0 && pr !== null &&      <StatPill label="Parry Rate"      value={`${pr}%`} color="green" />}
-            {parryCount > 0 && pr === null &&      <StatPill label="Parries"         value={parryCount} color="green" />}
             {anticCount > 0 &&                    <StatPill label="Anticipate"       value={anticCount} color="teal" />}
             {intimCount > 0 &&                    <StatPill label="Intimidated"      value={intimCount} color="purple" />}
             {retR       !== null &&               <StatPill label="Retaliation Rate" value={`${retR}%`} color="amber" />}
