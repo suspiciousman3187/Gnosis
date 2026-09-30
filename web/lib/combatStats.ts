@@ -112,8 +112,10 @@ export function statsForEnemy(actionLog: ActionLogEntry[] | null | undefined, mo
     if (swings > 0) {
       evadeRate.push({ name, pct: pct(d.evade, swings), count: swings });
     }
+    // Parry pool = every swing that wasn't evaded (order: Evasion > Parry > ...).
+    const parriable = swings - d.evade; // hit + block + parry + shadow
+    if (parriable > 0 && d.parry > 0) parryRate.push({ name, pct: pct(d.parry, parriable), count: parriable });
     if (total > 0) {
-      if (d.parry > 0) parryRate.push({ name, pct: pct(d.parry, total), count: total });
       if (d.block > 0) blockRate.push({ name, pct: pct(d.block, total), count: total });
     }
   }

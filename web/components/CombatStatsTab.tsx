@@ -430,11 +430,14 @@ function blockRate(d: ParsePlayerCombat['defense']): number | null {
 }
 
 function parryRate(d: ParsePlayerCombat['defense']): number | null {
-  const p  = tally(d?.parry);
-  const np = tally(d?.nonparry);
-  const total = p + np;
-  if (!total) return null;
-  return pct(p, total);
+  const p = tally(d?.parry);
+  // Resolution order is Evasion > Parry > Shadows > ... so parry's pool is every
+  // swing that reached the parry check = all swings that were NOT evaded (hits
+  // that "could've been parried"). Shadows/blocks are AFTER parry, so they count.
+  const pool = p + tally(d?.hit) + tally(d?.crit_taken) + tally(d?.block)
+    + tally(d?.shadow) + tally(d?.anticipate);
+  if (!pool) return null;
+  return pct(p, pool);
 }
 
 function evadeRate(d: ParsePlayerCombat['defense']): number | null {
