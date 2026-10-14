@@ -1,8 +1,8 @@
 {
   "addon": {
-    "version": "0.0.30",
-    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.34/Alexandria-addon-0.0.30.zip",
-    "sha256": "604a2b5e893006cf1ca42e2d8377720c2a130d95093a6bcd5f2db5d6cbac8049",
-    "notes": "# Alexandria v0.0.34 Released\n\n# New\n\n### Settings\n* To allow for better organization under the increasing complexity of the app, the Settings menu has been split into subsections: Appearance, Characters, Behavior, Notifications & Chat, and Updates & Other.\n\n### Commands\n* //keep now allows defining bags to overflow items to in the event that more items exist in the inventory than defined when the command was run. Can be configured under Settings > Behavior.\n* //findall now allows customizing the colors used for bags, character names, and item names under Settings > Notifications & Chat. Note that the colors are approximate as FFXI's ingame color range is limited.\n\n### Treasure Pool Overlay\n* Added a \"Show Over FFXI\" setting that can be toggled on the overlay title bar.\n\n### Alerts\n* Now supports uploading your own sound files to play when a watched item appears in the pool.\n\n### Storage Slips\n* Now shows equipment tooltips upon hover.\n\n# Bugfixes\n* Fixed a bug where Alexandria would combine augments of items with the same name in the hover tooltips.\n* Fixed an issue where the Treasure Pool overlay window would not close properly.\n"
+    "version": "0.0.31",
+    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.35/Alexandria-addon-0.0.31.zip",
+    "sha256": "f02b327c27b205357a3ac30c5d62987e2e1d74c3dcdaf86610dee5e96c9d4671",
+    "notes": "v0.0.35"
   }
 }

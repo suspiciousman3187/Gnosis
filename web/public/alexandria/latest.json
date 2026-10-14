@@ -1,11 +1,11 @@
 {
-  "version": "0.0.34",
-  "notes": "# Alexandria v0.0.34 Released\n\n# New\n\n### Settings\n* To allow for better organization under the increasing complexity of the app, the Settings menu has been split into subsections: Appearance, Characters, Behavior, Notifications & Chat, and Updates & Other.\n\n### Commands\n* //keep now allows defining bags to overflow items to in the event that more items exist in the inventory than defined when the command was run. Can be configured under Settings > Behavior.\n* //findall now allows customizing the colors used for bags, character names, and item names under Settings > Notifications & Chat. Note that the colors are approximate as FFXI's ingame color range is limited.\n\n### Treasure Pool Overlay\n* Added a \"Show Over FFXI\" setting that can be toggled on the overlay title bar.\n\n### Alerts\n* Now supports uploading your own sound files to play when a watched item appears in the pool.\n\n### Storage Slips\n* Now shows equipment tooltips upon hover.\n\n# Bugfixes\n* Fixed a bug where Alexandria would combine augments of items with the same name in the hover tooltips.\n* Fixed an issue where the Treasure Pool overlay window would not close properly.\n",
-  "pub_date": "2026-10-07T23:55:49Z",
+  "version": "0.0.35",
+  "notes": "v0.0.35",
+  "pub_date": "2026-10-14T06:35:14Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeTBocC9xd0pFZFhHM0dBdVFhNXFIZjJFeWFsaDVqZlpVeGdsSytxTEh0OXR6aU1OTk1Qc3VGcmF1MW4xNWV3UncvcERPRDdxcTVBS00zUFRBUlA1NUE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNDE3MzQ4CWZpbGU6QWxleGFuZHJpYV8wLjAuMzRfeDY0LXNldHVwLmV4ZQppaFBocHh2TTVKdDFQcTNzRWlKbTFCQ3UzSURmbG9nbGF0R2VXK0RsZVE5K21CV3FZeE1KdmZmam9Ia1ExY3FRYnIzWjdZc1l6TDFaQjFxNk9ZNzFCZz09Cg==",
-      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.34/Alexandria_0.0.34_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeSs1YmlteUc4TTh0STVKZkVCYVQxRUo4YkVQUm81QmhtNEdCemthRk8xQ21vTWdZYVl1NHVhQ0RWaEZrRW41TCtqZzh0YmtnMmZyblFTcVhpaUhnOWc0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxOTU5NzE0CWZpbGU6QWxleGFuZHJpYV8wLjAuMzVfeDY0LXNldHVwLmV4ZQpIYjkvL3ozZTBhZVdsUWF6NzhPUUIyYkR0VVMzajFKQ0VqbmlxcSs0VlJtQ3hBaGo0S1ZOdG52UW9DbTNyT09OTnBZRHU1UWFuV2l3NWp1cG1NZzlEUT09Cg==",
+      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.35/Alexandria_0.0.35_x64-setup.exe"
     }
   }
 }
