@@ -5,6 +5,7 @@ import type {
   ParseCombatStats, ParsePlayerCombat, ParseStatLeaf,
 } from './types';
 import { canonicalTypeOf, isAutoAttack } from './actionCategory';
+import { qualifyPetEntry } from './petDetect';
 
 // Ported from Parse's offense/defense action-message tables.
 export const M = {
@@ -141,7 +142,10 @@ export function combatStatsFromActionLog(
   skillchainLog?: SkillchainEntry[] | null,
   enemyNames?: Iterable<string>,
 ): ParseCombatStats {
-  const log = actionLog ?? [];
+  // Owner-qualify pet actor/target names up front so EXTERNAL same-named pets
+  // (two "Ramuh"s) separate by owner everywhere below, not just where BST's unique
+  // names already did.
+  const log = (actionLog ?? []).map(qualifyPetEntry);
   const partyNames = new Set(party.map(p => p.name));
   const enemySet = new Set(enemyNames ?? []);
   for (const n of partyNames) enemySet.delete(n);
@@ -287,7 +291,7 @@ export function playerMetricsForEncounter(enc: Encounter): EncounterMetrics {
   const by: Record<string, Acc> = {};
   const get = (n: string) => (by[n] ??= { dmg: 0, mHit: 0, mCrit: 0, mMiss: 0, mDmg: 0, rHit: 0, rCrit: 0, rMiss: 0, wsHit: 0, wsDmg: 0, magLand: 0, magMiss: 0 });
 
-  for (const e of enc.actionLog ?? []) {
+  for (const e of (enc.actionLog ?? []).map(qualifyPetEntry)) {
     if (e.from === 'boss') continue;
     for (const t of e.targets ?? []) {
       if (!enemyNames.has(t.mob)) continue;

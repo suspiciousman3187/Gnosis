@@ -7,7 +7,7 @@ import type { BossReport } from '@/lib/types';
 import { JOB_ICONS, mainJobKey } from '@/components/JobIcon';
 import { BossReportSection, buildJobMap } from '@/lib/reportShared';
 import Collapse from '@/components/Collapse';
-import { isPetName, buildPetNameSet } from '@/lib/petDetect';
+import { isPetName, buildPetNameSet, qualifyPetEntry } from '@/lib/petDetect';
 import ActionTimelineTab, { BuffsPanel } from '@/components/ActionTimelineTab';
 import CombatStatsTab from '@/components/CombatStatsTab';
 import { EnemyTermContext } from '@/components/EnemyTerm';
@@ -221,6 +221,10 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
   }, [enc.party]);
   const partyNames = useMemo(() => new Set(party.map(p => p.name)), [party]);
   const taggedPetNames = useMemo(() => buildPetNameSet(enc.actionLog), [enc.actionLog]);
+  // Owner-qualify pet actor/target names once (e.g. "Ifrit" -> "Goma's Ifrit") so
+  // every combat breakdown labels pets by owner and multiple same-named pets (two
+  // summoners' Ifrits) stay separate instead of merging into one row.
+  const actionLogQ = useMemo(() => (enc.actionLog ?? []).map(qualifyPetEntry), [enc.actionLog]);
   const enemies = useMemo(
     () => (Array.isArray(enc.enemies) ? enc.enemies : []).filter(e => !isPetName(e.name, partyNames, taggedPetNames)),
     [enc.enemies, partyNames, taggedPetNames],
@@ -268,8 +272,8 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
   const enemyNameSet = useMemo(() => new Set(enemies.map(e => e.name)), [enemies]);
   const combatStats = useMemo(() => {
     if (enc.combatStats && Object.keys(enc.combatStats).length > 0) return enc.combatStats;
-    return combatStatsFromActionLog(enc.actionLog, party, enc.skillchainLog, enemyNameSet);
-  }, [enc.combatStats, enc.actionLog, party, enc.skillchainLog, enemyNameSet]);
+    return combatStatsFromActionLog(actionLogQ, party, enc.skillchainLog, enemyNameSet);
+  }, [enc.combatStats, actionLogQ, party, enc.skillchainLog, enemyNameSet]);
   const hasStats = Object.keys(combatStats).length > 0;
   const hasSelfBuffs = !!enc.gearByPlayer && Object.values(enc.gearByPlayer).some(g => g?.buffLog && g.buffLog.length > 0);
   const hasBuffs = !!(enc.buffLog && enc.buffLog.length > 0) || hasSelfBuffs;
@@ -351,11 +355,11 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
   const bossReports = useMemo(() => {
     const out: Record<string, BossReport> = {};
     for (const g of enemyGroups) {
-      const stats = statsForEnemy(enc.actionLog, g.name, 0, enc.durationSeconds);
+      const stats = statsForEnemy(actionLogQ, g.name, 0, enc.durationSeconds);
       out[g.name] = { damageReport: [], fightStartElapsed: 0, fightDurationSeconds: enc.durationSeconds, ...stats };
     }
     return out;
-  }, [enemyGroups, enc.actionLog, enc.durationSeconds]);
+  }, [enemyGroups, actionLogQ, enc.durationSeconds]);
 
   return (
     <EnemyTermContext.Provider value="Enemy">
@@ -508,7 +512,7 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
         {active === 'combat' && (
           <FightsPanel
             enemies={enemies}
-            actionLog={enc.actionLog}
+            actionLog={actionLogQ}
             killLog={enc.killLog}
             party={party}
             jobMap={jobMap}
@@ -529,7 +533,7 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
         )}
 
         {active === 'stats' && hasStats && (
-          <CombatStatsTab combatStats={combatStats} party={party} durationSeconds={enc.durationSeconds} actionLog={enc.actionLog} partyHpLog={enc.partyHpLog} partyMaxHp={enc.partyMaxHp ?? null} contentDef={contentDef} />
+          <CombatStatsTab combatStats={combatStats} party={party} durationSeconds={enc.durationSeconds} actionLog={actionLogQ} partyHpLog={enc.partyHpLog} partyMaxHp={enc.partyMaxHp ?? null} contentDef={contentDef} />
         )}
 
         {active === 'status' && hasBuffs && (
@@ -571,7 +575,7 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
 
         {active === 'actions' && hasActions && (
           <ActionTimelineTab
-            actionLog={enc.actionLog!}
+            actionLog={actionLogQ}
             bossReports={bossReports}
             aminon={null}
             party={party}
