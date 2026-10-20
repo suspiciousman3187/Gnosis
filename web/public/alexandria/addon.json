@@ -1,8 +1,8 @@
 {
   "addon": {
-    "version": "0.0.31",
-    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.35/Alexandria-addon-0.0.31.zip",
-    "sha256": "f02b327c27b205357a3ac30c5d62987e2e1d74c3dcdaf86610dee5e96c9d4671",
-    "notes": "v0.0.35"
+    "version": "0.0.32",
+    "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.36/Alexandria-addon-0.0.32.zip",
+    "sha256": "36095466a5005fbdae0d9bcd00e3f1538c9a862b0e1e492b07661992e8fc6fdd",
+    "notes": "v0.0.36"
   }
 }
