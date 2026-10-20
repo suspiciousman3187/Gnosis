@@ -61,12 +61,12 @@ export default function TrendsView({ paths, anon, onOpen }: { paths: string[]; a
 
   return (
     <div className="space-y-6">
-      <div className="text-[11px] text-gray-500">{rows.length} encounters · {activePlayer ? nameLabel(activePlayer) : '-'}</div>
+      <div className="text-[11px] text-gray-500">{rows.length} encounters · {activePlayer ? <span className="gn-pii">{nameLabel(activePlayer)}</span> : '-'}</div>
 
-      <div className="bg-row-even border border-white/10 rounded-xl p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="card-lift rise bg-row-even border border-white/10 rounded-xl p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Field label="Player">
           <select value={activePlayer} onChange={e => { setPlayer(e.target.value); setEnemy('all'); setJob('all'); }} className="w-full bg-gray-800 border border-white/10 text-sm text-gray-200 rounded-lg px-2 py-1">
-            {players.map(p => <option key={p} value={p}>{nameLabel(p)}</option>)}
+            {players.map(p => <option className="gn-pii" key={p} value={p}>{nameLabel(p)}</option>)}
           </select>
         </Field>
         <Field label="Job">
@@ -102,10 +102,10 @@ export default function TrendsView({ paths, anon, onOpen }: { paths: string[]; a
         </Field>
       </div>
 
-      <div className="bg-row-even border border-white/10 rounded-xl p-5">
+      <div className="card-lift rise rise-2 bg-row-even border border-white/10 rounded-xl p-5">
         <div className="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3">{metricDef.label} over time</div>
         {chartData.length === 0 ? (
-          <div className="text-gray-500 text-sm py-8 text-center">No data for {nameLabel(activePlayer)} with this metric.</div>
+          <div className="text-gray-500 text-sm py-8 text-center">No data for <span className="gn-pii">{nameLabel(activePlayer)}</span> with this metric.</div>
         ) : (
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={chartData} margin={{ top: 5, right: 16, bottom: 0, left: 0 }}>
@@ -124,7 +124,7 @@ export default function TrendsView({ paths, anon, onOpen }: { paths: string[]; a
         )}
       </div>
 
-      <div className="bg-row-even border border-white/10 rounded-xl p-5">
+      <div className="card-lift rise rise-3 bg-row-even border border-white/10 rounded-xl p-5">
         <div className="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3">Encounters</div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

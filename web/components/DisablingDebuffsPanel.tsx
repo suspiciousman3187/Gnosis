@@ -76,7 +76,7 @@ export default function DisablingDebuffsPanel({
                     <span className="text-gray-200">{e.buffName}</span>
                   </div>
                 </td>
-                <td className="py-1.5 text-gray-300">{e.target}</td>
+                <td className="gn-pii py-1.5 text-gray-300">{e.target}</td>
                 <td className="py-1.5 text-gray-400 truncate max-w-[14rem]">
                   {e.appliedBySpell
                     ? <><span className="text-rose-300/80">{e.appliedBy ?? 'enemy'}</span> via {e.appliedBySpell}</>

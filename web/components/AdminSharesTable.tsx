@@ -237,7 +237,7 @@ export default function AdminSharesTable({ rows }: { rows: AdminShareRow[] }) {
                     )}
                   </div>
                 </td>
-                <td className="px-3 py-2.5 text-gray-300 text-xs font-mono">
+                <td className="gn-pii px-3 py-2.5 text-gray-300 text-xs font-mono">
                   {r.uploaderUsername ? r.uploaderUsername : <span className="text-gray-400">{r.uploaderIp ?? 'anon'}</span>}
                 </td>
                 <td className="px-3 py-2.5 text-gray-100">{r.zone_name ?? <span className="text-gray-400">-</span>}</td>

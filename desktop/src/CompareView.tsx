@@ -36,10 +36,10 @@ export default function CompareView({ paths, anon, onOpen }: { paths: string[]; 
     <div className="space-y-6">
       <div className="text-[11px] text-gray-500">Select two or more encounters to compare them side by side.</div>
 
-      <div className="bg-row-even border border-white/10 rounded-xl p-4 flex flex-wrap items-end gap-4">
+      <div className="card-lift rise bg-row-even border border-white/10 rounded-xl p-4 flex flex-wrap items-end gap-4">
         <Field label="Player">
           <select value={activePlayer} onChange={e => { setPlayer(e.target.value); setSelected(new Set()); }} className="bg-gray-800 border border-white/10 text-sm text-gray-200 rounded-lg px-2 py-1">
-            {players.map(p => <option key={p} value={p}>{nameLabel(p)}</option>)}
+            {players.map(p => <option className="gn-pii" key={p} value={p}>{nameLabel(p)}</option>)}
           </select>
         </Field>
         <Field label="Zone">
@@ -51,8 +51,8 @@ export default function CompareView({ paths, anon, onOpen }: { paths: string[]; 
       </div>
 
       {compareEntries.length >= 2 ? (
-        <div className="bg-row-even border border-white/10 rounded-xl p-5 overflow-x-auto">
-          <div className="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3">Comparison · {nameLabel(activePlayer)}</div>
+        <div className="card-lift rise rise-2 bg-row-even border border-white/10 rounded-xl p-5 overflow-x-auto">
+          <div className="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3">Comparison · <span className="gn-pii">{nameLabel(activePlayer)}</span></div>
           <table className="text-sm min-w-full">
             <thead>
               <tr className="text-gray-500 text-xs text-left border-b border-white/10">
@@ -81,12 +81,12 @@ export default function CompareView({ paths, anon, onOpen }: { paths: string[]; 
           </table>
         </div>
       ) : (
-        <div className="bg-row-even border border-white/10 rounded-xl p-8 text-center text-sm text-gray-500">
+        <div className="card-lift rise rise-2 bg-row-even border border-white/10 rounded-xl p-8 text-center text-sm text-gray-500">
           Select {compareEntries.length === 1 ? 'one more encounter' : 'two or more encounters'} below to compare them.
         </div>
       )}
 
-      <div className="bg-row-even border border-white/10 rounded-xl p-5">
+      <div className="card-lift rise rise-3 bg-row-even border border-white/10 rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm font-semibold uppercase tracking-wide text-gray-400">Encounters</div>
           {selected.size > 0 && (

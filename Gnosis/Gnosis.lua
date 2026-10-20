@@ -1,6 +1,6 @@
 _addon.name = 'Gnosis'
 _addon.author = 'Noirblanc'
-_addon.version = '0.1.0'
+_addon.version = '0.2.0'
 _addon.commands = {'gnosis', 'gn'}
 
 dofile(windower.addon_path .. 'libs/perf.lua')
@@ -1426,6 +1426,25 @@ windower.register_event('incoming chunk', ff_perf_event('incoming_chunk', functi
 
     if sortie_start_time and id == 0x076 then
         ff_log_party_buffs(sortie_enc.buff_log, recent_buff_events, sortie_enc.party_buff_state, sortie_start_time, data, party_jobs, party_id_to_name)
+    end
+
+    -- Pet->owner capture for the saved report. 0x067 Pet Info (type 3): Pet Index
+    -- @0x06, Pet ID @0x08, Owner Index @0x0C. 0x068 Pet Status (broadcast for any
+    -- pet in range, covers EXTERNAL avatars/automatons): Owner ID @0x08, Pet Index
+    -- @0x0C. Keys sortie_enc.pet_ids so non-party SMN/PUP pets attribute to their
+    -- owner instead of collapsing under one generic name.
+    if sortie_enc and sortie_enc.pet_ids and id == 0x067 then
+        local mtype = bit.band(data:unpack('C', 0x04 + 1) or 0, 0x3F)
+        if mtype == 3 then
+            ff_map_pet_owner(sortie_enc.pet_ids, sortie_enc.pet_names_seen,
+                data:unpack('I', 0x08 + 1), data:unpack('H', 0x06 + 1),
+                nil, data:unpack('H', 0x0C + 1), nil)
+        end
+    end
+    if sortie_enc and sortie_enc.pet_ids and id == 0x068 then
+        ff_map_pet_owner(sortie_enc.pet_ids, sortie_enc.pet_names_seen,
+            nil, data:unpack('H', 0x0C + 1),
+            data:unpack('I', 0x08 + 1), nil, nil)
     end
 
     if sortie_start_time and id == 0x029 then

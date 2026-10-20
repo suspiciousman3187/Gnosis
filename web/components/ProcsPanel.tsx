@@ -68,7 +68,7 @@ export default function ProcsPanel({ actionLog }: { actionLog?: ActionLogEntry[]
           <tbody>
             {rows.map(([actor, c]) => (
               <tr key={actor} className="border-b border-white/[0.04] last:border-0">
-                <td className="py-1 pl-2 text-gray-200">{actor}</td>
+                <td className="gn-pii py-1 pl-2 text-gray-200">{actor}</td>
                 <td className="py-1 text-right font-mono text-amber-300">{c.immunobreak || ''}</td>
                 <td className="py-1 text-right font-mono text-sky-300">{c.cover || ''}</td>
                 <td className="py-1 text-right font-mono text-teal-300">{c.magicBurst || ''}</td>

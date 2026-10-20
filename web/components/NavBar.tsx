@@ -5,6 +5,30 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { createClient } from '@/lib/supabase/client';
+import { useAnonBlur } from '@/lib/anonBlur';
+
+// Eye toggle: blur every character name on the page (for streaming/screenshots).
+// Visual only. Importing useAnonBlur also applies the persisted state on load.
+function BlurToggle() {
+  const [on, setOn] = useAnonBlur();
+  return (
+    <button
+      onClick={() => setOn(!on)}
+      title={on ? 'Character names blurred - click to show' : 'Blur character names'}
+      aria-label="Blur character names"
+      aria-pressed={on}
+      className={`le-tap p-1.5 rounded-md transition-colors ${on ? 'text-accent bg-accent/15' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+    >
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {on ? (
+          <><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19M6.6 6.6A18.5 18.5 0 0 0 2 12s3 8 10 8a9.12 9.12 0 0 0 5.4-1.6" /><path d="M14.12 14.12A3 3 0 1 1 9.88 9.88" /><path d="M2 2l20 20" /></>
+        ) : (
+          <><path d="M2 12s3-8 10-8 10 8 10 8-3 8-10 8-10-8-10-8z" /><circle cx="12" cy="12" r="3" /></>
+        )}
+      </svg>
+    </button>
+  );
+}
 
 interface NavBarProps {
   isAdmin?: boolean;
@@ -109,7 +133,7 @@ function RightCluster({
             {username && (
               <div className="px-4 py-3 border-b border-white/10">
                 <p className="text-[10px] uppercase tracking-wide text-gray-400/80">Signed in as</p>
-                <p className="text-sm font-semibold text-gray-100 truncate mt-0.5">{username}</p>
+                <p className="gn-pii text-sm font-semibold text-gray-100 truncate mt-0.5">{username}</p>
               </div>
             )}
             {username && (
@@ -203,10 +227,13 @@ export default function NavBar({ isAdmin = false, username, avatarUrl, loggedIn 
         <div className="hidden md:block">
           <NavLinks items={items} />
         </div>
-        <RightCluster
-          loggedIn={loggedIn} username={username} avatarUrl={avatarUrl}
-          open={open} setOpen={setOpen} dropdownRef={dropdownRef} signOut={signOut}
-        />
+        <div className="flex items-center gap-1">
+          <BlurToggle />
+          <RightCluster
+            loggedIn={loggedIn} username={username} avatarUrl={avatarUrl}
+            open={open} setOpen={setOpen} dropdownRef={dropdownRef} signOut={signOut}
+          />
+        </div>
       </nav>
       {mobileOpen && (
         <div className="md:hidden mx-auto max-w-6xl mt-2 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/15 shadow-lg shadow-black/30 p-1.5">

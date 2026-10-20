@@ -6,6 +6,7 @@ import { isWeaponSkill, isAutoAttack, isSpell } from '@/lib/actionCategory';
 import { M as ACTION_MSG, swingsOf } from '@/lib/combatStats';
 import { BossReportSection } from '@/lib/reportShared';
 import type { GearIndex } from '@/lib/gearLookup';
+import Private from '@/components/Private';
 import { StatRow, formatDuration, fmtFightTime } from './SortieHelpers';
 import { synthesizeAminonReport, isSynthesizedAminon } from '@/lib/aminonSynth';
 
@@ -252,7 +253,7 @@ function AbsorbTpPanel({ actionLog, fightDurationSeconds, fightStartElapsed, bos
             const avgCd = avgCdByPlayer.get(r.player);
             return (
             <tr key={r.player} className="border-b border-white/[0.08]">
-              <td className="py-2 text-center text-white">{r.player}</td>
+              <td className="gn-pii py-2 text-center text-white">{r.player}</td>
               <td className="py-2 text-center text-gray-400">{r.casts}</td>
               <td className="py-2 text-center text-sky-400 font-medium">{r.absorbed.toLocaleString()}</td>
               <td className="py-2 text-center text-emerald-400 font-mono">{r.casts > 0 ? Math.round(r.absorbed / r.casts).toLocaleString() : '-'}</td>
@@ -368,7 +369,7 @@ function AbsorbTpPanel({ actionLog, fightDurationSeconds, fightStartElapsed, bos
                       <td className={`py-1.5 text-right font-mono text-xs pr-3 ${row.overlap ? 'text-orange-400 font-bold' : 'text-gray-400'}`}>{fmtFightTime(row.elapsed, fightStartElapsed)}</td>
                       <td className={`py-1.5 px-3 text-right font-mono ${hpColor(row.hpp)}`}>{row.hpp != null ? `${row.hpp}%` : '-'}</td>
                       <td className="py-1.5 px-3 text-white">
-                        <span className="text-gray-400 text-xs mr-1.5">{isOpen ? '▾' : '▸'}</span>{row.player}
+                        <span className="text-gray-400 text-xs mr-1.5">{isOpen ? '▾' : '▸'}</span><Private>{row.player}</Private>
                         {row.overlap && <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-orange-400">⚠ overlap</span>}
                         {high && <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-red-400">⚠ High Absorb</span>}
                         {low && <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-blue-400">⚠ Low Absorb</span>}
@@ -405,7 +406,7 @@ function AbsorbTpPanel({ actionLog, fightDurationSeconds, fightStartElapsed, bos
                             <span className="text-gray-400 mr-1.5">└</span>
                             <span className={`font-medium ${tcls}`}>{label}</span>
                             <span className="text-gray-300"> · {ev.name}</span>
-                            <span className="text-gray-400"> · {ev.player}</span>
+                            <span className="text-gray-400"> · <Private>{ev.player}</Private></span>
                           </td>
                           <td className={`py-1 px-3 text-right font-mono ${gcls}`}>{ev.gap}s</td>
                           <td />
@@ -443,7 +444,7 @@ function AbsorbTpPanel({ actionLog, fightDurationSeconds, fightStartElapsed, bos
             <tbody>
               {wsRows.map(w => (
                 <tr key={w.player} className="border-b border-white/[0.08]">
-                  <td className="py-2 text-center text-white">{w.player}</td>
+                  <td className="gn-pii py-2 text-center text-white">{w.player}</td>
                   <td className="py-2 text-center text-gray-400">{w.count}</td>
                   <td className={`py-2 text-center font-mono ${w.acc >= 90 ? 'text-emerald-400' : w.acc >= 70 ? 'text-amber-400' : 'text-rose-400'}`}>{w.acc.toFixed(0)}%</td>
                   <td className={`py-2 text-center font-mono ${w.misses > 0 ? 'text-rose-400' : 'text-gray-400'}`}>{w.misses}</td>

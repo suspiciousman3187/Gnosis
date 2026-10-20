@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
+import '@/lib/anonBlur'; // applies the Anonymize-Names blur attribute on load (main + overlay windows)
 import App from './App';
 import OverlayApp from './OverlayApp';
 

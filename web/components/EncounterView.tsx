@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useMemo, useState, type ReactNode } from 'react';
+import React, { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { reconcileSelfName, type Encounter, type EncounterEnemy, type CurrencySnapshot } from '@/lib/encounter';
 import type { BossReport } from '@/lib/types';
 import { JOB_ICONS, mainJobKey } from '@/components/JobIcon';
@@ -160,18 +161,26 @@ const JOB_BAR: Record<string, string> = {
 
 type Tab = 'overview' | 'combat' | 'stats' | 'status' | 'deaths' | 'gear' | 'actions' | 'map';
 
-function TabBtn({ id, label, active, setActive, scrollRef }: { id: Tab; label: string; active: Tab; setActive: (t: Tab) => void; scrollRef?: React.Ref<HTMLButtonElement> }) {
+const TAB_INDICATOR_TRANSITION = { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const };
+
+function TabBtn({ id, label, active, setActive, scrollRef, groupId }: { id: Tab; label: string; active: Tab; setActive: (t: Tab) => void; scrollRef?: React.Ref<HTMLButtonElement>; groupId: string }) {
+  const isActive = active === id;
   return (
     <button
       ref={scrollRef}
       onClick={() => setActive(id)}
-      className={`shrink-0 md:flex-1 text-center px-3 sm:px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-        active === id
-          ? 'bg-surface-raised text-accent border border-accent/40 shadow-sm'
-          : 'text-gray-300 border border-transparent hover:text-white hover:bg-white/[0.06]'
+      className={`le-tap relative shrink-0 md:flex-1 text-center px-3 sm:px-4 py-1.5 text-sm font-medium rounded-lg ${
+        isActive ? 'text-accent' : 'text-gray-300 hover:text-white'
       }`}
     >
-      {label}
+      {isActive && (
+        <motion.div
+          layoutId={`enc-tab-${groupId}`}
+          className="absolute inset-0 rounded-lg bg-surface-raised border border-accent/40 shadow-sm"
+          transition={TAB_INDICATOR_TRANSITION}
+        />
+      )}
+      <span className="relative z-[1]">{label}</span>
     </button>
   );
 }
@@ -222,6 +231,7 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
   const metrics = useMemo(() => playerMetricsForEncounter(enc), [enc]);
 
   const [active, setActive] = useState<Tab>('overview');
+  const tabGroupId = useId();
   const [focusEnemy, setFocusEnemy] = useState<{ name: string; id?: number; spawnSeq?: number; token: number } | null>(null);
   const jumpToFight = (name: string, id?: number, spawnSeq?: number) => {
     setActive('combat');
@@ -374,14 +384,14 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
           </div>
           <div className="relative border-t border-white/[0.06]">
             <div className="flex items-center gap-1 px-1.5 pb-1.5 pt-1.5 overflow-x-auto md:overflow-visible scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <TabBtn id="overview" label="Overview" active={active} setActive={setActive} scrollRef={active === 'overview' ? activeTabRef : undefined} />
-              {enemies.length > 0 && <TabBtn id="combat" label="Fights" active={active} setActive={setActive} scrollRef={active === 'combat' ? activeTabRef : undefined} />}
-              {hasStats && <TabBtn id="stats" label="Stats" active={active} setActive={setActive} scrollRef={active === 'stats' ? activeTabRef : undefined} />}
-              {hasBuffs && <TabBtn id="status" label="Status" active={active} setActive={setActive} scrollRef={active === 'status' ? activeTabRef : undefined} />}
-              {(deaths > 0 || hasDisablingBuffs || hasBattleMessages || hasJobExtended || hasEffects) && <TabBtn id="deaths" label={deaths > 0 ? 'Deaths' : 'Status'} active={active} setActive={setActive} scrollRef={active === 'deaths' ? activeTabRef : undefined} />}
-              {hasActions && <TabBtn id="actions" label="Actions" active={active} setActive={setActive} scrollRef={active === 'actions' ? activeTabRef : undefined} />}
-              {hasMap && <TabBtn id="map" label="Map" active={active} setActive={setActive} scrollRef={active === 'map' ? activeTabRef : undefined} />}
-              {hasGear && <TabBtn id="gear" label="Gear" active={active} setActive={setActive} scrollRef={active === 'gear' ? activeTabRef : undefined} />}
+              <TabBtn id="overview" label="Overview" active={active} setActive={setActive} groupId={tabGroupId} scrollRef={active === 'overview' ? activeTabRef : undefined} />
+              {enemies.length > 0 && <TabBtn id="combat" label="Fights" active={active} setActive={setActive} groupId={tabGroupId} scrollRef={active === 'combat' ? activeTabRef : undefined} />}
+              {hasStats && <TabBtn id="stats" label="Stats" active={active} setActive={setActive} groupId={tabGroupId} scrollRef={active === 'stats' ? activeTabRef : undefined} />}
+              {hasBuffs && <TabBtn id="status" label="Status" active={active} setActive={setActive} groupId={tabGroupId} scrollRef={active === 'status' ? activeTabRef : undefined} />}
+              {(deaths > 0 || hasDisablingBuffs || hasBattleMessages || hasJobExtended || hasEffects) && <TabBtn id="deaths" label={deaths > 0 ? 'Deaths' : 'Status'} active={active} setActive={setActive} groupId={tabGroupId} scrollRef={active === 'deaths' ? activeTabRef : undefined} />}
+              {hasActions && <TabBtn id="actions" label="Actions" active={active} setActive={setActive} groupId={tabGroupId} scrollRef={active === 'actions' ? activeTabRef : undefined} />}
+              {hasMap && <TabBtn id="map" label="Map" active={active} setActive={setActive} groupId={tabGroupId} scrollRef={active === 'map' ? activeTabRef : undefined} />}
+              {hasGear && <TabBtn id="gear" label="Gear" active={active} setActive={setActive} groupId={tabGroupId} scrollRef={active === 'gear' ? activeTabRef : undefined} />}
             </div>
             {/* Edge fades (mobile only). */}
             <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-surface to-transparent md:hidden" />
@@ -389,7 +399,14 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
           </div>
         </div>
 
-        <div key={active} className="ff-tab">
+        <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={active}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -5 }}
+          transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
+        >
         {active === 'overview' && (
           <div className="space-y-4">
             <div className="bg-surface border border-white/10 rounded-xl grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-white/10 overflow-hidden">
@@ -413,7 +430,7 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
                     return (
                       <div key={p.player} className="flex items-center gap-2 sm:gap-2.5">
                         <JobIcon job={p.job} size={26} />
-                        <span className="w-16 sm:w-32 truncate text-sm text-gray-200 shrink-0">{p.player}</span>
+                        <span className="gn-pii w-16 sm:w-32 truncate text-sm text-gray-200 shrink-0">{p.player}</span>
                         <div className="relative flex-1 min-w-0 h-7 rounded-md bg-white/[0.04] overflow-hidden">
                           <div className={`absolute inset-y-0 left-0 ${bar} rounded-md`} style={{ width: `${w}%` }} />
                           {/* DPS headline (bright left) + secondary cluster
@@ -447,7 +464,7 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
                     {party.map(p => (
                       <div key={p.name} className="flex items-center gap-3 py-2 border-b border-white/[0.06] last:border-0">
                         <JobIcon job={p.mainJob} size={44} />
-                        <span className="text-white font-semibold text-base truncate">{p.name}</span>
+                        <span className="gn-pii text-white font-semibold text-base truncate">{p.name}</span>
                         <span className="text-xs text-gray-400 font-mono ml-auto shrink-0">{jobMap[p.name] ?? p.mainJob}</span>
                       </div>
                     ))}
@@ -570,7 +587,8 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
             captureLanguage={enc.language ?? null}
           />
         )}
-        </div>
+        </motion.div>
+        </AnimatePresence>
       </div>
     </EnemyTermContext.Provider>
   );

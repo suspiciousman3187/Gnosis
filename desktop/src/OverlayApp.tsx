@@ -739,7 +739,7 @@ export default function OverlayApp() {
                       {p.job === 'CLOWN'
                         ? <span className="shrink-0 text-[13px] leading-none">🤡</span>
                         : <span className={`${JOB_BADGE[p.job ?? ''] ?? 'bg-slate-700'} text-white text-[9px] font-bold px-1 py-0.5 rounded shrink-0`}>{p.job || '?'}</span>}
-                      <span className="font-medium text-gray-100 truncate flex-1">{label(p.name)}</span>
+                      <span className="gn-pii font-medium text-gray-100 truncate flex-1">{label(p.name)}</span>
                       <span className="text-gray-400 shrink-0">{p.pct ?? 0}%</span>
                       <span className="font-mono text-accent shrink-0">{fmt(p.dps)} <span className="text-gray-500 text-[9px] font-sans">DPS</span></span>
                       <span className="font-mono text-gray-400 shrink-0">{fmt(p.damage)}</span>
@@ -758,7 +758,7 @@ export default function OverlayApp() {
                     : <span className="w-9 shrink-0 text-center text-gray-500 font-mono">{i + 1}</span>}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="font-medium text-gray-100 truncate flex-1">{label(p.name)}</span>
+                      <span className="gn-pii font-medium text-gray-100 truncate flex-1">{label(p.name)}</span>
                       <span className="font-mono text-accent shrink-0">{fmt(p.dps)} <span className="text-gray-500 text-[10px] font-sans">DPS</span></span>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-gray-500 mt-0.5">

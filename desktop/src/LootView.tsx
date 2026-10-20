@@ -214,7 +214,7 @@ function MobRow({ stats, onOpen }: { stats: MobLootStats; onOpen?: (path: string
                   <span className="font-semibold text-gray-300">looters:</span>
                   {item.looters.map(l => (
                     <span key={l.name} className="font-mono">
-                      <span className="text-gray-200">{l.name}</span> ×{l.count} ({l.pct}%)
+                      <span className="gn-pii text-gray-200">{l.name}</span> ×{l.count} ({l.pct}%)
                     </span>
                   ))}
                 </div>
@@ -297,7 +297,7 @@ function ItemRow({ stats, onOpen }: { stats: ItemLootStats; onOpen?: (path: stri
               <span className="font-semibold text-gray-300">looters:</span>
               {stats.looters.map(l => (
                 <span key={l.name} className="font-mono">
-                  <span className="text-gray-200">{l.name}</span> ×{l.count} ({l.pct}%)
+                  <span className="gn-pii text-gray-200">{l.name}</span> ×{l.count} ({l.pct}%)
                 </span>
               ))}
             </div>
@@ -398,7 +398,7 @@ function RecentRow({ row, onOpen }: { row: RecentDropRow; onOpen?: (path: string
       )}
       {row.looter && (
         <span className="text-xs text-gray-400 shrink-0">
-          by <span className="text-gray-200">{row.looter}</span>
+          by <span className="gn-pii text-gray-200">{row.looter}</span>
         </span>
       )}
       <span className="ml-auto flex items-center gap-3 shrink-0">
@@ -635,7 +635,7 @@ export default function LootView({ paths, entries: entriesProp, activityEntries,
 
   return (
     <div className="ff-view space-y-4">
-      <div className="flex items-start gap-3 bg-amber-950/70 border border-amber-500/50 rounded-xl px-4 py-3 backdrop-blur-sm">
+      <div className="flex items-start gap-3 bg-amber-950/70 border border-amber-500/50 rounded-xl px-4 py-3 backdrop-blur-sm rise">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5 text-amber-300">
           <circle cx="12" cy="12" r="10" />
           <line x1="12" y1="16" x2="12" y2="12" />
@@ -646,7 +646,7 @@ export default function LootView({ paths, entries: entriesProp, activityEntries,
         </p>
       </div>
 
-      <div className="bg-row-even border border-white/10 rounded-xl overflow-hidden">
+      <div className="bg-row-even border border-white/10 rounded-xl overflow-hidden rise rise-2">
         <div className="flex border-b border-white/10">
           <button
             onClick={() => setTab('recent')}

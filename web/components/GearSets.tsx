@@ -289,7 +289,7 @@ export default function GearSets({ gearLog, stateSets, gearByPlayer, actionLog, 
           <button
             key={p}
             onClick={() => setSel(p)}
-            className={`text-xs px-2.5 py-1 rounded border transition-colors ${active === p ? 'bg-accent/20 border-accent/50 text-accent font-semibold' : 'border-white/10 text-gray-400 hover:bg-white/[0.05]'}`}
+            className={`gn-pii text-xs px-2.5 py-1 rounded border transition-colors ${active === p ? 'bg-accent/20 border-accent/50 text-accent font-semibold' : 'border-white/10 text-gray-400 hover:bg-white/[0.05]'}`}
           >
             {p}
           </button>

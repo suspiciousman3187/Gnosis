@@ -326,6 +326,13 @@ function pumpSummaryQueue() {
   }
 }
 
+// Files that could not be parsed (returned null or threw). Tracked so waiters
+// (e.g. the Records aggregator) treat them as RESOLVED instead of waiting on a
+// path that will never become "known" - that silent-skip is what made Records
+// spin forever at ~100% on large libraries. Also lets the UI report them.
+const failedPaths = new Set<string>();
+export function getFailedPaths(): ReadonlySet<string> { return failedPaths; }
+
 async function parseOne(p: string) {
   const k = kindFromName(p);
   if (k !== 'encounter' && k !== 'sortie') return;
@@ -333,7 +340,12 @@ async function parseOne(p: string) {
   const wantMetrics = (Date.now() / 1000 - ts) < 7 * 86400;
   try {
     const parsed = await parseEncounter(p, wantMetrics, ts);
-    if (!parsed) return;
+    if (!parsed) {
+      failedPaths.add(p);
+      console.warn('[parse] could not parse (skipped):', p);
+      return;
+    }
+    failedPaths.delete(p);
     summaries.set(p, parsed.summary);
     queueSummaryWrite(p, parsed.summary, parsed.summaryJson);
     if (parsed.loot) {
@@ -342,7 +354,10 @@ async function parseOne(p: string) {
       evictLootsToCap();
     }
     notifyPath(p);
-  } catch { /* ignore */ }
+  } catch (e) {
+    failedPaths.add(p);
+    console.warn('[parse] error parsing (skipped):', p, e);
+  }
 }
 
 function pumpLootQueue() {

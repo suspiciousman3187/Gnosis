@@ -309,7 +309,7 @@ export default function RunJourney({ zoneLog, areaTimes, deathLog, chestLog, min
                     {rowDeaths.map((d, di) => (
                       <div key={`d${di}`} className="flex items-center gap-1 mt-1">
                         <span className="text-red-400/70 text-xs">✦</span>
-                        <span className="text-red-300/60 text-xs font-medium">{d.player}</span>
+                        <span className="gn-pii text-red-300/60 text-xs font-medium">{d.player}</span>
                         <span className="text-gray-400/70 text-xs font-mono">({fmtTimer(3600 - d.elapsed)})</span>
                       </div>
                     ))}

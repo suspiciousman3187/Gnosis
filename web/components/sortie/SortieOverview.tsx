@@ -77,7 +77,7 @@ export default function SortieOverview({ r, runDurationSeconds, onJumpToFight, f
                           <img src={imgSrc(JOB_ICONS[jobKey])} width={56} height={56} alt={p.mainJob} className="object-contain" />
                         )}
                       </td>
-                      <td className="py-2 text-white font-semibold text-base">{p.name}</td>
+                      <td className="gn-pii py-2 text-white font-semibold text-base">{p.name}</td>
                       <td className="py-2 text-right text-gray-400 text-sm font-mono">
                         {p.mainJob === 'TRUST' ? 'TRUST' : `${p.mainJob}${p.mainLevel}/${p.subJob}${p.subLevel}`}
                       </td>

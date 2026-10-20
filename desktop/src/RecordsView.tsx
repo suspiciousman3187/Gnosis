@@ -6,7 +6,7 @@ import { fmtDur, fmtDateTime } from './trendsShared';
 import { kindFromName, fileTs } from './content';
 import { getActiveDir } from './summaryStore';
 import { dbMetaGet, dbMetaSet } from './db';
-import { buildRecordsRollup, recordsFingerprint, RECORDS_ROLLUP_VERSION, type RecordRow } from '@/lib/recordsRollup';
+import { buildRecordsRollup, mergeRecordsRollup, recordsFingerprint, RECORDS_ROLLUP_VERSION, type RecordRow } from '@/lib/recordsRollup';
 import { LOOT_SCHEMA_VERSION } from '@/lib/dropAggregator';
 import AnchoredPopover from './AnchoredPopover';
 
@@ -88,7 +88,7 @@ function MultiSelect({ options, selected, onChange, placeholder }: {
                 <span className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded border shrink-0 ${selected.has(o) ? 'bg-accent border-accent text-zinc-950' : 'border-white/25'}`}>
                   {selected.has(o) && <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M2 6.5l2.5 2.5L10 3" /></svg>}
                 </span>
-                <span className={selected.has(o) ? 'text-gray-100' : 'text-gray-300'}>{o}</span>
+                <span className={`gn-pii ${selected.has(o) ? 'text-gray-100' : 'text-gray-300'}`}>{o}</span>
               </button>
             </li>
           ))}
@@ -262,7 +262,7 @@ function KillTable({ row, onOpen }: { row: RecordRow; onOpen?: (path: string) =>
               <tr key={`${i.path}-${i.ts}-${idx}`} className="border-t border-white/[0.04] align-top">
                 <td className="px-2 py-1.5 text-gray-300 whitespace-nowrap">{fmtDateTime(i.ts)}</td>
                 <td className="px-2 py-1.5 font-mono text-amber-300/80 whitespace-nowrap">{i.kt != null ? fmtDur(i.kt) : '—'}</td>
-                <td className="px-2 py-1.5 text-gray-400">{i.players.length ? i.players.join(', ') : '—'}</td>
+                <td className="gn-pii px-2 py-1.5 text-gray-400">{i.players.length ? i.players.join(', ') : '—'}</td>
                 <td className="px-2 py-1.5 text-gray-300">{i.drops.length ? i.drops.map(d => d.item + (d.count > 1 ? ` ×${d.count}` : '')).join(', ') : '—'}</td>
                 <td className="px-2 py-1.5 whitespace-nowrap text-right">
                   {onOpen && <button onClick={() => onOpen(i.path)} className="text-accent hover:underline">Open</button>}
@@ -293,55 +293,95 @@ export default function RecordsView({ paths, enabled, onOpen }: { paths: string[
   }, [paths, scope]);
   const fingerprint = useMemo(() => recordsFingerprint(scopedPaths), [scopedPaths]);
 
-  // Persisted rollup: on scope/fingerprint change, try the cache first. A hit
-  // renders instantly and skips the whole aggregation; a miss triggers a rebuild.
+  // Persisted rollup. A cache HIT for this exact file set renders instantly. A
+  // superset (only new files appended since the cache) does an INCREMENTAL build:
+  // aggregate just the added files and merge into the cached rows. Anything else
+  // (files removed, scope slid, version bump) falls back to a full rebuild.
   const [rows, setRows] = useState<RecordRow[] | null>(null);
   const [cacheChecked, setCacheChecked] = useState(false);
+  const [buildDone, setBuildDone] = useState(false);
+  const [mode, setMode] = useState<'full' | 'incr'>('full');
+  const [workPaths, setWorkPaths] = useState<string[]>([]);
+  const [basisRows, setBasisRows] = useState<RecordRow[]>([]);
   const [nonce, setNonce] = useState(0);
   const [keepAggregating, setKeepAggregating] = useState(false);
   const [refineInfo, setRefineInfo] = useState<{ done: number; total: number } | null>(null);
   // Tracks reparse progress so a few files that can't convert don't refine forever.
   const stallRef = useRef({ last: Infinity, stalls: 0, cycles: 0 });
   const metaKey = `records_rollup_${scope}`;
+
+  // Added files must sit clearly AFTER the cached set (in file time) so no dedup
+  // cluster is split across cache/added and double-counted; the gap exceeds the
+  // 45s representativeLootSummaries join window (see mergeRecordsRollup).
+  const INCR_SAFE_GAP_SEC = 120;
+
   useEffect(() => {
     let alive = true;
     setCacheChecked(false);
+    setBuildDone(false);
     setRows(null);
+    setMode('full');
+    setBasisRows([]);
+    setWorkPaths(scopedPaths); // default: full rebuild over the whole scoped set
     setKeepAggregating(false);
     setRefineInfo(null);
     stallRef.current = { last: Infinity, stalls: 0, cycles: 0 };
     (async () => {
       const dir = getActiveDir();
-      if (!dir) { if (alive) setCacheChecked(true); return; }
+      if (!dir) { if (alive) { setBuildDone(true); setCacheChecked(true); } return; }
       try {
         const raw = await dbMetaGet(dir, metaKey);
         if (!alive) return;
         if (raw) {
-          const c = JSON.parse(raw) as { v: number; fp: string; rows: RecordRow[] };
-          if (c.v === RECORDS_ROLLUP_VERSION && c.fp === fingerprint && Array.isArray(c.rows)) {
-            setRows(c.rows);
-            setCacheChecked(true);
-            return;
+          const c = JSON.parse(raw) as { v: number; fp: string; rows: RecordRow[]; paths?: string[]; maxTs?: number };
+          if (c.v === RECORDS_ROLLUP_VERSION && Array.isArray(c.rows)) {
+            if (c.fp === fingerprint) {                 // exact hit -> instant
+              setRows(c.rows); setBuildDone(true); setCacheChecked(true); return;
+            }
+            // Incremental: cached set is a subset of current (only appends), and
+            // the appended files are temporally separated from the cached set.
+            if (Array.isArray(c.paths)) {
+              const cached = new Set(c.paths);
+              const current = new Set(scopedPaths);
+              const noRemovals = c.paths.every(p => current.has(p));
+              if (noRemovals) {
+                const added = scopedPaths.filter(p => !cached.has(p));
+                if (added.length > 0) {
+                  let addedMinTs = Infinity;
+                  for (const p of added) { const t = fileTs(p); if (t < addedMinTs) addedMinTs = t; }
+                  if (addedMinTs > (c.maxTs ?? 0) + INCR_SAFE_GAP_SEC) {
+                    setRows(c.rows);        // show cached rows instantly
+                    setBasisRows(c.rows);
+                    setWorkPaths(added);    // aggregate ONLY the new files
+                    setMode('incr');
+                    setCacheChecked(true);
+                    return;                 // buildDone stays false -> incremental build runs
+                  }
+                }
+              }
+            }
           }
         }
-      } catch { /* fall through to rebuild */ }
-      if (alive) setCacheChecked(true);
+      } catch { /* fall through to full rebuild */ }
+      if (alive) setCacheChecked(true);      // full: workPaths already = scopedPaths
     })();
     return () => { alive = false; };
-  }, [metaKey, fingerprint]);
+  }, [metaKey, fingerprint, scopedPaths]);
 
-  // Keep the aggregation enabled while we have no rows yet OR a background
-  // reparse is still pending (so we can refill via nonce).
-  const needRebuild = enabled && cacheChecked && (rows === null || keepAggregating);
-  const { entries, loading, phase, progress, pending } = useLootAggregation({ paths, enabled: needRebuild, scope, includeSortie: true, nonce });
+  // Aggregate while a build is still owed (no cache/incremental result yet, or a
+  // background reparse is still pending). workPaths is the whole scoped set for a
+  // full build, or only the newly-added files for an incremental one.
+  const needRebuild = enabled && cacheChecked && !buildDone && workPaths.length > 0;
+  const { entries, loading, phase, progress, pending } = useLootAggregation({ paths: workPaths, enabled: needRebuild, scope, includeSortie: true, nonce });
 
-  // Build once the aggregation settles (phase 'ready'). If a reparse is still
-  // pending, show the partial rollup but DON'T cache it - keep aggregating and
-  // re-read shortly (nonce bump) until it's complete, then persist.
+  // Build once the aggregation settles (phase 'ready'). Incremental merges into the
+  // cached basis. If a reparse is still pending, show the partial rollup but DON'T
+  // cache it - refine (nonce bump) until complete, then persist the full set.
   useEffect(() => {
     if (!needRebuild || phase !== 'ready') return;
     const built = buildRecordsRollup(entries);
-    setRows(built);
+    const result = mode === 'incr' ? mergeRecordsRollup(basisRows, built) : built;
+    setRows(result);
     if (pending) {
       const remaining = entries.filter(e => kindFromName(e.path) === 'sortie' && (e.sv ?? 0) < LOOT_SCHEMA_VERSION).length;
       const st = stallRef.current;
@@ -363,9 +403,16 @@ export default function RecordsView({ paths, enabled, onOpen }: { paths: string[
     }
     setRefineInfo(null);
     setKeepAggregating(false);
+    setBuildDone(true);
     const dir = getActiveDir();
-    if (dir) void dbMetaSet(dir, metaKey, JSON.stringify({ v: RECORDS_ROLLUP_VERSION, fp: fingerprint, rows: built })).catch(() => {});
-  }, [needRebuild, phase, entries, pending, fingerprint, metaKey]);
+    if (dir) {
+      let maxTs = 0;
+      for (const p of scopedPaths) { const t = fileTs(p); if (t > maxTs) maxTs = t; }
+      // Persist the FULL current set (merged result) regardless of build mode, so
+      // the next open sees this set as its cache basis.
+      void dbMetaSet(dir, metaKey, JSON.stringify({ v: RECORDS_ROLLUP_VERSION, fp: fingerprint, rows: result, paths: scopedPaths, maxTs })).catch(() => {});
+    }
+  }, [needRebuild, phase, entries, pending, fingerprint, metaKey, mode, basisRows, scopedPaths]);
 
   const visible = useMemo(() => {
     if (!rows) return [];
@@ -377,7 +424,7 @@ export default function RecordsView({ paths, enabled, onOpen }: { paths: string[
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
-      <div className="bg-surface border border-white/10 rounded-xl p-4">
+      <div className="bg-surface border border-white/10 rounded-xl p-4 rise">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-gray-100">Records</h2>
@@ -421,7 +468,7 @@ export default function RecordsView({ paths, enabled, onOpen }: { paths: string[
           {query ? 'No enemy matches that search.' : 'No kills recorded yet in this range.'}
         </div>
       ) : (
-        <div className="bg-row-even border border-white/10 rounded-xl overflow-hidden divide-y divide-white/[0.06]">
+        <div className="bg-row-even border border-white/10 rounded-xl overflow-hidden divide-y divide-white/[0.06] rise rise-2">
           {visible.map(r => {
             const open = openMob === r.mob;
             return (
@@ -433,9 +480,9 @@ export default function RecordsView({ paths, enabled, onOpen }: { paths: string[
                   <span className={`text-gray-600 text-[10px] transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
                   <span className="flex-1 min-w-0 flex items-baseline gap-2">
                     <span className="text-sm font-medium text-gray-100 truncate">{r.mob}</span>
-                    {r.lastTs > 0 && <span className="shrink-0 text-[10px] text-gray-500 whitespace-nowrap">Last Killed: {new Date(r.lastTs * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
+                    {r.lastTs > 0 && <span className="shrink-0 text-[10px] text-gray-500 whitespace-nowrap">Last Killed: <span className="text-accent">{new Date(r.lastTs * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span></span>}
                   </span>
-                  {r.best != null && <span className="shrink-0 text-[11px] font-mono text-amber-300/80">{fmtDur(r.best)}</span>}
+                  {r.best != null && <span className="shrink-0 text-[11px] font-mono whitespace-nowrap"><span className="text-gray-500 not-italic uppercase tracking-wide text-[9px] mr-1">Best</span><span className="text-amber-300/80">{fmtDur(r.best)}</span></span>}
                   <span className="shrink-0 text-[11px] font-mono text-accent w-20 text-right">{r.kills.toLocaleString()} {r.kills === 1 ? 'kill' : 'kills'}</span>
                 </button>
                 {open && (
@@ -452,7 +499,7 @@ export default function RecordsView({ paths, enabled, onOpen }: { paths: string[
                         <div className="flex flex-wrap gap-1.5">
                           {r.perCharacter.map(c => (
                             <span key={c.name} className="inline-flex items-center gap-1.5 rounded-md bg-black/20 border border-white/[0.06] px-2 py-1 text-[11px]">
-                              <span className="text-gray-300">{c.name}</span>
+                              <span className="gn-pii text-gray-300">{c.name}</span>
                               <span className="font-mono text-accent">{c.count.toLocaleString()}</span>
                             </span>
                           ))}

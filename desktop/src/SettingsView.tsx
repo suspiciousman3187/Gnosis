@@ -13,6 +13,29 @@ import { emitTokenChanged } from './useAdminStatus';
 import { useDisplayLanguage, setDisplayLanguage } from '@/lib/displayLanguage';
 import type { DisplayLanguage } from '@/lib/translate';
 import { useSilentModeOnMinimize, setSilentModeOnMinimize, useSilentModeHideOverlay, setSilentModeHideOverlay } from './silentMode';
+import { useAnonBlur } from '@/lib/anonBlur';
+
+// Global "blur names" privacy toggle. Self-contained (owns its hook) so it can
+// drop into the Privacy card without threading state through SettingsView.
+function BlurNamesToggle() {
+  const [on, setOn] = useAnonBlur();
+  return (
+    <div className="flex items-center justify-between">
+      <div>
+        <div className="text-sm text-gray-200">Blur Character Names</div>
+        <div className="text-[11px] text-gray-500">Blurs every character name across the whole app (and the overlay) for streaming/screenshots. Visual only - your data is unchanged.</div>
+      </div>
+      <button
+        onClick={() => setOn(!on)}
+        role="switch"
+        aria-checked={on}
+        className={`shrink-0 ml-4 relative w-11 h-6 rounded-full transition-colors ${on ? 'bg-accent/70' : 'bg-white/15'}`}
+      >
+        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${on ? 'left-[22px]' : 'left-0.5'}`} />
+      </button>
+    </div>
+  );
+}
 import { clearFtueCompletion } from './WelcomeWizard';
 
 async function pickDataFolder(currentDir: string): Promise<string | null> {
@@ -89,7 +112,7 @@ export default function SettingsView({
   return (
     <div className="space-y-6">
       {inTauri && (
-        <Card title="Behavior">
+        <Card title="Behavior" className="rise">
           <label className="block">
             <span className="text-xs text-gray-400">Addon Data Folder</span>
             <div className="mt-1 flex gap-2">
@@ -148,12 +171,12 @@ export default function SettingsView({
       )}
 
       {inTauri && (
-        <Card title="Updates">
+        <Card title="Updates" className="rise rise-2">
           <UpdatesCard dataDir={dir} />
         </Card>
       )}
 
-      <Card title="Appearance">
+      <Card title="Appearance" className="rise rise-3">
         <div>
           <div className="flex items-center justify-between mb-2">
             <div>
@@ -266,7 +289,9 @@ export default function SettingsView({
       )}
 
       <Card title="Privacy">
-        <div className="flex items-center justify-between">
+        <BlurNamesToggle />
+
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
           <div>
             <div className="text-sm text-gray-200">Anonymize Character Names (Local)</div>
             <div className="text-[11px] text-gray-500">Replaces player names with their job (e.g. Geomancer) everywhere in local reports.</div>
@@ -685,9 +710,9 @@ function SilentModeRow() {
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className="bg-row-even border border-white/10 rounded-xl p-5">
+    <div className={`bg-row-even border border-white/10 rounded-xl p-5 card-lift ${className}`}>
       <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-3">{title}</div>
       {children}
     </div>

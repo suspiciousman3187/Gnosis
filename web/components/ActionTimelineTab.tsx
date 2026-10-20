@@ -14,6 +14,7 @@ import ItemIcon from './ItemIcon';
 import BuffIcon from './BuffIcon';
 import Collapse from './Collapse';
 import GearReveal from './GearReveal';
+import Private from './Private';
 import { useEnemyTerm, withTerm } from './EnemyTerm';
 import type { GearIndex } from '@/lib/gearLookup';
 import { canonicalTypeOf, isJobAbility, isSpell, isMagicBurst } from '@/lib/actionCategory';
@@ -615,7 +616,7 @@ function HoverInfo({ store, fightStart }: { store: Store<HoverEntry>; fightStart
     return (
       <div className="min-h-10 flex flex-wrap items-center gap-4 px-3 py-2 text-xs border border-white/10 rounded-lg">
         <span className="font-bold font-mono text-lime-300">{entry.name}</span>
-        <span className="text-gray-400">{entry.player} used an item</span>
+        <span className="text-gray-400"><Private>{entry.player}</Private> used an item</span>
         <span className="text-gray-400/70">Item Use</span>
         <span className="text-gray-400 font-mono ml-auto">{relTime} {timeLabel}</span>
       </div>
@@ -643,7 +644,7 @@ function HoverInfo({ store, fightStart }: { store: Store<HoverEntry>; fightStart
       {isStart && (
         <span className="font-semibold text-sky-300 uppercase text-[10px] tracking-wide">Starting</span>
       )}
-      <span className="text-gray-400">{entry.player}{isStart ? '' : ` → ${targetSummary}`}</span>
+      <span className="text-gray-400"><Private>{entry.player}</Private>{isStart ? '' : ` → ${targetSummary}`}</span>
       <span className="text-gray-400/70">{typeLabel}</span>
       {!isInterrupted && !isStart && (
         <span className={`font-semibold ${resultColor}`}>{allMiss ? 'MISS' : 'HIT'}</span>
@@ -838,7 +839,7 @@ function FullLogView({
                         {withTerm(catMeta.label, enemyTerm)}
                       </span>
                     </td>
-                    <td className={`px-3 py-1.5 font-mono ${e._cat === 'boss' ? 'text-rose-400' : e._cat === 'buff' || e._cat === 'player' ? 'text-gray-200' : 'text-gray-400'}`}>
+                    <td className={`px-3 py-1.5 font-mono ${e._cat === 'buff' || e._cat === 'player' ? 'gn-pii ' : ''}${e._cat === 'boss' ? 'text-rose-400' : e._cat === 'buff' || e._cat === 'player' ? 'text-gray-200' : 'text-gray-400'}`}>
                       {e.player}
                     </td>
                     <td className={`px-3 py-1.5 ${typeMeta?.color ?? 'text-gray-400'}`}>
@@ -941,7 +942,7 @@ function ItemsUsedPanel({ itemUseLog, party, countdown }: { itemUseLog: ItemUseL
                   <td className="py-2">
                     <JobIcon job={jobByPlayer.get(p.player) ?? ''} label={jobByPlayer.get(p.player)} size={40} />
                   </td>
-                  <td className="py-2 text-white">{p.player}</td>
+                  <td className="gn-pii py-2 text-white">{p.player}</td>
                   <td className="py-2">
                     <div className="flex flex-wrap gap-1.5">
                       {Array.from(p.items.entries())
@@ -1282,7 +1283,7 @@ export function BuffsPanel({ buffLog: rawBuffLog, bossSet, party, actionLog, zon
                 <td className="py-1 px-3 text-violet-300"><span className="inline-flex items-center gap-1.5"><BuffIcon id={buffIdByName.get(r.buffName)} />{r.buffName}</span></td>
                 <td className="py-1 text-sky-300 text-xs">
                   {r.appliedBy
-                    ? <span className={r.inferred ? 'italic text-sky-300/60' : ''} title={r.inferred ? 'Inferred from a nearby same-status gain' : undefined}>{r.appliedBy}{r.inferred ? ' ~' : ''}</span>
+                    ? <span className={r.inferred ? 'italic text-sky-300/60' : ''} title={r.inferred ? 'Inferred from a nearby same-status gain' : undefined}><Private>{r.appliedBy}</Private>{r.inferred ? ' ~' : ''}</span>
                     : <span className="text-gray-700">-</span>}
                 </td>
                 {area.has && <td className="py-1 px-3 text-gray-400 text-xs">{area.at(r.elapsed) ?? '-'}</td>}
@@ -1311,7 +1312,7 @@ export function BuffsPanel({ buffLog: rawBuffLog, bossSet, party, actionLog, zon
         <button onClick={() => toggle(t.target)} className="w-full text-left py-2 px-2 -mx-2 rounded-md hover:bg-white/[0.03] transition-colors">
           <div className="flex items-center gap-2.5">
             {withIcon && <JobIcon job={jobByPlayer.get(t.target) ?? ''} label={jobByPlayer.get(t.target)} size={28} />}
-            <span className="text-sm font-medium text-white">{t.target}</span>
+            <span className={`text-sm font-medium text-white${withIcon ? ' gn-pii' : ''}`}>{t.target}</span>
             {withIcon && jobByPlayer.get(t.target) && <span className="text-[11px] text-gray-400 font-mono">{jobByPlayer.get(t.target)}</span>}
             <span className="text-[11px] text-gray-400">{t.buffs.size} {t.buffs.size === 1 ? 'status' : 'statuses'}</span>
             <span className="ml-auto text-gray-400 text-xs">{isOpen ? '▾' : '▸'}</span>
@@ -1426,7 +1427,7 @@ function SelfBuffsTab({ chars, selChar, setSelChar }: {
           <button
             key={c.name}
             onClick={() => setSelChar(c.name)}
-            className={`text-xs px-2.5 py-1 rounded border transition-colors ${activeName === c.name ? 'bg-accent/20 border-accent/50 text-accent font-semibold' : 'border-white/10 text-gray-400 hover:bg-white/[0.05]'}`}
+            className={`gn-pii text-xs px-2.5 py-1 rounded border transition-colors ${activeName === c.name ? 'bg-accent/20 border-accent/50 text-accent font-semibold' : 'border-white/10 text-gray-400 hover:bg-white/[0.05]'}`}
           >
             {c.name}
           </button>
@@ -1535,7 +1536,7 @@ export function SkillchainsPanel({ skillchainLog, party, countdown, combatStats,
                   <td className="py-2">
                     <JobIcon job={jobByPlayer.get(r.closer) ?? ''} label={jobByPlayer.get(r.closer)} size={40} />
                   </td>
-                  <td className="py-2 text-white">{r.closer}</td>
+                  <td className="gn-pii py-2 text-white">{r.closer}</td>
                   <td className="py-2">
                     <div className="flex flex-wrap gap-1.5">
                       {Array.from(r.chains.entries())
@@ -1655,7 +1656,7 @@ export function MagicBurstsPanel({ actionLog, party, countdown }: { actionLog: A
                   <td className="py-2">
                     <JobIcon job={jobByPlayer.get(r.caster) ?? ''} label={jobByPlayer.get(r.caster)} size={40} />
                   </td>
-                  <td className="py-2 text-white">{r.caster}</td>
+                  <td className="gn-pii py-2 text-white">{r.caster}</td>
                   <td className="py-2">
                     <div className="flex flex-wrap gap-1.5">
                       {Array.from(r.spells.entries())
@@ -1780,7 +1781,7 @@ export function CuresPanel({ actionLog, party, countdown }: { actionLog: ActionL
                   <td className="py-2">
                     <JobIcon job={jobByPlayer.get(r.healer) ?? ''} label={jobByPlayer.get(r.healer)} size={40} />
                   </td>
-                  <td className="py-2 text-white">{r.healer}</td>
+                  <td className="gn-pii py-2 text-white">{r.healer}</td>
                   <td className="py-2">
                     <div className="flex flex-wrap gap-1.5">
                       {Array.from(r.spells.entries())
@@ -1904,7 +1905,7 @@ export function JobAbilitiesPanel({ actionLog, party, zoneLog, countdown }: { ac
                   <td className="py-2">
                     <JobIcon job={jobByPlayer.get(r.player) ?? ''} label={jobByPlayer.get(r.player)} size={40} />
                   </td>
-                  <td className="py-2 text-white">{r.player}</td>
+                  <td className="gn-pii py-2 text-white">{r.player}</td>
                   <td className="py-2">
                     <div className="flex flex-wrap gap-1.5">
                       {Array.from(r.abilities.entries())
@@ -2628,6 +2629,7 @@ export function BossActionTimeline({
                 <PlayerRow
                   key={player}
                   label={player}
+                  labelClassName="gn-pii text-gray-200"
                   entries={byPlayer[player] ?? []}
                   fightStart={fight.fightStartElapsed}
                   duration={fight.fightDurationSeconds}

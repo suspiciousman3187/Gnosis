@@ -307,3 +307,16 @@ body {
   .splash-translate, .splash-scale, .splash-rotate,
   .splash-dots > span { animation: none; opacity: 1; }
 }
+/* ===== Anonymize Names (blur PII) ===== */
+/* A single toggle sets data-anon-blur="on" on <html>; everything tagged .gn-pii
+   (via the <Private> component or the class directly) blurs so the UI can be
+   streamed/captured without leaking real character names. Visual only. */
+[data-anon-blur="on"] .gn-pii {
+  filter: blur(6px);
+  border-radius: 4px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+[data-anon-blur="on"] input.gn-pii,
+[data-anon-blur="on"] textarea.gn-pii { filter: blur(6px); }
+[data-anon-blur="on"] .gn-pii::placeholder { color: transparent; }

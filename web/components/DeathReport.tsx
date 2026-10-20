@@ -67,7 +67,7 @@ function DeathCard({ r }: { r: DeathReportRow }) {
     <div className="border border-rose-700/30 rounded-lg overflow-hidden bg-rose-950/10">
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-white/[0.03]">
         <span className="text-rose-400">💀</span>
-        <span className="font-semibold text-sm text-gray-100">{r.player}</span>
+        <span className="gn-pii font-semibold text-sm text-gray-100">{r.player}</span>
         <span className="font-mono text-[11px] text-gray-400">{fmtClock(r.elapsed)}</span>
         <span className="text-xs text-gray-400 truncate">
           {r.killedBy

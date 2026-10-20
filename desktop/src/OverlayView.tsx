@@ -89,7 +89,7 @@ export default function OverlayView({
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
           <div>
             <div className="text-sm text-gray-200">Show Only Over FFXI</div>
-            <div className="text-[11px] text-gray-500">Only show the overlay when an FFXI game window (or Gnosis) is in focus. It auto-hides when you tab to a browser or Discord.</div>
+            <div className="text-[11px] text-gray-500">Only show the overlay when an FFXI game window (or Gnosis) is in focus.</div>
           </div>
           <Toggle on={focusFollow} onClick={onToggleFocusFollow} />
         </div>
@@ -217,9 +217,9 @@ function BehaviorSettings() {
                       changed boxes), keep it in the list so it's not silently
                       dropped on next session. */}
                   {followChar && !connectedNames.includes(followChar) && (
-                    <option value={followChar}>{followChar} (offline)</option>
+                    <option className="gn-pii" value={followChar}>{followChar} (offline)</option>
                   )}
-                  {connectedNames.map(n => <option key={n} value={n}>{n}</option>)}
+                  {connectedNames.map(n => <option className="gn-pii" key={n} value={n}>{n}</option>)}
                 </select>
               )}
             </div>

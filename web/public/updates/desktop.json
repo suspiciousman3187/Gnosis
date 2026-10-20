@@ -1,17 +1,17 @@
 {
-    "version": "0.1.0",
-    "notes": "v0.1.0",
-    "pub_date": "2026-09-29T10:21:13Z",
-    "platforms": {
-        "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRWhDa0pXczk2b2QrTndnU2QvRVpLMTVldDRDc0FyWWNIbUZ0RmREVDZUT1VLeXhKZEhYTU9ESllMblZJUEhsWE4zNUhMRlFkc0lhd081Y1lZdjlta3BCVnhTeW5Sc0FJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjc3MjAzCWZpbGU6R25vc2lzXzAuMS4wX3g2NC1zZXR1cC5leGUKRVVEc1RvdWh4SFVoeUFVUlNjTUYrMFQ1MXVheDgrZFBPZTJqUm1lQ2hlVFNLNTRxWDE5bUQ0cFo4WkQvSGlKT0FYNUFyamw3MGRLUXNqK0FYTU1DQnc9PQo=",
-            "url": "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.1.0/Gnosis_0.1.0_x64-setup.exe"
-        }
-    },
-    "addon": {
-        "version": "0.1.0",
-        "url": "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.1.0/Gnosis-addon-0.1.0.zip",
-        "sha256": "e5b6a60a8e3eb5e214d2ea9edd05810341bfadedbbb45943e386522b3430e2ce",
-        "notes": "v0.1.0"
-    }
+    "version":  "0.2.0",
+    "notes":  "v0.2.0",
+    "pub_date":  "2026-10-20T14:57:20Z",
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRWhDa0pXczk2b2FnUy8zMkdRMEN3Q0JoR093TDU5ZklSK3hKNlBqSmxRa3l6VlVPRUJSSXFJNHJ6amJTZUhLVU5jSi8zZzMzb040eGtudXBzaGhxRVVmeVgvVDFaUUFFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNTA4MjM5CWZpbGU6R25vc2lzXzAuMi4wX3g2NC1zZXR1cC5leGUKd3Yrak9JY2h2cUhSTDFGeExRVG1XM1g4ZmtiN2RDdUJzSCtDRm1EQkFpUmlIeHpwbmp2V0RWeE15QmNUOThrZnhySHY0dERoVENCUXRIZlNXMlZtQ2c9PQo=",
+                                             "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.2.0/Gnosis_0.2.0_x64-setup.exe"
+                                         }
+                  },
+    "addon":  {
+                  "version":  "0.2.0",
+                  "url":  "https://github.com/suspiciousman3187/Gnosis/releases/download/v0.2.0/Gnosis-addon-0.2.0.zip",
+                  "sha256":  "a8d1c044e6eda067975a4366a9145e708663fda3747e43f8f27b370a68075cbd",
+                  "notes":  "v0.2.0"
+              }
 }

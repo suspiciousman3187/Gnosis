@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import ItemIcon from '@/components/ItemIcon';
+import Private from '@/components/Private';
 import type { CharacterGear } from '@/lib/types';
 import type { ProgressionEvent, ProgressionSnapshot, CurrencySnapshot, KeyItemEvent } from '@/lib/encounter';
 
@@ -125,23 +126,26 @@ export default function GainsPanel({
       }
       return out;
     };
-    const perChar: { name: string; deltas: Record<string, number>; hasSnapshots: boolean }[] = [];
+    // Include a character if it captured EITHER snapshot. Requiring BOTH used to
+    // silently drop a box whose end snapshot failed, so a partial-capture box
+    // vanished from the table entirely (read as a "missing character"). Now it
+    // shows as a column, flagged incomplete, instead of disappearing.
+    const perChar: { name: string; deltas: Record<string, number>; incomplete: boolean }[] = [];
     const seen = new Set<string>();
     if (gearByPlayer) {
       for (const [name, g] of Object.entries(gearByPlayer)) {
-        const hasSnapshots = !!(g.currencyStart && g.currencyEnd);
-        const deltas = deltaFor(g.currencyStart, g.currencyEnd);
-        if (hasSnapshots || Object.keys(deltas).length > 0) {
-          perChar.push({ name, deltas, hasSnapshots });
-          seen.add(name);
-        }
+        if (!(g.currencyStart || g.currencyEnd)) continue;
+        const both = !!(g.currencyStart && g.currencyEnd);
+        perChar.push({ name, deltas: deltaFor(g.currencyStart, g.currencyEnd), incomplete: !both });
+        seen.add(name);
       }
     }
-    const localHas = !!(currencyStart && currencyEnd);
-    if (localCharacter && !seen.has(localCharacter) && localHas) {
-      perChar.push({ name: localCharacter, deltas: deltaFor(currencyStart, currencyEnd), hasSnapshots: true });
-    } else if (!localCharacter && perChar.length === 0 && localHas) {
-      perChar.push({ name: '', deltas: deltaFor(currencyStart, currencyEnd), hasSnapshots: true });
+    const localBoth = !!(currencyStart && currencyEnd);
+    const localAny = !!(currencyStart || currencyEnd);
+    if (localCharacter && !seen.has(localCharacter) && localAny) {
+      perChar.push({ name: localCharacter, deltas: deltaFor(currencyStart, currencyEnd), incomplete: !localBoth });
+    } else if (!localCharacter && perChar.length === 0 && localAny) {
+      perChar.push({ name: '', deltas: deltaFor(currencyStart, currencyEnd), incomplete: !localBoth });
     }
     const activeCurrencies = new Set<string>();
     for (const c of perChar) for (const k of Object.keys(c.deltas)) activeCurrencies.add(k);
@@ -305,7 +309,7 @@ export default function GainsPanel({
                         const charTabTotal = subKinds.reduce((s, k) => s + (c.totals[k.key] ?? 0), 0);
                         return (
                           <tr key={c.name} className="border-b border-white/[0.04] last:border-0">
-                            <td className="py-1.5 pr-3 text-gray-200 font-medium">{c.name}</td>
+                            <td className="gn-pii py-1.5 pr-3 text-gray-200 font-medium">{c.name}</td>
                             <td className="py-1.5 pr-3 text-[11px] text-gray-400 font-mono whitespace-nowrap">
                               {job ?? <span className="text-gray-700">-</span>}
                               {leveledUp && <span className="ml-2 text-emerald-300">+{delta} lvl</span>}
@@ -392,7 +396,7 @@ export default function GainsPanel({
                 {lootByCharacter.map(c => (
                   <div key={c.name}>
                     <h4 className="text-[11px] font-semibold text-gray-300 uppercase tracking-wide mb-1.5">
-                      {c.name || 'Unattributed'}
+                      <Private>{c.name || 'Unattributed'}</Private>
                       <span className="text-gray-500 font-mono ml-2">{c.items.reduce((s, it) => s + it.count, 0)}</span>
                     </h4>
                     <div className="space-y-1">
@@ -433,7 +437,7 @@ export default function GainsPanel({
                       <span className="text-[11px] text-gray-400 ml-auto shrink-0">
                         to {looters.map(([name, n]) => (
                           <span key={name} className="font-mono">
-                            <span className="text-gray-400">{name}</span>{n > 1 ? <> ×{n}</> : null}
+                            <span className="gn-pii text-gray-400">{name}</span>{n > 1 ? <> ×{n}</> : null}
                           </span>
                         )).reduce<React.ReactNode[]>((acc, el, idx) => idx === 0 ? [el] : [...acc, ', ', el], [])}
                       </span>
@@ -478,13 +482,17 @@ export default function GainsPanel({
           ) : !currency.hasAnyDelta ? (
             <p className="text-gray-400 text-sm py-6 text-center">No currency gains during this encounter.</p>
           ) : (
+            <>
             <div className="overflow-x-auto -mx-1 px-1">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-[10px] uppercase tracking-wide text-gray-400 border-b border-white/[0.06]">
                     <th className="text-left font-semibold py-2 pr-3 whitespace-nowrap">Currency</th>
                     {currency.perChar.map(c => (
-                      <th key={c.name} className="text-right font-semibold py-2 px-3 whitespace-nowrap">{c.name}</th>
+                      <th key={c.name} className="text-right font-semibold py-2 px-3 whitespace-nowrap">
+                        <Private>{c.name || '-'}</Private>
+                        {c.incomplete && <span className="text-amber-500/80 ml-0.5" title="Currency capture was incomplete for this character (a snapshot is missing).">*</span>}
+                      </th>
                     ))}
                     {currency.perChar.length > 1 && (
                       <th className="text-right font-semibold py-2 pl-3 whitespace-nowrap text-gray-400">Party Total</th>
@@ -513,6 +521,10 @@ export default function GainsPanel({
                 </tbody>
               </table>
             </div>
+            {currency.perChar.some(c => c.incomplete) && (
+              <p className="mt-2 text-[10px] text-gray-500"><span className="text-amber-500/80">*</span> Currency capture was incomplete for this character - a snapshot is missing, so its gains could not be computed.</p>
+            )}
+            </>
           )}
         </div>
       )}

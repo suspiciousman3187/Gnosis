@@ -62,7 +62,7 @@ export default function SelfBuffsByCharacter({ gearByPlayer }: {
           <button
             key={c.name}
             onClick={() => setSel(c.name)}
-            className={`text-xs px-2.5 py-1 rounded border transition-colors ${activeName === c.name ? 'bg-accent/20 border-accent/50 text-accent font-semibold' : 'border-white/10 text-gray-400 hover:bg-white/[0.05]'}`}
+            className={`gn-pii text-xs px-2.5 py-1 rounded border transition-colors ${activeName === c.name ? 'bg-accent/20 border-accent/50 text-accent font-semibold' : 'border-white/10 text-gray-400 hover:bg-white/[0.05]'}`}
           >
             {c.name}
           </button>

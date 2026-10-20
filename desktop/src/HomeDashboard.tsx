@@ -189,12 +189,12 @@ export default function HomeDashboard(props: Props) {
   return (
     <div className="space-y-4">
       <UpdateBanner dataDir={props.dataDir} />
-      <TodayKpis stats={todayKpis} />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="rise"><TodayKpis stats={todayKpis} /></div>
+      <div className="rise rise-2 grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ConnectedCharactersCard boxes={boxes} nowSec={nowSec} />
         <RecentRunsCard recent={recentGroups} encSummaries={props.encSummaries} onOpenRun={props.onOpenRun} onNavigate={props.onNavigate} />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="rise rise-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
         <TopDropsTodayCard slices={todayDrops} onOpenRun={props.onOpenRun} />
         <RecentEnemiesCard rows={recentEnemies} onOpenRun={props.onOpenRun} />
       </div>
@@ -277,7 +277,7 @@ function ConnectedCharactersCard({ boxes, nowSec }: { boxes: BoxState[]; nowSec:
                   <td className="py-1.5 pl-2">
                     <div className="flex items-center gap-2">
                       <JobIcon job={s.main ?? null} size={24} />
-                      <span className="font-medium text-gray-200 truncate">{s.name}</span>
+                      <span className="gn-pii font-medium text-gray-200 truncate">{s.name}</span>
                     </div>
                   </td>
                   <td className="py-1.5">
@@ -676,7 +676,7 @@ function RecentEnemiesCard({
 // ── Shared card chrome ─────────────────────────────────────────────────────
 function Card({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="bg-row-even border border-white/10 rounded-xl p-4">
+    <div className="card-lift bg-row-even border border-white/10 rounded-xl p-4">
       <div className="flex items-center justify-between mb-3 gap-2">
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{title}</h3>
         {right && <div className="text-[10px] text-gray-500">{right}</div>}

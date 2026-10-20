@@ -9,9 +9,15 @@ const POOL_SIZE = 4;
 
 interface MeasureMemoryReply { id: number; type: 'memory'; ok: boolean; bytes?: number; jsHeap?: number; error?: string }
 
+interface PendingJob {
+  path: string;
+  done: (r: ParseReply) => void;
+  timer: ReturnType<typeof setTimeout>;
+}
+
 interface WorkerSlot {
   worker: Worker;
-  pending: Map<number, (r: ParseReply) => void>;
+  pending: Map<number, PendingJob>;
   pendingMeasures: Map<number, (r: MeasureMemoryReply) => void>;
   load: number;
   bornAt: number;
@@ -24,6 +30,33 @@ let nextId = 1;
 
 const RECYCLE_AFTER_JOBS = 10;
 const RECYCLE_AFTER_MS = 60 * 1000;
+// A single capture that OOMs or infinite-loops the worker must not wedge the
+// whole parse queue. If a job hasn't replied in this long the worker is dead or
+// stuck, so we fail that job and rebuild the slot. A normal parse is well under
+// a second; 60s only ever fires on a genuinely broken file/worker.
+const JOB_TIMEOUT_MS = 60 * 1000;
+
+// Fail every in-flight job on a slot and replace its worker. Called when the
+// worker fires an error (crash) or a job times out (silent hang) - previously
+// the dead worker was kept, so all later jobs routed to it hung forever and
+// Records/Loot spun at ~100% with no error. Logs the offending path(s) so the
+// bad capture is identifiable instead of silently swallowed.
+function hardResetSlot(slot: WorkerSlot, reason: string): void {
+  const stuck = [...slot.pending.values()].map(j => j.path);
+  if (stuck.length > 0) {
+    console.warn(`[parseWorker] ${reason}: failing ${stuck.length} in-flight job(s). Likely offender: ${stuck[0]}`
+      + (stuck.length > 1 ? ` (also: ${stuck.slice(1, 4).join(', ')}${stuck.length > 4 ? ', …' : ''})` : ''));
+  }
+  for (const job of slot.pending.values()) { clearTimeout(job.timer); job.done({ id: -1, ok: false }); }
+  slot.pending.clear();
+  slot.pendingMeasures.clear();
+  slot.load = 0;
+  try { slot.worker.terminate(); } catch { /* ignore */ }
+  slot.worker = makeWorker();
+  slot.bornAt = Date.now();
+  slot.jobCount = 0;
+  attachWorkerHandlers(slot);
+}
 
 function attachWorkerHandlers(slot: WorkerSlot): void {
   const w = slot.worker;
@@ -37,19 +70,20 @@ function attachWorkerHandlers(slot: WorkerSlot): void {
       return;
     }
     const reply = data as ParseReply;
-    const resolver = slot.pending.get(reply.id);
-    if (!resolver) return;
+    const job = slot.pending.get(reply.id);
+    if (!job) return;
     slot.pending.delete(reply.id);
+    clearTimeout(job.timer);
     slot.load = Math.max(0, slot.load - 1);
     slot.jobCount += 1;
-    resolver(reply);
+    job.done(reply);
     maybeRecycle(slot);
   });
-  w.addEventListener('error', () => {
-    for (const [id, resolver] of slot.pending) resolver({ id, ok: false });
-    slot.pending.clear();
-    slot.pendingMeasures.clear();
-    slot.load = 0;
+  w.addEventListener('error', (ev: ErrorEvent) => {
+    hardResetSlot(slot, `worker crashed (${ev?.message ?? 'uncaught error'})`);
+  });
+  w.addEventListener('messageerror', () => {
+    hardResetSlot(slot, 'worker message deserialization error');
   });
 }
 
@@ -181,9 +215,18 @@ export async function parseEncounter(
   slot.load++;
   return new Promise(resolve => {
     const id = nextId++;
-    slot.pending.set(id, reply => {
-      if (!reply.ok) resolve(null);
-      else resolve({ summary: reply.summary, loot: reply.loot, summaryJson: reply.summaryJson, lootJson: reply.lootJson });
+    const timer = setTimeout(() => {
+      // Still pending after the timeout -> the worker is wedged on this file.
+      // Rebuild the slot so the queue recovers (this job resolves null inside).
+      if (slot.pending.has(id)) hardResetSlot(slot, `job timed out after ${JOB_TIMEOUT_MS / 1000}s on ${path}`);
+    }, JOB_TIMEOUT_MS);
+    slot.pending.set(id, {
+      path,
+      timer,
+      done: reply => {
+        if (!reply.ok) resolve(null);
+        else resolve({ summary: reply.summary, loot: reply.loot, summaryJson: reply.summaryJson, lootJson: reply.lootJson });
+      },
     });
     slot.worker.postMessage({ id, path, buf, wantMetrics, ts }, [buf]);
   });

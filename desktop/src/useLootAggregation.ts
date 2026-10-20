@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { LootEncounterSummary } from '@/lib/dropAggregator';
-import { dbLootSlicesForPaths, dbKnownPathsSet, requestLoots, forceReparseLoots, getActiveDir } from './summaryStore';
+import { dbLootSlicesForPaths, dbKnownPathsSet, requestLoots, forceReparseLoots, getActiveDir, getFailedPaths } from './summaryStore';
 import { kindFromName, fileTs, representativeLootSummaries } from './content';
 import { LOOT_SCHEMA_VERSION } from '@/lib/dropAggregator';
+import { recordsFingerprint } from '@/lib/recordsRollup';
 
 export type AggPhase = 'idle' | 'ingesting' | 'parsing' | 'ready';
 
@@ -37,6 +38,12 @@ interface UseAggOpts {
 
 export function useLootAggregation({ paths, enabled, scope, includeSortie = false, nonce = 0 }: UseAggOpts): AggregationState {
   const [state, setState] = useState<AggregationState>(EMPTY);
+  // Raw (pre-dedup) slices from the last FULL read, keyed by path. A refine pass
+  // (nonce bump) re-reads only the reparsed-stale slices and splices them in here,
+  // instead of re-reading + re-parsing the whole library from the DB every cycle.
+  const rawRef = useRef<Map<string, LootEncounterSummary>>(new Map());
+  const staleRef = useRef<string[]>([]);
+  const setKeyRef = useRef<string>('');
 
   useEffect(() => {
     if (!enabled) { setState(EMPTY); return; }
@@ -59,6 +66,38 @@ export function useLootAggregation({ paths, enabled, scope, includeSortie = fals
       return;
     }
 
+    // Emit the current rawRef, deduped, recomputing which sortie slices are still
+    // stale (so the caller keeps refining until they upgrade or it gives up).
+    const finalizeFromRaw = () => {
+      if (cancelled) return;
+      const all = [...rawRef.current.values()];
+      const stale = includeSortie
+        ? all.filter(e => kindFromName(e.path) === 'sortie' && (e.sv ?? 0) < LOOT_SCHEMA_VERSION).map(e => e.path)
+        : [];
+      staleRef.current = stale;
+      const reps = representativeLootSummaries(all);
+      setState({ entries: reps, loading: false, phase: 'ready', progress: { loaded: all.length, total: all.length }, pending: stale.length > 0 });
+    };
+
+    const setKey = `${scope}|${includeSortie}|${recordsFingerprint(scopedPaths)}`;
+    const isRefine = nonce > 0 && setKeyRef.current === setKey && rawRef.current.size > 0;
+
+    // ── Refine pass: re-read ONLY the still-stale slices, splice, re-emit. ──────
+    if (isRefine) {
+      void (async () => {
+        const stale = staleRef.current;
+        if (stale.length === 0) { finalizeFromRaw(); return; }
+        const fresh = await dbLootSlicesForPaths(stale);
+        if (cancelled) return;
+        for (const e of fresh) rawRef.current.set(e.path, e);
+        finalizeFromRaw();
+      })();
+      return () => { cancelled = true; };
+    }
+
+    // ── Full pass: ingest missing, read+parse the whole scoped set once. ───────
+    setKeyRef.current = setKey;
+    rawRef.current = new Map();
     const total = scopedPaths.length;
     setState({ entries: [], loading: true, phase: 'ingesting', progress: { loaded: 0, total }, pending: false });
 
@@ -71,24 +110,20 @@ export function useLootAggregation({ paths, enabled, scope, includeSortie = fals
       setState(s => ({ ...s, phase: 'parsing', progress: { loaded: 0, total } }));
       const entries = await dbLootSlicesForPaths(scopedPaths, onProg);
       if (cancelled) return;
+      rawRef.current = new Map(entries.map(e => [e.path, e]));
 
       // Old sortie slices were cached before the enemies[]/aminon derivation
-      // (sv < current). Kick a NON-BLOCKING background reparse and mark the
-      // result pending - kills/drops already work from the current slices, so
-      // the view renders immediately and refills (via nonce) once reparse ends.
-      let pending = false;
+      // (sv < current). Kick a NON-BLOCKING background reparse - kills/drops
+      // already work from the current slices, so the view renders immediately and
+      // a refine pass (nonce) re-reads just these once reparse lands.
       if (includeSortie) {
         const stale = entries
           .filter(e => kindFromName(e.path) === 'sortie' && (e.sv ?? 0) < LOOT_SCHEMA_VERSION)
           .map(e => e.path);
-        if (stale.length > 0) {
-          pending = true;
-          forceReparseLoots(stale);
-        }
+        if (stale.length > 0) forceReparseLoots(stale);
       }
 
-      const reps = representativeLootSummaries(entries);
-      setState({ entries: reps, loading: false, phase: 'ready', progress: { loaded: total, total }, pending });
+      finalizeFromRaw();
     };
 
     void (async () => {
@@ -106,14 +141,29 @@ export function useLootAggregation({ paths, enabled, scope, includeSortie = fals
 
       requestLoots(missing);
 
+      // Give up on files that never become "known" (corrupt/unparseable captures
+      // silently fail to parse, so they'd never leave `stillMissing`). We proceed
+      // the moment parsing stops making progress for a while, using whatever did
+      // load - otherwise a single bad file makes Records spin forever at ~100%
+      // (only reproduced on larger 90-day / all-time sets). Progress resets the
+      // stall counter, so a big library that's still parsing keeps going.
+      let lastMissing = Infinity;
+      let stalls = 0;
+      const MAX_STALLS = 10; // ~8s with zero newly-parsed files -> the rest are stuck
       const tick = async () => {
         if (cancelled) return;
         const knownNow = await dbKnownPathsSet();
         if (cancelled) return;
-        const stillMissing = scopedPaths.filter(p => !knownNow.has(p));
+        // A file that failed to parse will never become "known" - count it as
+        // resolved so the poll completes deterministically instead of spinning.
+        const failed = getFailedPaths();
+        const stillMissing = scopedPaths.filter(p => !knownNow.has(p) && !failed.has(p));
         const loaded = total - stillMissing.length;
         setState(s => (s.progress.loaded === loaded ? s : { ...s, phase: 'ingesting', progress: { loaded, total } }));
-        if (stillMissing.length === 0) {
+        if (stillMissing.length < lastMissing) stalls = 0; else stalls += 1;
+        lastMissing = stillMissing.length;
+        if (stillMissing.length === 0 || stalls >= MAX_STALLS) {
+          if (stillMissing.length > 0) console.warn(`[records] proceeding without ${stillMissing.length} file(s) that failed to load`);
           await parseFromDb();
         } else {
           pollTimer = window.setTimeout(tick, 800);

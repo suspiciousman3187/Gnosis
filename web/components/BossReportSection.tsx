@@ -528,7 +528,7 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                     );
                   })()}
                   <div className="w-40 shrink-0">
-                    <div className="text-sm truncate text-white">{entry.name}</div>
+                    <div className="gn-pii text-sm truncate text-white">{entry.name}</div>
                     {jobMap[entry.name] && (
                       <div className="text-xs text-gray-400 font-mono">{jobMap[entry.name]}</div>
                     )}
@@ -875,7 +875,7 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                             <tr key={i} className="border-b border-white/[0.04] last:border-0">
                               <td className="py-1 pl-2 pr-3 text-right text-gray-400 font-mono">{fmtFightTime(e.elapsed, report.fightStartElapsed)}</td>
                               <td className="py-1 pr-3 text-sky-300">{e.name}{gearCell(e.name, e.elapsed)}</td>
-                              <td className="py-1 pr-3 truncate text-gray-400">{targetLabel}</td>
+                              <td className="gn-pii py-1 pr-3 truncate text-gray-400">{targetLabel}</td>
                               <td className={`py-1 pr-2 text-right font-mono ${dmg > 0 ? 'text-emerald-300' : 'text-gray-400'}`}>{dmg > 0 ? dmg.toLocaleString() : '-'}</td>
                             </tr>
                           );

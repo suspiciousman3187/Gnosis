@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState } from 'react';
 import JobIcon from '@/components/JobIcon';
+import Private from '@/components/Private';
 import MobSelector, { mobDisplay, type MobOption } from '@/components/MobSelector';
 import type { ContentDef } from '@/lib/contentRegistry';
 import Collapse from '@/components/Collapse';
@@ -848,7 +849,7 @@ function SkillchainSummary({
           const dps    = durationSeconds && durationSeconds > 0 ? Math.round(dmg / durationSeconds) : null;
           return (
             <div key={scName} className="flex items-center gap-3">
-              <span className="text-xs text-gray-200 font-mono w-28 truncate">{opener}</span>
+              <span className="gn-pii text-xs text-gray-200 font-mono w-28 truncate">{opener}</span>
               <div className="flex-1 flex items-center gap-2">
                 <div className="flex-1 h-1.5 bg-panel-alt rounded-full overflow-hidden">
                   <div
@@ -951,7 +952,7 @@ function PlayerTakenRow({
           <div className="flex items-center gap-3 min-w-0">
             <JobIcon job={jobLine} size={26} />
             <div className="min-w-0">
-              <div className="text-sm font-bold text-white truncate">{playerName}</div>
+              <div className="gn-pii text-sm font-bold text-white truncate">{playerName}</div>
               <div className="text-[10px] text-gray-400 font-mono truncate">{jobLine}</div>
             </div>
           </div>
@@ -969,7 +970,7 @@ function PlayerTakenRow({
         <div className="relative sm:hidden flex items-center gap-3 px-4 py-3">
           <JobIcon job={jobLine} size={26} />
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-white truncate">{playerName}</div>
+            <div className="gn-pii text-sm font-bold text-white truncate">{playerName}</div>
             <div className="text-[10px] text-gray-400 font-mono truncate">{jobLine}</div>
           </div>
           <div className="text-right shrink-0">
@@ -1031,7 +1032,7 @@ function PlayerDealtRow({
           <div className="flex items-center gap-3 min-w-0">
             <JobIcon job={jobLine} size={26} />
             <div className="min-w-0">
-              <div className="text-sm font-bold text-white truncate">{playerName}</div>
+              <div className="gn-pii text-sm font-bold text-white truncate">{playerName}</div>
               <div className="text-[10px] text-gray-400 font-mono truncate">{jobLine}</div>
             </div>
           </div>
@@ -1052,7 +1053,7 @@ function PlayerDealtRow({
         <div className="relative sm:hidden flex items-center gap-3 px-4 py-3">
           <JobIcon job={jobLine} size={26} />
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-white truncate">{playerName}</div>
+            <div className="gn-pii text-sm font-bold text-white truncate">{playerName}</div>
             <div className="text-[10px] text-gray-400 font-mono truncate">{jobLine}</div>
           </div>
           <div className="text-right shrink-0">
@@ -1487,7 +1488,7 @@ function HealingPanel({
               )}
               <div className="flex items-center gap-2 min-w-0">
                 <JobIcon job={job} label={job} size={28} />
-                <span className="text-white truncate">{name}</span>
+                <span className="gn-pii text-white truncate">{name}</span>
               </div>
               <div className="text-right font-mono text-emerald-200">{h.castHealed > 0 ? h.castHealed.toLocaleString() : <span className="text-gray-400">-</span>}</div>
               <div className="text-right font-mono text-gray-300">{h.castCount > 0 ? h.castCount.toLocaleString() : <span className="text-gray-400">-</span>}</div>
@@ -1530,7 +1531,7 @@ function HealingPanel({
                             <tr key={i} className="border-b border-white/[0.05] last:border-0">
                               <td className="py-1 text-right text-gray-400 font-mono text-xs pr-3">{fmtClock(c.elapsed)}</td>
                               <td className="py-1 px-3 text-emerald-200">{c.spell}</td>
-                              <td className="py-1 text-gray-400 text-xs">{c.target}</td>
+                              <td className="gn-pii py-1 text-gray-400 text-xs">{c.target}</td>
                               <td className={`py-1 text-right font-mono text-xs ${c.preHpp == null ? 'text-gray-400' : c.preHpp < 25 ? 'text-rose-400' : c.preHpp < 50 ? 'text-amber-400' : c.preHpp < 75 ? 'text-yellow-300/80' : 'text-gray-400'}`}>
                                 {fmtTargetHp(c.preHpp, c.target)}
                               </td>
@@ -1553,7 +1554,7 @@ function HealingPanel({
                           .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
                           .map(([healer, amt]) => (
                             <span key={healer} className="text-xs font-mono rounded px-2 py-0.5 border bg-emerald-500/10 border-emerald-400/30 text-emerald-200">
-                              {healer}: {amt.toLocaleString()}
+                              <Private>{healer}</Private>: {amt.toLocaleString()}
                             </span>
                           ))}
                       </div>
@@ -1577,7 +1578,7 @@ function HealingPanel({
                             <tr key={i} className="border-b border-white/[0.05] last:border-0">
                               <td className="py-1 text-right text-gray-400 font-mono text-xs pr-3">{fmtClock(c.elapsed)}</td>
                               <td className="py-1 px-3 text-emerald-200">{c.spell}</td>
-                              <td className="py-1 text-gray-400 text-xs">{c.healer}</td>
+                              <td className="gn-pii py-1 text-gray-400 text-xs">{c.healer}</td>
                               <td className={`py-1 text-right font-mono text-xs ${c.preHpp == null ? 'text-gray-400' : c.preHpp < 25 ? 'text-rose-400' : c.preHpp < 50 ? 'text-amber-400' : c.preHpp < 75 ? 'text-yellow-300/80' : 'text-gray-400'}`}>
                                 {fmtTargetHp(c.preHpp, name)}
                               </td>

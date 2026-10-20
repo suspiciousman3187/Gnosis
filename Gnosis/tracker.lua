@@ -2045,19 +2045,27 @@ function ff_tracker_set_mode(mode)
     -- and blanked the DPS overlay mid-run (and could discard the in-progress report).
     -- `enc` is nil at load time, so the initial open still runs.
     if mode == cfg.mode and enc then return end
+    -- Only ANNOUNCE on a real change (or the first apply this session). The Viewer
+    -- re-pushes mode to every box on each reconnect/sync; without this, fight mode
+    -- (enc is nil when idle, so the guard above misses it) re-printed on every box
+    -- every time any client loaded Gnosis. Each box now announces once, on its own load.
+    local announce = (mode ~= cfg.mode) or not gn_mode_announced
+    gn_mode_announced = true
     close_encounter()  -- switching modes closes whatever was open
     cfg.mode, cfg.gate, cfg.boundary = mode, preset.gate, preset.boundary
     write_tracker_prefs()
-    if mode == 'off' then
-        gn_chat('Tracking OFF.')
-    elseif mode == 'session' then
-        open_encounter('session')
-        gn_chat('Tracking: Full Session (recording now).')
-    elseif mode == 'zone' then
-        open_encounter('zone')
-        gn_chat('Tracking: By Zone (one encounter per zone).')
-    elseif mode == 'fight' then
-        gn_chat('Tracking: By Encounter (opens on combat, closes after idle).')
+    if mode == 'session' then open_encounter('session')
+    elseif mode == 'zone' then open_encounter('zone') end
+    if announce then
+        if mode == 'off' then
+            gn_chat('Tracking OFF.')
+        elseif mode == 'session' then
+            gn_chat('Tracking: Full Session (recording now).')
+        elseif mode == 'zone' then
+            gn_chat('Tracking: By Zone (one encounter per zone).')
+        elseif mode == 'fight' then
+            gn_chat('Tracking: By Encounter (opens on combat, closes after idle).')
+        end
     end
 end
 
@@ -2067,9 +2075,14 @@ function ff_tracker_set_timeout(sec)
         gn_chat_err(('track timeout: provide seconds >= 1 (current: %ds).'):format(cfg.idle_timeout))
         return
     end
-    cfg.idle_timeout = math.floor(sec)
+    sec = math.floor(sec)
+    -- Announce only on a real change (or first apply). Viewer re-syncs this value
+    -- to every box constantly; without the guard it spammed on all clients.
+    local announce = (sec ~= cfg.idle_timeout) or not gn_timeout_announced
+    gn_timeout_announced = true
+    cfg.idle_timeout = sec
     write_tracker_prefs()
-    gn_chat(('Encounter inactivity timeout: %ds.'):format(cfg.idle_timeout))
+    if announce then gn_chat(('Encounter inactivity timeout: %ds.'):format(cfg.idle_timeout)) end
 end
 
 -- Shared with Sortie tracking in Gnosis.lua so it can skip its own position
