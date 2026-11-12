@@ -1,11 +1,11 @@
 {
-  "version": "0.0.38",
-  "notes": "v0.0.38",
-  "pub_date": "2026-11-12T05:58:16Z",
+  "version": "0.0.37",
+  "notes": "# New\n\n### General\n* Combined the addon/app in the auto-updater so that they always install together moving forward to make the update experience more intuitive.\n\n### Gear Pull\n* Added preliminary support for pulling equipment based on the character's GearSwap job lua files as a toggle.\n\n### Tagging\n* Added the ability to designate exact pieces of equipment (i.e. equipment with specific augments) inside tags.\n\n### Auction House\n* Greatly increased speed of listing items on the AH from Alexandria. Also added an option configure the listing delay in Settings > Behavior.\n* Added a new \"All Characters\" view under Listings which shows all listings across all characters as well as the total value of all listed items.\n\n### Storage Slips\n* New Storage Slips view showing each slip's contents with proper gear icons.\n\n### Unity\n* Now pulls the equipment to be augmented from its original bag and then returns it after augmenting is complete.\n\n### Reforge\n* Added a toggle that allows seeing items that are currently stored in Storage Slips as well as enables pulling those items if near a Porter Moogle.\n\n### Treasure Pool\n* Added a new toggle to automatically pass Rare items you already own. Off by default.\n* When setting Opacity to 0%, the Treasure Pool is hidden and only shown when hovering over it.\n\n### Consolidate\n* Added Select All / None buttons to Consolidate.\n\n### Drop List\n* Now shows a potential item list based on the input while typing.\n\n# Bugfixes\n* Fixed an issue where BLM artifact gloves (Spaekona) was incorrectly displaying and searching for the wrong stage (+4).\n",
+  "pub_date": "2026-11-02T03:43:08Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeXo2NHJSN1ovdkx4ajhCaVo0UnVLVzArcHJsNzFQakMveExXdno1a2FxdWVyMnlnVjRtczBYZXRGdVdTQWtENy9oejJBYzhwb1R3SVU5a2g5YzFNQmdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NDYzMDk1CWZpbGU6QWxleGFuZHJpYV8wLjAuMzhfeDY0LXNldHVwLmV4ZQphM1NUUUpqREJyUlR6WEpiZGFPQmt5OTFPN25kL1haMDZrWnhrYVVSaUQrOU1KOGFZckJmT0U2Qys5dkNHL0RUaFBxK0hCa0lvNmpHeVh0ZU05by9EUT09Cg==",
-      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.38/Alexandria_0.0.38_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSK2VsT0Q1SWhQeS9jb2VoMXVHSkNBSDJIVGVTdUJCNmhuMC9Nc3F0Y2NjTmE4eW0vUXJOajdXRUI1ZHVKcEdTbUd5dWk1bGFBS1Nkc0hGZlo5THlmSk9XdlJEdkk3THdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNTkwOTg3CWZpbGU6QWxleGFuZHJpYV8wLjAuMzdfeDY0LXNldHVwLmV4ZQpYUUs3aml5ZExrUnNjcE81Szh5YUNXT2RtZUVNME90clJNQ1JBME82dVcvV3phdE9PZ2s4N0VIdUpHVUtDYmcvZkhrNGVjcHNmNzNuN3c3MGNZQnBCQT09Cg==",
+      "url": "https://github.com/suspiciousman3187/Alexandria/releases/download/v0.0.37/Alexandria_0.0.37_x64-setup.exe"
     }
   }
 }
