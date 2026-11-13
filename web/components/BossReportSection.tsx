@@ -615,13 +615,17 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                         const t = (e.targets ?? (e.mob ? [{ mob: e.mob } as ActionLogTarget] : []))[0];
                         return !!(t && t.mob);
                       });
-                    // One ranged auto per actor per second - dedup multibox witnessed
-                    // copies of the same shot, keeping the one that carries hover stacks.
-                    const byKey = new Map<string, ActionLogEntry>();
+                    const stamped = raw.filter(e => e.hoverStacks != null);
+                    const kept: ActionLogEntry[] = [...stamped];
                     for (const e of raw) {
-                      const k = `${e.playerId ?? e.player}|${e.elapsed}`;
-                      const prev = byKey.get(k);
-                      if (!prev || (e.hoverStacks != null && prev.hoverStacks == null)) byKey.set(k, e);
+                      if (e.hoverStacks != null) continue;
+                      const near = stamped.some(s => Math.abs(s.elapsed - e.elapsed) <= 1);
+                      if (!near) kept.push(e);
+                    }
+                    const byKey = new Map<string, ActionLogEntry>();
+                    for (const e of kept) {
+                      const k = `${e.playerId ?? e.player}|${e.elapsed}|${e.hoverStacks ?? 'x'}`;
+                      if (!byKey.has(k)) byKey.set(k, e);
                     }
                     return [...byKey.values()].sort((a, b) => a.elapsed - b.elapsed);
                   })();
