@@ -1,8 +1,10 @@
-import { aggregateLoot, type LootEncounterSummary } from './dropAggregator';
+import { mobDropCatalog, type LootEncounterSummary } from './dropAggregator';
 
 // Bump when the rollup shape or aggregation logic changes, so a persisted
 // rollup from an older build is rejected and rebuilt.
-export const RECORDS_ROLLUP_VERSION = 6;
+// 7 = rows carry ktSum/ktCount (exact avg merge) + cache stores paths/maxTs for
+//     incremental (append-only) rebuilds.
+export const RECORDS_ROLLUP_VERSION = 7;
 
 // Not real mobs / not worth a record row (Luopan = the sortie roaming device).
 const EXCLUDED_MOBS = new Set(['Luopan']);
@@ -48,6 +50,8 @@ export interface RecordRow {
   best: number | null;   // fastest kill time, seconds
   worst: number | null;  // longest kill time, seconds
   avg: number | null;    // average kill time, seconds
+  ktSum: number;         // sum of kill times (seconds) - for exact avg on merge
+  ktCount: number;       // count of timed kills - for exact avg on merge
   lastTs: number;        // unix seconds of most recent kill
   drops: RecordDrop[];   // sorted by count desc; may be empty
   perCharacter: CharacterKills[]; // party members present, sorted by count desc
@@ -172,8 +176,7 @@ export function buildRecordsRollup(entries: LootEncounterSummary[]): RecordRow[]
   }
 
   // Per-mob drops for non-sortie bosses (drop-keyed; sortie pool drops absent).
-  const catalog = aggregateLoot(entries);
-  for (const mb of catalog.mobs) {
+  for (const mb of mobDropCatalog(entries)) {
     for (const it of mb.items) addDrop(mb.mob, it.item, it.drops, it.itemId);
   }
 
@@ -195,6 +198,8 @@ export function buildRecordsRollup(entries: LootEncounterSummary[]): RecordRow[]
       best: t ? t.best : null,
       worst: t ? t.worst : null,
       avg: t ? Math.round(t.sum / t.count) : null,
+      ktSum: t ? t.sum : 0,
+      ktCount: t ? t.count : 0,
       lastTs: k.lastTs,
       drops,
       perCharacter,
@@ -217,4 +222,52 @@ export function recordsFingerprint(paths: string[]): string {
     }
   }
   return `${sorted.length}:${(h >>> 0).toString(36)}`;
+}
+
+/** Merge an incremental rollup (`add`, built from newly-appended files only)
+ *  into a cached `base`. Every stat here is additive - kills/ktSum/ktCount/drops/
+ *  per-character counts sum, best=min, worst=max, lastTs=max, instances concat +
+ *  re-cap. This is EXACT (identical to a from-scratch build) ONLY when the two
+ *  file sets never share a dedup cluster; the caller guarantees that by requiring
+ *  the added files to be temporally separated from the cached set (see RecordsView
+ *  incremental guard), so no encounter is split across base/add and double-counted. */
+export function mergeRecordsRollup(base: RecordRow[], add: RecordRow[]): RecordRow[] {
+  const clone = (r: RecordRow): RecordRow => ({
+    ...r,
+    drops: r.drops.map(d => ({ ...d })),
+    perCharacter: r.perCharacter.map(c => ({ ...c })),
+    instances: r.instances.slice(),
+  });
+  const byMob = new Map<string, RecordRow>();
+  for (const r of base) byMob.set(r.mob, clone(r));
+  for (const r of add) {
+    const cur = byMob.get(r.mob);
+    if (!cur) { byMob.set(r.mob, clone(r)); continue; }
+    cur.kills += r.kills;
+    if (r.lastTs > cur.lastTs) cur.lastTs = r.lastTs;
+    cur.best = cur.best == null ? r.best : (r.best == null ? cur.best : Math.min(cur.best, r.best));
+    cur.worst = cur.worst == null ? r.worst : (r.worst == null ? cur.worst : Math.max(cur.worst, r.worst));
+    cur.ktSum += r.ktSum;
+    cur.ktCount += r.ktCount;
+    cur.avg = cur.ktCount > 0 ? Math.round(cur.ktSum / cur.ktCount) : null;
+
+    const dm = new Map(cur.drops.map(d => [d.item, d]));
+    for (const d of r.drops) {
+      const e = dm.get(d.item);
+      if (!e) { const nd = { ...d }; dm.set(d.item, nd); cur.drops.push(nd); }
+      else { e.count += d.count; if (e.itemId == null && d.itemId != null) e.itemId = d.itemId; }
+    }
+    cur.drops.sort((a, b) => b.count - a.count);
+
+    const pm = new Map(cur.perCharacter.map(c => [c.name, c]));
+    for (const c of r.perCharacter) {
+      const e = pm.get(c.name);
+      if (!e) { const nc = { ...c }; pm.set(c.name, nc); cur.perCharacter.push(nc); }
+      else e.count += c.count;
+    }
+    cur.perCharacter.sort((a, b) => b.count - a.count);
+
+    cur.instances = [...cur.instances, ...r.instances].sort((a, b) => b.ts - a.ts).slice(0, INSTANCE_CAP);
+  }
+  return [...byMob.values()].sort((a, b) => b.kills - a.kills);
 }

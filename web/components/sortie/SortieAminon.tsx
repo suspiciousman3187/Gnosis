@@ -54,6 +54,12 @@ function AbsorbTpPanel({ actionLog, fightDurationSeconds, fightStartElapsed, bos
   const autoTimes: number[] = [];
   const events: { elapsed: number; kind: 'ws' | 'spell' | 'auto' | 'absorb'; name: string; player: string }[] = [];
   for (const e of actionLog) {
+    // Every weaponskill/ability logs a non-damaging start/ready entry (category 7,
+    // phase 'start' or 'interrupt') at the same instant as its finish (category 3).
+    // Both classify as a weaponskill, so counting per entry double-counts the WS
+    // whenever the start entry also carries the Aminon target. Only the finish is a
+    // real cast, so skip the non-finish phases here.
+    if (e.phase === 'start' || e.phase === 'interrupt') continue;
     const targets = e.targets ?? (e.mob ? [{ mob: e.mob, damage: e.damage ?? 0, result: e.result ?? 'hit' }] : []);
     const hitsAminon = targets.some(t => t.mob === 'Aminon');
     if (e.name === 'Absorb-TP') {

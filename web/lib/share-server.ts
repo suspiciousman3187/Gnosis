@@ -167,7 +167,9 @@ function asString(v: unknown): string | null { return typeof v === 'string' ? v 
 function asNumber(v: unknown): number | null { return typeof v === 'number' && Number.isFinite(v) ? v : null; }
 
 type GearEntry = { elapsed: number; player: string; name: string; gear?: { main?: { name?: string } | null } | null; precast?: { main?: { name?: string } | null } | null };
-type BuffEvent = { elapsed: number; target: string; buffId: number; kind: 'gain' | 'wear' };
+type BuffEvent = { elapsed: number; target: string; buffId: number; kind: 'gain' | 'wear'; spurious?: boolean };
+
+const BUFF_FLAP_WINDOW_SEC = 3;
 
 function buildGearLookup(root: Record<string, unknown>): (player: string, name: string, elapsed: number) => string | null {
   const flat: GearEntry[] = [];
@@ -231,14 +233,28 @@ function buildBuffReplay(root: Record<string, unknown>): (target: string, elapse
   }
   for (const arr of byTarget.values()) arr.sort((a, b) => a.elapsed - b.elapsed);
 
+  for (const arr of byTarget.values()) {
+    const nextGain = new Map<number, number>();
+    for (let i = arr.length - 1; i >= 0; i--) {
+      const e = arr[i];
+      if (e.kind === 'gain') {
+        nextGain.set(e.buffId, e.elapsed);
+      } else {
+        const g = nextGain.get(e.buffId);
+        if (g != null && g - e.elapsed <= BUFF_FLAP_WINDOW_SEC) e.spurious = true;
+      }
+    }
+  }
+
   return (target, elapsed) => {
     const arr = byTarget.get(target);
     if (!arr) return null;
     const active = new Set<number>();
     for (const ev of arr) {
       if (ev.elapsed > elapsed) break;
+      if (ev.spurious) continue;
       if (ev.kind === 'gain') active.add(ev.buffId);
-      else active.delete(ev.buffId);
+      else if (ev.elapsed < elapsed) active.delete(ev.buffId);
     }
     return active.size > 0 ? [...active].sort((a, b) => a - b) : [];
   };

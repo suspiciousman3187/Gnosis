@@ -37,7 +37,7 @@ export function statsForEnemy(actionLog: ActionLogEntry[] | null | undefined, mo
 
   for (const e of actionLog ?? []) {
     if (e.elapsed < start || e.elapsed > end) continue;
-    if (e.phase === 'start') continue;
+    if (e.phase === 'start' || e.phase === 'interrupt') continue;
     if (e.from === 'boss') {
       if (e.player !== mobName || !isAutoAttack(e)) continue;
       // Per-instance: only this entity's auto-attacks. Legacy entries without
@@ -181,6 +181,9 @@ export function combatStatsFromActionLog(
 
   for (const e of log) {
     if (e.from === 'buff') continue;
+    // Skip the non-damaging start/ready entry (category 7) that pairs with every
+    // weaponskill/ability finish - counting it double-counts WS and abilities.
+    if (e.phase === 'start' || e.phase === 'interrupt') continue;
     const tgts = e.targets ?? (e.mob ? [{ mob: e.mob, damage: e.damage ?? 0, result: e.result ?? 'hit' as const }] : []);
 
     if (!partySet.has(e.player)) {

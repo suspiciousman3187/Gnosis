@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState, useMemo, Fragment, type ReactNode } from 'react';
+import { buildBuffReplay } from '@/lib/buffReplay';
+import { buffLongName } from '@/lib/statusEffects';
 import Collapse from '@/components/Collapse';
 import { imgSrc } from '@/lib/img';
 import GearReveal from '@/components/GearReveal';
-import { DamageSpread } from '@/components/CombatStatsTab';
+import { DamageSpread, HoverSpread } from '@/components/CombatStatsTab';
 import { BossActionTimeline } from '@/components/ActionTimelineTab';
 import { JOB_ICONS, mainJobKey } from '@/components/JobIcon';
 import type { GearIndex } from '@/lib/gearLookup';
@@ -149,6 +151,7 @@ const ACTION_TYPE_STYLE: Record<ActionLogEntry['type'], string> = {
   ja:     'text-emerald-300',
   auto:   'text-zinc-300',
   ranged: 'text-green-300',
+  mob_ability: 'text-rose-300',
 };
 
 // Placeholder names the addon emits when it can't resolve an action id. The
@@ -209,12 +212,15 @@ function isAbsorbOrDrain(e: ActionLogEntry): boolean {
   return d != null && !d.addOn;
 }
 
-function PlayerSubTable({ title, titleColor = 'text-gray-300', summary, headerCells, colSpan, isEmpty, children }: { title: string; titleColor?: string; summary?: ReactNode; headerCells: ReactNode; colSpan: number; isEmpty?: boolean; children: ReactNode }) {
+function PlayerSubTable({ title, titleColor = 'text-gray-300', summary, headerCells, colSpan, isEmpty, headerRight, children }: { title: string; titleColor?: string; summary?: ReactNode; headerCells: ReactNode; colSpan: number; isEmpty?: boolean; headerRight?: ReactNode; children: ReactNode }) {
   return (
     <div>
-      <div className="mb-1.5">
-        <span className={`text-sm font-bold uppercase tracking-wide ${titleColor}`}>{title}</span>
-        {summary && <span className="text-[11px] text-gray-400"> · {summary}</span>}
+      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+        <span>
+          <span className={`text-sm font-bold uppercase tracking-wide ${titleColor}`}>{title}</span>
+          {summary && <span className="text-[11px] text-gray-400"> · {summary}</span>}
+        </span>
+        {headerRight}
       </div>
       <div className="max-h-60 overflow-y-auto border border-white/[0.06] rounded">
         <table className="w-full text-xs">
@@ -234,6 +240,8 @@ function PlayerSubTable({ title, titleColor = 'text-gray-300', summary, headerCe
 
 export function BossReportSection({ name, entityId, displayName, report, jobMap, hideKillTime = false, flush = false, embedded = false, itemUseLog, corsairRolls, actionLog, party, bossReports, aminon, bossHpLog, partyHpLog, partyTpLog, partyMpLog, skillchainLog, buffLog, gearByPlayer, gearIndex, middleSlot }: { name: string; entityId?: number; displayName?: string; report: BossReport; jobMap: Record<string, string>; hideKillTime?: boolean; flush?: boolean; embedded?: boolean; itemUseLog?: ItemUseLogEntry[] | null; corsairRolls?: CorRolls | null; actionLog?: ActionLogEntry[] | null; party?: PartyMember[]; bossReports?: Record<string, BossReport> | null; aminon?: AminonData | null; bossHpLog?: BossHpEntry[] | null; partyHpLog?: PartyHpEntry[] | null; partyTpLog?: PartyTpEntry[] | null; partyMpLog?: PartyMpEntry[] | null; skillchainLog?: SkillchainEntry[] | null; buffLog?: BuffLogEntry[] | null; gearByPlayer?: Record<string, import('@/lib/types').CharacterGear> | null; gearIndex?: GearIndex; middleSlot?: ReactNode }) {
   const enemyTerm = useEnemyTerm();
+  // Replay buff_log to know which buffs were on a character at any action's time.
+  const buffsAt = useMemo(() => buildBuffReplay(buffLog), [buffLog]);
   const actionsByPlayer = (() => {
     const map: Record<string, ActionLogEntry[]> = {};
     if (!actionLog) return map;
@@ -402,24 +410,28 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
       const end   = start != null ? start + report.fightDurationSeconds : null;
       const totals = new Map<string, number>();
       for (const e of actionLog) {
-        if (e.from === 'boss') continue;
+        if (e.from === 'boss' || e.from === 'enemy') continue;
         if (PLACEHOLDER_CAST_NAMES.has(e.name)) continue;
         if (start != null && end != null && (e.elapsed < start || e.elapsed > end)) continue;
         const tgts = e.targets ?? (e.mob ? [{ mob: e.mob, damage: e.damage ?? 0, result: e.result ?? 'hit' as const }] : []);
         for (const t of tgts) {
           if (t.mob !== name) continue;
           if (entityId != null && t.id != null && t.id !== entityId) continue;
+          // Record anyone who ACTED on this enemy, even for 0 damage - a 0-damage
+          // hit (immune dummy, full resist, a pure debuff) still means they engaged
+          // it, so their per-character stats (ranged shots, hover stacks, etc.)
+          // should be reachable instead of the whole row vanishing.
           const dmg = t.damage ?? 0;
-          if (dmg > 0) totals.set(e.player, (totals.get(e.player) ?? 0) + dmg);
+          totals.set(e.player, (totals.get(e.player) ?? 0) + dmg);
         }
       }
+      if (totals.size === 0) return [];
       const groupTotal = Array.from(totals.values()).reduce((s, n) => s + n, 0);
-      if (groupTotal === 0) return [];
       return Array.from(totals.entries())
         .map(([player, dmg]) => ({
           name: player,
           damage: dmg,
-          percent: +(dmg / groupTotal * 100).toFixed(1),
+          percent: groupTotal > 0 ? +(dmg / groupTotal * 100).toFixed(1) : 0,
           isSkillchain: false,
         }))
         .sort((a, b) => b.damage - a.damage);
@@ -467,6 +479,7 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
   })();
   const playerDamage = damageReport.filter((d: DamageEntry) => !d.isSkillchain);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [buffOpen, setBuffOpen] = useState<Set<string>>(new Set());
   const perPlayer = buildPerPlayerStats(report);
 
   function toggle(playerName: string) {
@@ -588,6 +601,52 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                   const jobAbilityRows = playerActions
                     .filter(e => isJobAbility(e))
                     .sort((a, b) => a.elapsed - b.elapsed);
+                  // Ranged auto-attacks (category 2) - excluded from Damage Dealt above
+                  // so they get their own section, with Hover Shot stacks when the addon
+                  // captured them (local-player shots only). Require a resolved enemy
+                  // target and skip non-finish phases: in a multibox log the same shot is
+                  // ALSO witnessed by other boxes that never resolved the target ("-") or
+                  // stamped hover, so those copies would double the count and pollute the
+                  // stack histogram with phantom 0s.
+                  const rangedRows = (() => {
+                    const raw = playerActions
+                      .filter(e => isRanged(e) && e.phase !== 'start' && e.phase !== 'interrupt')
+                      .filter(e => {
+                        const t = (e.targets ?? (e.mob ? [{ mob: e.mob } as ActionLogTarget] : []))[0];
+                        return !!(t && t.mob);
+                      });
+                    // One ranged auto per actor per second - dedup multibox witnessed
+                    // copies of the same shot, keeping the one that carries hover stacks.
+                    const byKey = new Map<string, ActionLogEntry>();
+                    for (const e of raw) {
+                      const k = `${e.playerId ?? e.player}|${e.elapsed}`;
+                      const prev = byKey.get(k);
+                      if (!prev || (e.hoverStacks != null && prev.hoverStacks == null)) byKey.set(k, e);
+                    }
+                    return [...byKey.values()].sort((a, b) => a.elapsed - b.elapsed);
+                  })();
+                  const rangedHasHover = rangedRows.some(e => e.hoverStacks != null);
+                  const hoverCounts = (() => {
+                    const m = new Map<number, number>();
+                    for (const e of rangedRows) if (e.hoverStacks != null) m.set(e.hoverStacks, (m.get(e.hoverStacks) ?? 0) + 1);
+                    return [...m.entries()].map(([stack, shots]) => ({ stack, shots }));
+                  })();
+                  const hoverLoss = (() => {
+                    const lostAt = new Map<number, number>();
+                    let prev: number | null = null;
+                    let drops = 0, stacks = 0;
+                    rangedRows.forEach((e, i) => {
+                      const cur = e.hoverStacks;
+                      if (cur == null) return;
+                      if (prev != null && cur < prev && prev > 0) {
+                        lostAt.set(i, prev);
+                        drops += 1;
+                        stacks += prev;
+                      }
+                      prev = cur;
+                    });
+                    return { lostAt, drops, stacks };
+                  })();
                   const healingRows = playerActions
                     .filter(e => !targetsBossEntry(e) && isHealSpell(e))
                     .sort((a, b) => a.elapsed - b.elapsed);
@@ -669,12 +728,70 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                     const ge = gearIndex.lookup(entry.name, n, el);
                     return ge ? <GearReveal entry={ge} changed={gearIndex.changed(entry.name, n, el)} /> : null;
                   };
+                  // Full-width sub-row rendered UNDER a cast's main row, listing the
+                  // buffs that were on this character when the action happened. Skipped
+                  // when there were none, so it only adds a line where it has content.
+                  // Default COLLAPSED: a row's buff sub-row only renders when toggled open
+                  // (click the row, or the table's ALL button). Skipped if no buffs at all.
+                  const buffKey = (tableId: string, i: number) => `${entry.name}|${tableId}|${i}`;
+                  const toggleBuff = (tableId: string, i: number) => setBuffOpen(prev => {
+                    const n = new Set(prev); const k = buffKey(tableId, i);
+                    if (n.has(k)) n.delete(k); else n.add(k);
+                    return n;
+                  });
+                  const buffSubRow = (tableId: string, i: number, colSpan: number, el: number) => {
+                    const ids = buffsAt(entry.name, el);
+                    if (!ids || ids.length === 0) return null;
+                    const open = buffOpen.has(buffKey(tableId, i));
+                    return (
+                      <tr className="border-b border-white/[0.04] last:border-0">
+                        <td colSpan={colSpan} className="py-0.5 pl-6 pr-2">
+                          {open ? (
+                            <span className="inline-flex flex-wrap items-center gap-1 align-middle">
+                              <button type="button" onClick={() => toggleBuff(tableId, i)} className="text-sm text-gray-400 hover:text-gray-200 mr-1" data-tooltip="Collapse" data-tooltip-instant>▾</button>
+                              {ids.map((id, k) => (
+                                <span key={k} data-tooltip={buffLongName(id) ?? `Buff #${id}`} data-tooltip-instant className="inline-flex cursor-help">
+                                  <BuffIcon id={id} size={22} />
+                                </span>
+                              ))}
+                            </span>
+                          ) : (
+                            <button type="button" onClick={() => toggleBuff(tableId, i)} className="text-sm text-gray-300 hover:text-white inline-flex items-center gap-1.5">
+                              <span>▸</span><span>{ids.length} buffs</span>
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  };
+                  // ALL / NONE control for a table header (rows with buffs only).
+                  const buffAllNone = (tableId: string, rows: { elapsed: number }[]) => {
+                    const keys = rows
+                      .map((r, i) => ({ i, el: r.elapsed }))
+                      .filter(x => (buffsAt(entry.name, x.el)?.length ?? 0) > 0)
+                      .map(x => buffKey(tableId, x.i));
+                    if (keys.length === 0) return null;
+                    const setAll = (open: boolean) => setBuffOpen(prev => {
+                      const n = new Set(prev);
+                      for (const k of keys) { if (open) n.add(k); else n.delete(k); }
+                      return n;
+                    });
+                    const btn = 'text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded border border-white/15 text-gray-300 hover:text-white hover:bg-white/[0.08] transition-colors';
+                    return (
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-xs text-gray-500 uppercase tracking-wide mr-0.5">buffs</span>
+                        <button type="button" className={btn} onClick={() => setAll(true)}>All</button>
+                        <button type="button" className={btn} onClick={() => setAll(false)}>None</button>
+                      </span>
+                    );
+                  };
                   return (
                   <div className="ml-6 mt-2 mb-3 pl-3 border-l border-white/10 space-y-3">
                     <PlayerStatsPanel stats={wsAvgTp ? { ...perPlayer[entry.name], wsAvgTp } : perPlayer[entry.name]} />
                     {totalBossDmg > 0 && dmgSegments.length > 0 && (
                       <DamageSpread segments={dmgSegments} />
                     )}
+                    {rangedHasHover && <HoverSpread counts={hoverCounts} lost={hoverLoss.drops > 0 ? { drops: hoverLoss.drops, stacks: hoverLoss.stacks } : undefined} />}
                     {isCor && corsairRolls && (
                       <div>
                         <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Corsair Rolls</div>
@@ -691,6 +808,7 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                       {/* Row 1: Damage Dealt | Damage Taken */}
                       <PlayerSubTable
                         title="Damage Dealt"
+                        headerRight={buffAllNone('dd', damageDealtRows)}
                         titleColor="text-orange-400"
                         summary={`${damageDealtRows.length} skills · ${totalDamageDealt.toLocaleString()} total`}
                         colSpan={5}
@@ -716,7 +834,8 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                           const isMiss = result === 'miss' || result === 'resist';
                           const tp = isWeaponSkill(e) ? tpForWs(e) : null;
                           return (
-                            <tr key={i} className="border-b border-white/[0.04] last:border-0">
+                            <Fragment key={i}>
+                            <tr className="border-b border-white/[0.04] last:border-0">
                               <td className="py-1 pl-2 pr-3 text-right text-gray-400 font-mono">{fmtFightTime(e.elapsed, report.fightStartElapsed)}</td>
                               <td className={`py-1 pr-3 truncate ${ACTION_TYPE_STYLE[e.type] ?? 'text-gray-300'}`}>
                                 {e.name}
@@ -735,11 +854,68 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                               <td className={`py-1 pr-3 text-right font-mono ${hpDmg > 0 ? 'text-gray-200' : 'text-gray-400'}`}>{hpDmg > 0 ? hpDmg.toLocaleString() : '-'}</td>
                               <td className={`py-1 pr-2 ${isMiss ? 'text-red-400' : 'text-emerald-400'}`}>{result}</td>
                             </tr>
+                            {buffSubRow('dd', i, 5, e.elapsed)}
+                            </Fragment>
                           );
                         })}
                       </PlayerSubTable>
+                      {rangedRows.length > 0 && (
+                      <PlayerSubTable
+                        title="Ranged Attacks"
+                        headerRight={buffAllNone('rng', rangedRows)}
+                        titleColor="text-teal-300"
+                        summary={`${rangedRows.length} shots${rangedHasHover ? ' · hover shot tracked' : ''}`}
+                        colSpan={rangedHasHover ? 5 : 4}
+                        isEmpty={false}
+                        headerCells={
+                          <>
+                            <th className="text-right py-1.5 pl-2 pr-3 w-20">Time</th>
+                            <th className="text-left py-1.5 pr-3">Target</th>
+                            <th className="text-left py-1.5 pr-2 w-16">Result</th>
+                            <th className="text-right py-1.5 pr-3 w-20">Damage</th>
+                            {rangedHasHover && <th className="text-right py-1.5 pr-2 w-20">Hover</th>}
+                          </>
+                        }
+                      >
+                        {rangedRows.map((e, i) => {
+                          const t = (e.targets ?? (e.mob ? [{ mob: e.mob, damage: e.damage ?? 0, result: e.result ?? 'hit' as const }] : []))[0];
+                          let result: 'hit' | 'crit' | 'miss' = 'hit';
+                          let dmg = t?.damage ?? 0;
+                          const s0 = (t?.swings ?? []).find(s => s.m != null);
+                          if (s0) {
+                            if (s0.m === 353) result = 'crit';
+                            else if (s0.m === 354) { result = 'miss'; dmg = 0; }
+                            else result = 'hit';
+                            if (result !== 'miss' && s0.d != null) dmg = s0.d;
+                          } else if (t?.result === 'miss') { result = 'miss'; dmg = 0; }
+                          const isMiss = result === 'miss';
+                          return (
+                            <Fragment key={i}>
+                            <tr className="border-b border-white/[0.04] last:border-0">
+                              <td className="py-1 pl-2 pr-3 text-right text-gray-400 font-mono">{fmtFightTime(e.elapsed, report.fightStartElapsed)}</td>
+                              <td className="py-1 pr-3 truncate text-gray-300">{t?.mob ?? '-'}</td>
+                              <td className={`py-1 pr-2 ${isMiss ? 'text-red-400' : result === 'crit' ? 'text-amber-300' : 'text-emerald-400'}`}>{result}</td>
+                              <td className={`py-1 pr-3 text-right font-mono ${dmg > 0 ? 'text-gray-200' : 'text-gray-400'}`}>{isMiss ? '-' : dmg.toLocaleString()}</td>
+                              {rangedHasHover && (
+                                <td className="py-1 pr-2 text-right font-mono whitespace-nowrap">
+                                  {hoverLoss.lostAt.has(i) && (
+                                    <span className="text-rose-400 mr-1.5" title={`Chain broke here - ${hoverLoss.lostAt.get(i)} built ${hoverLoss.lostAt.get(i) === 1 ? 'stack' : 'stacks'} lost (buff wore off or target swapped)`}>▼{hoverLoss.lostAt.get(i)}</span>
+                                  )}
+                                  {e.hoverStacks != null
+                                    ? <span className={e.hoverStacks >= 25 ? 'text-fuchsia-300 font-semibold' : 'text-fuchsia-300/80'} title="Hover Shot stacks this shot fired with">{e.hoverStacks}</span>
+                                    : <span className="text-gray-600">-</span>}
+                                </td>
+                              )}
+                            </tr>
+                            {buffSubRow('rng', i, rangedHasHover ? 5 : 4, e.elapsed)}
+                            </Fragment>
+                          );
+                        })}
+                      </PlayerSubTable>
+                      )}
                       <PlayerSubTable
                         title="Damage Taken"
+                        headerRight={buffAllNone('dt', playerDamageTaken)}
                         titleColor="text-rose-400"
                         summary={`${playerDamageTaken.length} hits · ${playerDamageTakenTotal.toLocaleString()} total${playerDamageTakenBiggest > 0 ? ` · biggest ${playerDamageTakenBiggest.toLocaleString()}` : ''}`}
                         colSpan={5}
@@ -758,7 +934,8 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                           const t = dmgTakenType(r.message);
                           const pct = playerMaxHp ? (r.damage / playerMaxHp) * 100 : null;
                           return (
-                            <tr key={i} className="border-b border-white/[0.04] last:border-0">
+                            <Fragment key={i}>
+                            <tr className="border-b border-white/[0.04] last:border-0">
                               <td className="py-1 pl-2 pr-3 text-right text-gray-400 font-mono">{fmtFightTime(r.elapsed, report.fightStartElapsed)}</td>
                               <td className="py-1 pr-3 text-rose-300">{r.action}</td>
                               <td className={`py-1 pr-3 ${t.color}`}>{t.label}</td>
@@ -776,6 +953,8 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                                 )}
                               </td>
                             </tr>
+                            {buffSubRow('dt', i, 5, r.elapsed)}
+                            </Fragment>
                           );
                         })}
                       </PlayerSubTable>
@@ -784,6 +963,7 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                         <DebuffUpkeepInline rows={playerUpkeep} />
                       <PlayerSubTable
                         title="Debuffs & Enfeebling"
+                        headerRight={buffAllNone('deb', playerDebuffs?.events ?? [])}
                         titleColor="text-fuchsia-400"
                         summary={(() => {
                           const evs = playerDebuffs?.events ?? [];
@@ -807,7 +987,8 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                         }
                       >
                         {(playerDebuffs?.events ?? []).map((ev, i) => (
-                          <tr key={i} className="border-b border-white/[0.04] last:border-0">
+                          <Fragment key={i}>
+                          <tr className="border-b border-white/[0.04] last:border-0">
                             <td className="py-1 pl-2 pr-3 text-right text-gray-400 font-mono">{fmtFightTime(ev.elapsed, report.fightStartElapsed)}</td>
                             <td className="py-1 pr-3 text-fuchsia-200">{ev.action ?? <span className="text-gray-400">-</span>}{gearCell(ev.action, ev.elapsed)}</td>
                             <td className={`py-1 pr-2 truncate ${ev.immunobreak ? 'text-amber-300' : ev.resisted ? 'text-rose-400' : ev.status?.startsWith('−') ? 'text-teal-300' : 'text-rose-300'}`}>
@@ -820,11 +1001,14 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                                     : <span className="text-gray-400">-</span>}
                             </td>
                           </tr>
+                          {buffSubRow('deb', i, 3, ev.elapsed)}
+                          </Fragment>
                         ))}
                       </PlayerSubTable>
                       </div>
                       <PlayerSubTable
                         title="Buffs"
+                        headerRight={buffAllNone('buf', buffRows)}
                         titleColor="text-violet-400"
                         summary={`${buffRows.length} actions`}
                         colSpan={3}
@@ -842,17 +1026,21 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                           const targetList = targets.map(t => t.mob).filter(Boolean);
                           const targetLabel = targetList.length === 0 ? '-' : targetList.length === 1 ? targetList[0] : `${targetList[0]} +${targetList.length - 1}`;
                           return (
-                            <tr key={i} className="border-b border-white/[0.04] last:border-0">
+                            <Fragment key={i}>
+                            <tr className="border-b border-white/[0.04] last:border-0">
                               <td className="py-1 pl-2 pr-3 text-right text-gray-400 font-mono">{fmtFightTime(e.elapsed, report.fightStartElapsed)}</td>
                               <td className={`py-1 pr-3 truncate ${ACTION_TYPE_STYLE[e.type] ?? 'text-gray-300'}`}>{e.name}{gearCell(e.name, e.elapsed)}</td>
                               <td className="py-1 pr-2 truncate text-gray-400">{targetLabel}</td>
                             </tr>
+                            {buffSubRow('buf', i, 3, e.elapsed)}
+                            </Fragment>
                           );
                         })}
                       </PlayerSubTable>
                       {/* Row 3: Healing | Job Abilities */}
                       <PlayerSubTable
                         title="Healing"
+                        headerRight={buffAllNone('heal', healingRows)}
                         titleColor="text-emerald-400"
                         summary={`${healingRows.length} casts`}
                         colSpan={4}
@@ -872,17 +1060,21 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                           const targetList = targets.map(t => t.mob).filter(Boolean);
                           const targetLabel = targetList.length === 0 ? '-' : targetList.length === 1 ? targetList[0] : `${targetList[0]} +${targetList.length - 1}`;
                           return (
-                            <tr key={i} className="border-b border-white/[0.04] last:border-0">
+                            <Fragment key={i}>
+                            <tr className="border-b border-white/[0.04] last:border-0">
                               <td className="py-1 pl-2 pr-3 text-right text-gray-400 font-mono">{fmtFightTime(e.elapsed, report.fightStartElapsed)}</td>
                               <td className="py-1 pr-3 text-sky-300">{e.name}{gearCell(e.name, e.elapsed)}</td>
                               <td className="gn-pii py-1 pr-3 truncate text-gray-400">{targetLabel}</td>
                               <td className={`py-1 pr-2 text-right font-mono ${dmg > 0 ? 'text-emerald-300' : 'text-gray-400'}`}>{dmg > 0 ? dmg.toLocaleString() : '-'}</td>
                             </tr>
+                            {buffSubRow('heal', i, 4, e.elapsed)}
+                            </Fragment>
                           );
                         })}
                       </PlayerSubTable>
                       <PlayerSubTable
                         title="Job Abilities"
+                        headerRight={buffAllNone('ja', jobAbilityRows)}
                         titleColor="text-teal-300"
                         summary={`${jobAbilityRows.length} uses`}
                         colSpan={3}
@@ -901,7 +1093,8 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                           const targetLabel = targetList.length === 0 ? '-' : targetList.length === 1 ? targetList[0] : `${targetList[0]} +${targetList.length - 1}`;
                           const isSp = SP_ABILITIES.has(e.name);
                           return (
-                            <tr key={i} className={`border-b border-white/[0.04] last:border-0 ${isSp ? 'bg-fuchsia-500/10' : ''}`}>
+                            <Fragment key={i}>
+                            <tr className={`border-b border-white/[0.04] last:border-0 ${isSp ? 'bg-fuchsia-500/10' : ''}`}>
                               <td className="py-1 pl-2 pr-3 text-right text-gray-400 font-mono">{fmtFightTime(e.elapsed, report.fightStartElapsed)}</td>
                               <td className="py-1 pr-3">
                                 {isSp ? (
@@ -916,12 +1109,15 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                               </td>
                               <td className="py-1 pr-2 truncate text-gray-400">{targetLabel}</td>
                             </tr>
+                            {buffSubRow('ja', i, 3, e.elapsed)}
+                            </Fragment>
                           );
                         })}
                       </PlayerSubTable>
                       {/* Row 4: Items Used | Skillchains */}
                       <PlayerSubTable
                         title="Items Used"
+                        headerRight={buffAllNone('item', playerItems?.events ?? [])}
                         titleColor="text-sky-300"
                         summary={`${(playerItems?.events.length ?? 0)} uses`}
                         colSpan={2}
@@ -934,14 +1130,18 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                         }
                       >
                         {(playerItems?.events ?? []).map((ev, i) => (
-                          <tr key={i} className="border-b border-white/[0.04] last:border-0">
+                          <Fragment key={i}>
+                          <tr className="border-b border-white/[0.04] last:border-0">
                             <td className="py-1 pl-2 pr-3 text-right text-gray-400 font-mono">{fmtFightTime(ev.elapsed, report.fightStartElapsed)}</td>
                             <td className="py-1 pr-3 text-sky-300">{ev.item}</td>
                           </tr>
+                          {buffSubRow('item', i, 2, ev.elapsed)}
+                          </Fragment>
                         ))}
                       </PlayerSubTable>
                       <PlayerSubTable
                         title="Skillchains"
+                        headerRight={buffAllNone('sc', playerSC?.events ?? [])}
                         titleColor="text-amber-300"
                         summary={`${(playerSC?.events.length ?? 0)} closes · ${(playerSC?.total ?? 0).toLocaleString()} damage`}
                         colSpan={4}
@@ -956,12 +1156,15 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                         }
                       >
                         {(playerSC?.events ?? []).map((ev, i) => (
-                          <tr key={i} className="border-b border-white/[0.04] last:border-0">
+                          <Fragment key={i}>
+                          <tr className="border-b border-white/[0.04] last:border-0">
                             <td className="py-1 pl-2 pr-3 text-right text-gray-400 font-mono">{fmtFightTime(ev.elapsed, report.fightStartElapsed)}</td>
                             <td className="py-1 pr-3 text-amber-200">{ev.sc}</td>
                             <td className="py-1 pr-3 text-gray-300">{ev.ws}</td>
                             <td className="py-1 pr-2 text-right font-mono text-amber-300/80">{ev.damage.toLocaleString()}</td>
                           </tr>
+                          {buffSubRow('sc', i, 4, ev.elapsed)}
+                          </Fragment>
                         ))}
                       </PlayerSubTable>
                     </div>

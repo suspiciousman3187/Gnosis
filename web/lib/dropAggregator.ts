@@ -384,6 +384,50 @@ export function aggregateLoot(
   };
 }
 
+/** Per-mob item drop counts only. This is the SLICE of aggregateLoot the Records
+ *  rollup actually consumes (catalog.mobs[].items[].{item,drops,itemId}) - it skips
+ *  the whole item-side index, looter maps, Wilson intervals, dry-streak and
+ *  kill-index binary-search work that aggregateLoot does and Records discards.
+ *  Same drop-eligibility (pool drops with a kill-attributable source, on mobs that
+ *  have kills) and same cross-box dedup, so the numbers are identical. */
+export interface MobDropCounts { mob: string; items: { item: string; itemId?: number; drops: number }[]; }
+export function mobDropCatalog(entries: LootEncounterSummary[]): MobDropCounts[] {
+  if (entries.length === 0) return [];
+  const mobHasKill = new Set<string>();
+  for (const enc of entries) for (const k of enc.killLog) mobHasKill.add(k.name);
+
+  const byMob = new Map<string, Map<string, { count: number; itemId?: number }>>();
+  const CROSS_BOX_DROP_WINDOW = 5;
+  const seenDropKey = new Map<string, number>();
+  for (const enc of entries) {
+    for (const d of enc.dropLog) {
+      // Only pool drops whose source is a kill-attributable mob feed per-mob rows.
+      if (!(d.source && d.type === 'pool')) continue;
+      const dropKey = d.poolIndex != null
+        ? `${enc.ts}:pool:${d.itemId ?? 0}:${d.poolIndex}`
+        : `${enc.ts}:pool:${d.name}:${d.itemId ?? 0}`;
+      const prevElapsed = seenDropKey.get(dropKey);
+      if (prevElapsed != null && Math.abs(d.elapsed - prevElapsed) <= CROSS_BOX_DROP_WINDOW) continue;
+      seenDropKey.set(dropKey, d.elapsed);
+      let m = byMob.get(d.source);
+      if (!m) { m = new Map(); byMob.set(d.source, m); }
+      const cur = m.get(d.name);
+      if (!cur) m.set(d.name, { count: d.count ?? 1, itemId: d.itemId });
+      else { cur.count += d.count ?? 1; if (d.itemId != null && cur.itemId == null) cur.itemId = d.itemId; }
+    }
+  }
+
+  const out: MobDropCounts[] = [];
+  for (const [mob, m] of byMob) {
+    if (!mobHasKill.has(mob)) continue;
+    out.push({
+      mob,
+      items: [...m.entries()].map(([item, v]) => ({ item, itemId: v.itemId, drops: v.count })).sort((a, b) => b.drops - a.drops),
+    });
+  }
+  return out;
+}
+
 /** Sorted unique zone names from the loot cache - feeds the zone filter chip strip. */
 export function zonesFromLootEntries(entries: LootEncounterSummary[]): string[] {
   const s = new Set<string>();

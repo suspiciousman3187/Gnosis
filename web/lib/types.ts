@@ -171,7 +171,7 @@ export interface ActionLogEntry {
   /** Raw action id within the category. Lets us debug "X labeled as Y" with
    *  the FFXI resource table directly. Optional for legacy data. */
   param?: number;
-  type: 'ws' | 'spell' | 'mb' | 'enfeeb' | 'ja' | 'auto' | 'ranged';
+  type: 'ws' | 'spell' | 'mb' | 'enfeeb' | 'ja' | 'auto' | 'ranged' | 'mob_ability';
   name: string;      // ability/spell name
   from?: 'player' | 'boss' | 'enemy' | 'buff' | 'item'; // 'enemy' = non-boss enemy hitting party (Sortie sector mobs). 'item' = synthesized from item_use_log. undefined treated as 'player' (legacy data).
   actorRole?: 'pc' | 'trust' | 'pet' | 'mob' | 'boss' | 'outsider' | 'unknown';
@@ -188,6 +188,10 @@ export interface ActionLogEntry {
   phase?: 'interrupt' | 'start';
   interrupted?: boolean;
   tp?: number;
+  /** Hover Shot stacks this ranged attack (category 2) fired with. Set by the addon
+   *  only for the LOCAL player's own shots (the hov1 particle + buff are client-local),
+   *  so it is absent on witnessed/other-player ranged attacks. */
+  hoverStacks?: number;
 }
 
 export interface SortieDrops {

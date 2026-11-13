@@ -47,10 +47,13 @@ export default function TooltipHost() {
       if (hideTimerRef.current != null) { window.clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
       if (showTimerRef.current != null) window.clearTimeout(showTimerRef.current);
       const tone = readTone(target);
+      // Opt-in instant tooltips (no hover delay) for dense icon grids like the
+      // per-action buff strip, where the 350ms wait feels broken.
+      const delay = target.hasAttribute('data-tooltip-instant') ? 0 : SHOW_DELAY_MS;
       showTimerRef.current = window.setTimeout(() => {
         const r = target.getBoundingClientRect();
         setTip({ text, tone, rect: { x: r.left, y: r.top, w: r.width, h: r.height } });
-      }, SHOW_DELAY_MS);
+      }, delay);
     };
     const onOut = (e: MouseEvent) => {
       const from = (e.target as Element | null)?.closest?.('[data-tooltip]');

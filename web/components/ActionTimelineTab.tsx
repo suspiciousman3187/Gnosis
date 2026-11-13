@@ -65,6 +65,7 @@ const TYPE_META: Record<ActionType, { color: string; dot: string; label: string 
   ja:     { color: 'text-emerald-300', dot: 'bg-emerald-500 border-emerald-400', label: 'Job Ability'  },
   auto:   { color: 'text-zinc-300',    dot: 'bg-zinc-500 border-zinc-400',       label: 'Auto Attack' },
   ranged: { color: 'text-green-300',   dot: 'bg-green-500 border-green-400',     label: 'Ranged'      },
+  mob_ability: { color: 'text-rose-300', dot: 'bg-rose-500 border-rose-400',     label: 'Mob Ability' },
 };
 
 type RenderCat = ActionType | 'spAbility' | 'buffSpell' | 'buffJa' | 'item' | 'bossAuto' | 'bossTp' | 'bossSpell';
@@ -76,6 +77,7 @@ const RENDER_META: Record<RenderCat, { color: string; dot: string; label: string
   ja:        { color: 'text-emerald-300', dot: 'bg-emerald-500 border-emerald-400', label: 'Job Ability'     },
   auto:      { color: 'text-zinc-300',    dot: 'bg-zinc-500 border-zinc-400',       label: 'Auto Attack'     },
   ranged:    { color: 'text-green-300',   dot: 'bg-green-500 border-green-400',     label: 'Ranged'          },
+  mob_ability: { color: 'text-rose-300',  dot: 'bg-rose-500 border-rose-400',       label: 'Mob Ability'     },
   spAbility: { color: 'text-fuchsia-200', dot: 'bg-fuchsia-500 border-fuchsia-300 ring-2 ring-fuchsia-300/60', label: 'SP Ability' },
   buffSpell: { color: 'text-violet-300',  dot: 'bg-violet-500 border-violet-400',   label: 'Buff (Spell)'    },
   buffJa:    { color: 'text-cyan-300',    dot: 'bg-cyan-500 border-cyan-400',       label: 'Buff (JA)'       },
@@ -85,7 +87,7 @@ const RENDER_META: Record<RenderCat, { color: string; dot: string; label: string
   bossSpell: { color: 'text-orange-300',  dot: 'bg-orange-600 border-orange-400',   label: 'Boss Spell'     },
 };
 const RENDER_CAT_ORDER: RenderCat[] = [
-  'ws', 'spell', 'mb', 'enfeeb', 'ja', 'auto', 'ranged', 'spAbility', 'buffSpell', 'buffJa', 'item',
+  'ws', 'spell', 'mb', 'enfeeb', 'ja', 'auto', 'ranged', 'mob_ability', 'spAbility', 'buffSpell', 'buffJa', 'item',
   'bossAuto', 'bossTp', 'bossSpell',
 ];
 // Legend layout: deliberate labeled rows instead of an uneven wrap.

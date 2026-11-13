@@ -18,7 +18,7 @@ type LoadedContent =
 
 type Payload = { v: number; anonymized?: boolean; content: LoadedContent; icons?: Record<string, string>; viewerVersion?: string };
 
-const buffResolver = (id: number): string | null => (id >= 0 ? `/buffs/xiview/${id}.bmp` : null);
+const buffResolver = (id: number): string | null => (id >= 0 ? `/buffs/buffed/${id}.bmp` : null);
 
 async function decode(buf: ArrayBuffer): Promise<string> {
   const bytes = new Uint8Array(buf);

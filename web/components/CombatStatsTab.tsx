@@ -252,11 +252,13 @@ function computeHealBreakdowns(
   log: ActionLogEntry[] | null | undefined,
   partyNames: Set<string>,
   hpLookup: (name: string, atSec: number) => number | undefined,
+  window?: { start: number; end: number } | null,
 ): Record<string, HealBreakdown> {
   const out: Record<string, HealBreakdown> = {};
   if (!log) return out;
   for (const e of log) {
     if (!CURE_RE.test(e.name)) continue;
+    if (window && (e.elapsed < window.start || e.elapsed > window.end)) continue;
     if (!partyNames.has(e.player)) continue;
     const targets = e.targets ?? (e.mob ? [{ mob: e.mob, damage: e.damage ?? 0, result: e.result ?? 'hit' }] : []);
     const amount = targets.reduce((s, t) => s + (t.damage || 0), 0);
@@ -364,6 +366,75 @@ export function DamageSpread({ segments }: { segments: DmgSegment[] }) {
             <span className={`w-2 h-2 rounded-full ${c.bar}`} />
             <span className={c.text}>{c.label} {Math.round((c.dmg / total) * 100)}% · {c.dmg.toLocaleString()}</span>
           </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Hover Shot uptime as a histogram: one bar per stack level (0..max), height = how
+// many ranged shots fired at that stack. Reads as a distribution - you see the ramp
+// and how long you sat at the cap - instead of a wall of same-colored slivers.
+export function HoverSpread({ counts, lost }: { counts: { stack: number; shots: number }[]; lost?: { drops: number; stacks: number } }) {
+  const total = counts.reduce((s, c) => s + c.shots, 0);
+  if (total === 0) return null;
+  const byStack = new Map(counts.map(c => [c.stack, c.shots]));
+  const maxStack = Math.min(25, Math.max(0, ...counts.map(c => c.stack)));
+  const bars = Array.from({ length: maxStack + 1 }, (_, st) => ({ st, shots: byStack.get(st) ?? 0 }));
+  const maxShots = Math.max(1, ...bars.map(b => b.shots));
+  const avg = counts.reduce((s, c) => s + c.stack * c.shots, 0) / total;
+  const capped = counts.filter(c => c.stack >= 25).reduce((s, c) => s + c.shots, 0);
+  const capPct = Math.round((capped / total) * 100);
+  const avgColor = avg >= 20 ? 'text-emerald-400' : avg >= 12 ? 'text-amber-400' : 'text-rose-400';
+  const capColor = capPct >= 70 ? 'text-emerald-400' : capPct >= 40 ? 'text-amber-400' : 'text-rose-400';
+  const hasLoss = !!lost && lost.drops > 0;
+  return (
+    <div>
+      <div className="flex items-end justify-between mb-2 gap-3 flex-wrap">
+        <span className="text-xs text-gray-400 uppercase tracking-wide">Hover Shot Uptime</span>
+        <div className="flex items-baseline gap-5">
+          <div className="flex items-baseline gap-1.5">
+            <span className={`text-2xl font-bold leading-none ${avgColor}`}>{Math.round(avg)}</span>
+            <span className="text-xs text-gray-400">avg stacks/shot</span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className={`text-2xl font-bold leading-none ${capColor}`}>{capPct}%</span>
+            <span className="text-xs text-gray-400">fight time at cap</span>
+          </div>
+          <div
+            className="flex items-baseline gap-1.5"
+            data-tooltip={hasLoss
+              ? `Hover Shot chain broke ${lost!.drops} ${lost!.drops === 1 ? 'time' : 'times'}, wasting ${lost!.stacks} built ${lost!.stacks === 1 ? 'stack' : 'stacks'} (buff wore off or target swapped)`
+              : 'Hover Shot chain never broke'}
+            data-tooltip-instant
+          >
+            <span className={`text-2xl font-bold leading-none ${hasLoss ? 'text-rose-400' : 'text-emerald-400'}`}>{hasLoss ? lost!.drops : 0}</span>
+            <span className="text-xs text-gray-400">{hasLoss ? `drops · ${lost!.stacks} lost` : 'drops'}</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex items-end gap-px h-16">
+        {bars.map(b => (
+          <div
+            key={b.st}
+            className="flex-1 h-full flex items-end"
+            data-tooltip={`${b.st} ${b.st === 1 ? 'stack' : 'stacks'} · ${b.shots} ${b.shots === 1 ? 'shot' : 'shots'} (${Math.round((b.shots / total) * 100)}%)`}
+            data-tooltip-instant
+          >
+            <div
+              className="w-full rounded-t-sm transition-colors"
+              style={{
+                height: b.shots > 0 ? `${Math.max(6, (b.shots / maxShots) * 100)}%` : '0%',
+                // Hot-to-cold: low stacks cold (blue), high stacks hot (red).
+                background: `hsl(${Math.round(210 * (1 - Math.min(b.st, 25) / 25))} 75% 52%)`,
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-px text-[11px] text-gray-400 font-mono mt-1">
+        {bars.map(b => (
+          <div key={b.st} className="flex-1 text-center">{b.st}</div>
         ))}
       </div>
     </div>
@@ -1642,10 +1713,23 @@ export default function CombatStatsTab({
   const magicDefenseByPlayer = useMemo(() => computeMagicDefense(actionLog, selectedMob), [actionLog, selectedMob]);
   const hpStressByPlayer = useMemo(() => computeHpStress(partyHpLog), [partyHpLog]);
   const partyNameSet = useMemo(() => new Set(party.map(m => m.name)), [party]);
+  const mobWindow = useMemo<{ start: number; end: number } | null>(() => {
+    if (selectedMob === '_all_' || !actionLog) return null;
+    let first = Infinity, last = -Infinity;
+    for (const e of actionLog) {
+      const tgts = e.targets ?? (e.mob ? [{ mob: e.mob, damage: e.damage ?? 0 }] : []);
+      for (const t of tgts) {
+        if (t.mob !== selectedMob || (t.damage ?? 0) <= 0) continue;
+        if (e.elapsed < first) first = e.elapsed;
+        if (e.elapsed > last) last = e.elapsed;
+      }
+    }
+    return first === Infinity ? null : { start: first, end: last };
+  }, [selectedMob, actionLog]);
   const healBreakdowns = useMemo(() => {
     const lookup = buildHpLookup(partyHpLog);
-    return computeHealBreakdowns(actionLog, partyNameSet, lookup);
-  }, [actionLog, partyNameSet, partyHpLog]);
+    return computeHealBreakdowns(actionLog, partyNameSet, lookup, mobWindow);
+  }, [actionLog, partyNameSet, partyHpLog, mobWindow]);
 
   const jobMap: Record<string, string> = {};
   for (const p of party) {
