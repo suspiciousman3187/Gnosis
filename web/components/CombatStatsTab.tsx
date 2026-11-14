@@ -375,23 +375,71 @@ export function DamageSpread({ segments }: { segments: DmgSegment[] }) {
 // Hover Shot uptime as a histogram: one bar per stack level (0..max), height = how
 // many ranged shots fired at that stack. Reads as a distribution - you see the ramp
 // and how long you sat at the cap - instead of a wall of same-colored slivers.
-export function HoverSpread({ counts, lost }: { counts: { stack: number; shots: number }[]; lost?: { drops: number; stacks: number } }) {
-  const total = counts.reduce((s, c) => s + c.shots, 0);
+const HOVER_MMSS = (sec: number) => {
+  const s = Math.max(0, Math.round(sec));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
+const hoverStackHsl = (st: number) => `hsl(${Math.round(210 * (1 - Math.min(Math.max(st, 0), 25) / 25))} 75% 52%)`;
+
+export function HoverSpread({ series, lost }: { series: { t: number; stacks: number }[]; lost?: { drops: number; stacks: number } }) {
+  const [hoverI, setHoverI] = useState<number | null>(null);
+  const pts = useMemo(() => [...series].sort((a, b) => a.t - b.t), [series]);
+  const total = pts.length;
   if (total === 0) return null;
-  const byStack = new Map(counts.map(c => [c.stack, c.shots]));
-  const maxStack = Math.min(25, Math.max(0, ...counts.map(c => c.stack)));
-  const bars = Array.from({ length: maxStack + 1 }, (_, st) => ({ st, shots: byStack.get(st) ?? 0 }));
-  const maxShots = Math.max(1, ...bars.map(b => b.shots));
-  const avg = counts.reduce((s, c) => s + c.stack * c.shots, 0) / total;
-  const capped = counts.filter(c => c.stack >= 25).reduce((s, c) => s + c.shots, 0);
+
+  const avg = pts.reduce((s, p) => s + p.stacks, 0) / total;
+  const capped = pts.filter(p => p.stacks >= 25).length;
   const capPct = Math.round((capped / total) * 100);
+  const drops = (() => {
+    let d = 0, prev: number | null = null;
+    for (const p of pts) { if (prev != null && p.stacks < prev && prev > 0) d += 1; prev = p.stacks; }
+    return d;
+  })();
+  const lostStacks = lost?.stacks ?? (() => {
+    let n = 0, prev: number | null = null;
+    for (const p of pts) { if (prev != null && p.stacks < prev && prev > 0) n += prev; prev = p.stacks; }
+    return n;
+  })();
   const avgColor = avg >= 20 ? 'text-emerald-400' : avg >= 12 ? 'text-amber-400' : 'text-rose-400';
   const capColor = capPct >= 70 ? 'text-emerald-400' : capPct >= 40 ? 'text-amber-400' : 'text-rose-400';
-  const hasLoss = !!lost && lost.drops > 0;
+  const hasLoss = drops > 0;
+
+  const W = 1000, H = 200, mL = 30, mR = 10, mT = 10, mB = 22;
+  const t0 = pts[0].t;
+  const tEnd = Math.max(pts[total - 1].t + 2, t0 + 1);
+  const span = tEnd - t0 || 1;
+  const x = (t: number) => mL + ((t - t0) / span) * (W - mL - mR);
+  const y = (st: number) => mT + (1 - Math.min(Math.max(st, 0), 25) / 25) * (H - mT - mB);
+
+  const stepPath = (() => {
+    let d = `M ${x(pts[0].t).toFixed(1)} ${y(pts[0].stacks).toFixed(1)}`;
+    for (let i = 1; i < total; i++) {
+      d += ` L ${x(pts[i].t).toFixed(1)} ${y(pts[i - 1].stacks).toFixed(1)} L ${x(pts[i].t).toFixed(1)} ${y(pts[i].stacks).toFixed(1)}`;
+    }
+    return d;
+  })();
+  const areaPath = `${stepPath} L ${x(pts[total - 1].t).toFixed(1)} ${(H - mB).toFixed(1)} L ${x(pts[0].t).toFixed(1)} ${(H - mB).toFixed(1)} Z`;
+
+  const dropMarks = pts.map((p, i) => (i > 0 && p.stacks < pts[i - 1].stacks && pts[i - 1].stacks > 0)
+    ? { i, t: p.t, from: pts[i - 1].stacks, to: p.stacks } : null).filter(Boolean) as { i: number; t: number; from: number; to: number }[];
+  const yTicks = [0, 5, 10, 15, 20, 25];
+  const xTickCount = 6;
+  const xTicks = Array.from({ length: xTickCount + 1 }, (_, k) => t0 + (span * k) / xTickCount);
+
+  const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const px = ((e.clientX - r.left) / r.width) * W;
+    const tt = t0 + ((px - mL) / (W - mL - mR)) * span;
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < total; i++) { const dd = Math.abs(pts[i].t - tt); if (dd < bd) { bd = dd; best = i; } }
+    setHoverI(best);
+  };
+  const hv = hoverI != null ? pts[hoverI] : null;
+
   return (
     <div>
       <div className="flex items-end justify-between mb-2 gap-3 flex-wrap">
-        <span className="text-xs text-gray-400 uppercase tracking-wide">Hover Shot Uptime</span>
+        <span className="text-xs text-gray-400 uppercase tracking-wide">Hover Shot Timeline</span>
         <div className="flex items-baseline gap-5">
           <div className="flex items-baseline gap-1.5">
             <span className={`text-2xl font-bold leading-none ${avgColor}`}>{Math.round(avg)}</span>
@@ -399,43 +447,78 @@ export function HoverSpread({ counts, lost }: { counts: { stack: number; shots: 
           </div>
           <div className="flex items-baseline gap-1.5">
             <span className={`text-2xl font-bold leading-none ${capColor}`}>{capPct}%</span>
-            <span className="text-xs text-gray-400">fight time at cap</span>
+            <span className="text-xs text-gray-400">time at cap</span>
           </div>
           <div
             className="flex items-baseline gap-1.5"
             data-tooltip={hasLoss
-              ? `Hover Shot chain broke ${lost!.drops} ${lost!.drops === 1 ? 'time' : 'times'}, wasting ${lost!.stacks} built ${lost!.stacks === 1 ? 'stack' : 'stacks'} (buff wore off or target swapped)`
+              ? `Hover Shot chain broke ${drops} ${drops === 1 ? 'time' : 'times'}, wasting ${lostStacks} built ${lostStacks === 1 ? 'stack' : 'stacks'} (buff wore off or target swapped)`
               : 'Hover Shot chain never broke'}
             data-tooltip-instant
           >
-            <span className={`text-2xl font-bold leading-none ${hasLoss ? 'text-rose-400' : 'text-emerald-400'}`}>{hasLoss ? lost!.drops : 0}</span>
-            <span className="text-xs text-gray-400">{hasLoss ? `drops · ${lost!.stacks} lost` : 'drops'}</span>
+            <span className={`text-2xl font-bold leading-none ${hasLoss ? 'text-rose-400' : 'text-emerald-400'}`}>{hasLoss ? drops : 0}</span>
+            <span className="text-xs text-gray-400">{hasLoss ? `drops · ${lostStacks} lost` : 'drops'}</span>
           </div>
         </div>
       </div>
-      <div className="flex items-end gap-px h-16">
-        {bars.map(b => (
+      <div className="relative">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          className="w-full h-44 select-none"
+          onMouseMove={onMove}
+          onMouseLeave={() => setHoverI(null)}
+        >
+          <defs>
+            <linearGradient id="hoverStroke" x1="0" y1={mT} x2="0" y2={H - mB} gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor={hoverStackHsl(25)} />
+              <stop offset="40%" stopColor={hoverStackHsl(15)} />
+              <stop offset="70%" stopColor={hoverStackHsl(7)} />
+              <stop offset="100%" stopColor={hoverStackHsl(0)} />
+            </linearGradient>
+            <linearGradient id="hoverFill" x1="0" y1={mT} x2="0" y2={H - mB} gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor={hoverStackHsl(22)} stopOpacity="0.28" />
+              <stop offset="100%" stopColor={hoverStackHsl(2)} stopOpacity="0.04" />
+            </linearGradient>
+          </defs>
+          {yTicks.map(st => (
+            <g key={st}>
+              <line x1={mL} y1={y(st)} x2={W - mR} y2={y(st)} stroke="currentColor" strokeWidth="1" className="text-gray-700" strokeDasharray={st === 0 ? undefined : '3 4'} opacity={st === 0 ? 0.6 : 0.35} />
+              <text x={mL - 5} y={y(st) + 3} textAnchor="end" className="fill-gray-500" style={{ fontSize: 11 }}>{st}</text>
+            </g>
+          ))}
+          {xTicks.map((tt, k) => (
+            <text key={k} x={x(tt)} y={H - 6} textAnchor={k === 0 ? 'start' : k === xTickCount ? 'end' : 'middle'} className="fill-gray-500" style={{ fontSize: 11 }}>{HOVER_MMSS(tt - t0)}</text>
+          ))}
+          <path d={areaPath} fill="url(#hoverFill)" />
+          <path d={stepPath} fill="none" stroke="url(#hoverStroke)" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          {dropMarks.map(m => (
+            <g key={m.i}>
+              <line x1={x(m.t)} y1={y(m.from)} x2={x(m.t)} y2={y(m.to)} stroke="#fb7185" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity="0.85" />
+              <circle cx={x(m.t)} cy={y(m.from)} r="3.5" fill="#fb7185" />
+            </g>
+          ))}
+          {hv && (
+            <g>
+              <line x1={x(hv.t)} y1={mT} x2={x(hv.t)} y2={H - mB} stroke="currentColor" className="text-gray-400" strokeWidth="1" vectorEffect="non-scaling-stroke" opacity="0.5" />
+              <circle cx={x(hv.t)} cy={y(hv.stacks)} r="4.5" fill={hoverStackHsl(hv.stacks)} stroke="#0b0f17" strokeWidth="1.5" />
+            </g>
+          )}
+        </svg>
+        {hv && (
           <div
-            key={b.st}
-            className="flex-1 h-full flex items-end"
-            data-tooltip={`${b.st} ${b.st === 1 ? 'stack' : 'stacks'} · ${b.shots} ${b.shots === 1 ? 'shot' : 'shots'} (${Math.round((b.shots / total) * 100)}%)`}
-            data-tooltip-instant
+            className="pointer-events-none absolute -translate-x-1/2 -translate-y-full rounded-md border border-gray-700 bg-gray-900/95 px-2 py-1 text-xs whitespace-nowrap shadow-lg"
+            style={{ left: `${(x(hv.t) / W) * 100}%`, top: `${(y(hv.stacks) / H) * 100 - 4}%` }}
           >
-            <div
-              className="w-full rounded-t-sm transition-colors"
-              style={{
-                height: b.shots > 0 ? `${Math.max(6, (b.shots / maxShots) * 100)}%` : '0%',
-                // Hot-to-cold: low stacks cold (blue), high stacks hot (red).
-                background: `hsl(${Math.round(210 * (1 - Math.min(b.st, 25) / 25))} 75% 52%)`,
-              }}
-            />
+            <span className="font-mono text-gray-400">{HOVER_MMSS(hv.t - t0)}</span>
+            <span className="mx-1.5 text-gray-600">·</span>
+            <span className="font-bold" style={{ color: hoverStackHsl(hv.stacks) }}>{hv.stacks}</span>
+            <span className="text-gray-400"> {hv.stacks === 1 ? 'stack' : 'stacks'}</span>
+            {hoverI! > 0 && hv.stacks < pts[hoverI! - 1].stacks && pts[hoverI! - 1].stacks > 0 && (
+              <span className="ml-1.5 text-rose-400">▼{pts[hoverI! - 1].stacks - hv.stacks}</span>
+            )}
           </div>
-        ))}
-      </div>
-      <div className="flex gap-px text-[11px] text-gray-400 font-mono mt-1">
-        {bars.map(b => (
-          <div key={b.st} className="flex-1 text-center">{b.st}</div>
-        ))}
+        )}
       </div>
     </div>
   );

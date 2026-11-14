@@ -630,11 +630,9 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                     return [...byKey.values()].sort((a, b) => a.elapsed - b.elapsed);
                   })();
                   const rangedHasHover = rangedRows.some(e => e.hoverStacks != null);
-                  const hoverCounts = (() => {
-                    const m = new Map<number, number>();
-                    for (const e of rangedRows) if (e.hoverStacks != null) m.set(e.hoverStacks, (m.get(e.hoverStacks) ?? 0) + 1);
-                    return [...m.entries()].map(([stack, shots]) => ({ stack, shots }));
-                  })();
+                  const hoverSeries = rangedRows
+                    .filter(e => e.hoverStacks != null)
+                    .map(e => ({ t: e.elapsed, stacks: e.hoverStacks as number }));
                   const hoverLoss = (() => {
                     const lostAt = new Map<number, number>();
                     let prev: number | null = null;
@@ -795,7 +793,7 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                     {totalBossDmg > 0 && dmgSegments.length > 0 && (
                       <DamageSpread segments={dmgSegments} />
                     )}
-                    {rangedHasHover && <HoverSpread counts={hoverCounts} lost={hoverLoss.drops > 0 ? { drops: hoverLoss.drops, stacks: hoverLoss.stacks } : undefined} />}
+                    {rangedHasHover && <HoverSpread series={hoverSeries} lost={hoverLoss.drops > 0 ? { drops: hoverLoss.drops, stacks: hoverLoss.stacks } : undefined} />}
                     {isCor && corsairRolls && (
                       <div>
                         <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Corsair Rolls</div>
