@@ -1,6 +1,6 @@
 _addon.name = 'Gnosis'
 _addon.author = 'Noirblanc'
-_addon.version = '0.2.0'
+_addon.version = '0.3.0'
 _addon.commands = {'gnosis', 'gn'}
 
 dofile(windower.addon_path .. 'libs/perf.lua')
@@ -183,6 +183,14 @@ party_jobs = {}
 party_id_to_name = {}  -- entity ID -> most recently seen party member name (for rename dedup)
 name_alias = {}
 combat_stats = {}
+
+local _self_id_cache = nil
+function ff_self_id()
+    if _self_id_cache then return _self_id_cache end
+    local p = windower.ffxi.get_player()
+    if p and p.id and p.id > 0 then _self_id_cache = p.id end
+    return _self_id_cache
+end
 
 -- Boss fight timing (all sector bosses)
 local boss_fight_start = {}
@@ -1142,6 +1150,8 @@ end
 
 -- Track zone entry/exit to know when we're inside Sortie (Ra'Kaznar)
 windower.register_event('zone change', function(new_zone_id, old_zone_id)
+    _self_id_cache = nil
+    if ff_hover_set_active then ff_hover_set_active(false) end
     local zone_info = res.zones[new_zone_id]
     local zone_name = zone_info and zone_info.en or ''
 
@@ -1177,6 +1187,15 @@ windower.register_event('zone change', function(new_zone_id, old_zone_id)
         dead_ids = {}
         sortie_enc.kill_log = {}
         sortie_enc.item_use_log = {}
+        -- These were previously NOT reset on zone-in, so a second back-to-back
+        -- Sortie appended onto the prior run's entries - doubling weaponskills,
+        -- damage, Absorb-TP, mini-NM kills, and leaving stale pet->owner links.
+        sortie_enc.action_log = {}
+        sortie_enc.absorb_tp_log = {}
+        sortie_enc.mini_nm_log = {}
+        sortie_enc.pet_ids = {}
+        sortie_enc.pet_names_seen = {}
+        if ff_hover_reset then ff_hover_reset() end
         sortie_enc.position_log = {}
         last_position_sample = 0
         sortie_enc.boss_hp_log = {}
@@ -1475,7 +1494,7 @@ windower.register_event('incoming chunk', ff_perf_event('incoming_chunk', functi
     -- Diff against last_self_buff_set; emit gain/wear events for the local player.
     if sortie_start_time and id == 0x063 then
         local player = windower.ffxi.get_player()
-        if player then
+        if player and #data >= 0xC8 and data:unpack('H', 0x04 + 1) == 9 then
             local pname = self_name() or player.name
             local durations = ff_parse_buff_list_packet(data)
             local current = {}
@@ -1483,11 +1502,13 @@ windower.register_event('incoming chunk', ff_perf_event('incoming_chunk', functi
             for bid in pairs(current) do
                 if not last_self_buff_set[bid] then
                     log_buff_event('gain', pname, player.id, bid, '0x063', nil, nil, durations[bid])
+                    if ff_hover_set_active and ff_hover_buff_id and ff_hover_buff_id() == bid then ff_hover_set_active(true) end
                 end
             end
             for bid in pairs(last_self_buff_set) do
                 if not current[bid] then
                     log_buff_event('wear', pname, player.id, bid, '0x063')
+                    if ff_hover_on_buff_wear then ff_hover_on_buff_wear(bid) end
                 end
             end
             last_self_buff_set = current
@@ -1841,7 +1862,17 @@ ff_register_action_handler(function(act)
         end
     end
     local log_autos = cat1_aminon or sortie_capture ~= 'lean'
-    if in_sortie and sortie_start_time and (act.category == 3 or act.category == 4 or act.category == 6 or act.category == 11 or act.category == 13 or act.category == 14 or act.category == 15 or (act.category == 1 and log_autos)) then
+    -- Hover Shot stacks for a LOCAL-player ranged attack (category 2). Only the
+    -- firing client sees the hov1 particle + buff, so stacks are stamped on our own
+    -- shots only.
+    local hover_stacks_for_shot = nil
+    if act.category == 2 then
+        local _sid = ff_self_id and ff_self_id() or nil
+        if _sid and act.actor_id == _sid then
+            hover_stacks_for_shot = ff_hover_current()
+        end
+    end
+    if in_sortie and sortie_start_time and (act.category == 2 or act.category == 3 or act.category == 4 or act.category == 6 or act.category == 11 or act.category == 13 or act.category == 14 or act.category == 15 or (act.category == 1 and log_autos)) then
         ff_log_action_event(sortie_enc.action_log, sortie_enc.skillchain_log, sortie_start_time, act, {
             party_jobs       = party_jobs,
             party_id_to_name = party_id_to_name,
@@ -1854,6 +1885,7 @@ ff_register_action_handler(function(act)
             pet_ids          = sortie_enc.pet_ids,
             pet_names        = sortie_enc.pet_names_seen,
             party_tp         = last_party_tp,
+            hover_stacks     = hover_stacks_for_shot,
         })
     end
 
