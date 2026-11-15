@@ -5,6 +5,8 @@ import {
   type ResKind,
 } from './resBundle';
 import type { EncounterLanguage } from './encounter';
+import type { ActionLogEntry } from './types';
+import { cat3IsAbility } from './actionMessages';
 
 export type DisplayLanguage = 'auto' | 'en' | 'ja';
 
@@ -26,6 +28,23 @@ export function resKindForCategory(category: number | null | undefined): ResKind
 
 /** Synchronous: returns the translated name if the bundle is already loaded,
  *  else returns null so the caller can fall back to the captured-language name. */
+export function resKindForEntry(entry: ActionLogEntry): ResKind | null {
+  if (entry.category === 3) {
+    if (entry.actorRole === 'mob' || entry.actorRole === 'boss') return 'monster_abilities';
+    const ab = cat3IsAbility(entry.targets?.[0]?.message ?? null);
+    if (ab === true) return 'job_abilities';
+    if (ab === false) return 'weapon_skills';
+    return entry.type === 'ja' ? 'job_abilities' : 'weapon_skills';
+  }
+  return resKindForCategory(entry.category);
+}
+
+export function resolveActionNameSync(entry: ActionLogEntry, lang: EncounterLanguage): string {
+  const kind = resKindForEntry(entry);
+  const nm = translateActionSync(kind, entry.param ?? null, lang);
+  return nm ?? entry.name;
+}
+
 export function translateActionSync(
   kind: ResKind | null,
   id: number | null | undefined,
@@ -74,15 +93,21 @@ export function translateForDisplay(kind: ResKind, id: number | null | undefined
 
 /** Build a stable per-encounter translator. Returns identity when displayLang matches
  *  captureLang (skips res lookups entirely — cheap for the common case). */
-export function makeActionTranslator(captureLang: EncounterLanguage | null | undefined, displayLang: DisplayLanguage) {
+export type ActionTranslator = (name: string, category?: number | null, param?: number | null, msg?: number | null) => string;
+
+export function makeActionTranslator(captureLang: EncounterLanguage | null | undefined, displayLang: DisplayLanguage): ActionTranslator {
   const target = effectiveLanguage(displayLang, captureLang);
   const cap = (captureLang === 'ja' ? 'ja' : 'en') as EncounterLanguage;
   if (target === cap) {
-    return (name: string, _category?: number | null, _param?: number | null) => name;
+    return (name: string, _category?: number | null, _param?: number | null, _msg?: number | null) => name;
   }
-  return (name: string, category?: number | null, param?: number | null) => {
+  return (name: string, category?: number | null, param?: number | null, msg?: number | null) => {
     if (category == null || param == null) return name;
-    const kind = resKindForCategory(category);
+    let kind = resKindForCategory(category);
+    if (category === 3) {
+      const ab = cat3IsAbility(msg ?? null);
+      kind = ab === true ? 'job_abilities' : ab === false ? 'weapon_skills' : kind;
+    }
     const out = translateActionSync(kind, param, target);
     return out ?? name;
   };

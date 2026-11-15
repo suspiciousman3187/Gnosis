@@ -163,7 +163,7 @@ export default function SharedReportView({ id, loggedIn, isOwner, initialPrivate
 
   return (
     <BuffIconContext.Provider value={buffResolver}>
-    <ItemIconContext.Provider value={(itemId: number) => icons[itemId] ?? null}>
+    <ItemIconContext.Provider value={(itemId: number) => icons[itemId] ?? `/icons/icon_${itemId}.png`}>
       <main className="max-w-6xl mx-auto px-4 py-8">
         {state === 'error' && (
           <div className="text-gray-300 bg-surface border border-white/10 rounded-xl p-10 text-center mt-6">
@@ -194,15 +194,16 @@ export default function SharedReportView({ id, loggedIn, isOwner, initialPrivate
             <span className="text-amber-200/80">The uploader chose to share this report without anonymizing player names.</span>
           </div>
         )}
-        {state === 'ok' && (versions.addon || versions.viewer) && (
-          <div className="text-[11px] text-gray-500 mb-3 font-mono">
-            Addon {versions.addon ? `v${versions.addon}` : '?'} · Viewer {versions.viewer ? `v${versions.viewer}` : '?'}
-          </div>
-        )}
         {state === 'ok' && content && (() => {
-          const headerBadge = isOwner && initialPrivate != null
+          const badge = isOwner && initialPrivate != null
             ? <ReportPrivacyBadge id={id} initialPrivate={initialPrivate} />
             : SharedViewOnlyBadge;
+          const versionTag = (versions.addon || versions.viewer) ? (
+            <span className="text-[11px] text-gray-400 font-mono whitespace-nowrap">
+              Addon {versions.addon ? `v${versions.addon}` : '?'} · Viewer {versions.viewer ? `v${versions.viewer}` : '?'}
+            </span>
+          ) : null;
+          const headerBadge = <div className="flex items-center gap-3">{versionTag}{badge}</div>;
           return content.kind === 'encounter' ? <EncounterView enc={content.encounter} headerAction={headerBadge} />
             : content.kind === 'sortie'  ? <SortieView r={content.record} headerBadge={headerBadge} />
             : null;

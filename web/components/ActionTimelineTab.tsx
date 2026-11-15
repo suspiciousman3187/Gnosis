@@ -702,7 +702,7 @@ function FullLogView({
   allActors: string[];
   partyActors: string[];
   gearIndex?: GearIndex;
-  translateAction: (name: string, category?: number | null, param?: number | null) => string;
+  translateAction: (name: string, category?: number | null, param?: number | null, msg?: number | null) => string;
 }) {
   const enemyTerm = useEnemyTerm();
   const [actorFilter, setActorFilter] = useState('');
@@ -845,7 +845,7 @@ function FullLogView({
                       {e.player}
                     </td>
                     <td className={`px-3 py-1.5 ${typeMeta?.color ?? 'text-gray-400'}`}>
-                      {translateAction(e.name, e.category, e.param)}
+                      {translateAction(e.name, e.category, e.param, e.targets?.[0]?.message)}
                       {(() => { const ge = gearIndex?.lookup(e.player, e.name, e.elapsed); return ge ? <GearReveal entry={ge} changed={gearIndex!.changed(e.player, e.name, e.elapsed)} /> : null; })()}
                     </td>
                     <td className="px-3 py-1.5 text-gray-400">{targetLabel}</td>

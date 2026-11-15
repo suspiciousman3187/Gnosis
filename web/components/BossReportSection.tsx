@@ -13,6 +13,7 @@ import type { GearIndex } from '@/lib/gearLookup';
 import type { BossReport, ActionLogEntry, ActionLogTarget, ItemUseLogEntry, CorRolls, PartyMember, AminonData, BossHpEntry, PartyHpEntry, PartyTpEntry, PartyMpEntry, SkillchainEntry, BuffLogEntry, DamageEntry } from '@/lib/types';
 import { SP_ABILITIES } from '@/lib/spAbilities';
 import { isWeaponSkill, isAutoAttack, isSpell, isJobAbility, isEnfeebleSpell, isMagicBurst, isRanged } from '@/lib/actionCategory';
+import { resolveActionDisplayName } from '@/lib/actionMessages';
 import { useEnemyTerm } from './EnemyTerm';
 import BuffIcon from './BuffIcon';
 import { formatDuration, fmtFightTime } from './sortie/SortieHelpers';
@@ -258,7 +259,8 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
       const inFightWindow = start != null && end != null && e.elapsed >= start && e.elapsed <= end;
       const isBossAction = targetsBoss(e);
       if (!inFightWindow && !isBossAction) continue;
-      (map[e.player] ??= []).push(e);
+      const nm = resolveActionDisplayName(e);
+      (map[e.player] ??= []).push(nm === e.name ? e : { ...e, name: nm });
     }
     return map;
   })();

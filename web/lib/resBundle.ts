@@ -11,7 +11,13 @@ export type ResKind =
 export interface ResEntry { en: string; ja: string }
 export type ResBundle = Record<string, ResEntry>;
 
-const CACHE: Partial<Record<ResKind, ResBundle>> = {};
+import weaponSkillsData from './data/weapon_skills.json';
+import jobAbilitiesData from './data/job_abilities.json';
+
+const CACHE: Partial<Record<ResKind, ResBundle>> = {
+  weapon_skills: weaponSkillsData as unknown as ResBundle,
+  job_abilities: jobAbilitiesData as unknown as ResBundle,
+};
 const PENDING: Partial<Record<ResKind, Promise<ResBundle>>> = {};
 
 export function getResBundleSync(kind: ResKind): ResBundle | null {

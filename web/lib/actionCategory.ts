@@ -1,5 +1,6 @@
 
 import type { ActionLogEntry } from './types';
+import { cat3IsAbility } from './actionMessages';
 
 export type CanonicalActionType =
   | 'auto'
@@ -47,14 +48,13 @@ export function canonicalTypeOf(entry: ActionLogEntry): CanonicalActionType {
     // Surface it as 'mb' so the filter chip, per-row tag, and the 'mb' stats
     // bucket all treat it as a magic burst. Retroactive - works on existing logs.
     if (base === 'spell' && entry.targets?.some(t => t.result === 'burst')) return 'mb';
-    // Category 3 carries BOTH weaponskills and damaging, enemy-targeted job
-    // abilities (Jump, High Jump, Super Jump, Shield Bash, ...). The addon
-    // disambiguates them by the action's message id and records the result in
-    // `type`; category alone can't tell them apart and would mislabel the job
-    // abilities as weaponskills (dragging down the WS average). Trust the addon's
-    // 'ja' whenever the category resolved to 'ws'.
-    if (base === 'ws' && entry.type === 'ja') return 'ja';
     if ((base === 'ws' || base === 'ja') && entry.type === 'mob_ability') return 'mob_ability';
+    if (base === 'ws') {
+      const ab = cat3IsAbility(entry.targets?.[0]?.message ?? null);
+      if (ab === true) return 'ja';
+      if (ab === false) return 'ws';
+      return entry.type === 'ja' ? 'ja' : 'ws';
+    }
     return base;
   }
   return legacyTypeToCanonical(entry.type);

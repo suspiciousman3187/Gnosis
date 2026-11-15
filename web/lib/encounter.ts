@@ -23,6 +23,7 @@ import type {
   GearStateVariant,
   CharacterGear,
 } from './types';
+import { resolveActionDisplayName } from './actionMessages';
 
 // Which kind of content this encounter was recognized as. 'generic' = free
 // combat tracking with no recognized content (the base case).
@@ -206,9 +207,22 @@ function deepReplaceName<T>(node: T, raw: string, canon: string): T {
   return node;
 }
 
+function withResolvedActionNames(enc: Encounter): Encounter {
+  const log = enc.actionLog;
+  if (!log || log.length === 0) return enc;
+  const capLang = enc.language === 'ja' ? 'ja' : 'en';
+  let changed = false;
+  const fixed = log.map(e => {
+    const nm = resolveActionDisplayName(e, capLang);
+    if (nm !== e.name) { changed = true; return { ...e, name: nm }; }
+    return e;
+  });
+  return changed ? { ...enc, actionLog: fixed } : enc;
+}
+
 export function reconcileSelfName(enc: Encounter): Encounter {
   const canon = enc.gearLog && enc.gearLog.length > 0 ? enc.gearLog[0].player : null;
   const raw = enc.localCharacter;
-  if (!canon || !raw || raw === canon) return enc;
-  return deepReplaceName(enc, raw, canon);
+  const base = (!canon || !raw || raw === canon) ? enc : deepReplaceName(enc, raw, canon);
+  return withResolvedActionNames(base);
 }
