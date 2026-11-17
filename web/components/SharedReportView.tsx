@@ -91,7 +91,6 @@ function SortieView({ r, headerBadge }: { r: RunRecord; headerBadge: ReactNode }
 export default function SharedReportView({ id, loggedIn, isOwner, initialPrivate }: { id: string; loggedIn: boolean; isOwner: boolean; initialPrivate: boolean | null }) {
   const [state, setState] = useState<'loading' | 'error' | 'ok' | 'leak-blocked' | 'private'>('loading');
   const [content, setContent] = useState<LoadedContent | null>(null);
-  const [icons, setIcons] = useState<Record<string, string>>({});
   const [err, setErr] = useState('');
   const [anonymized, setAnonymized] = useState<boolean | undefined>(undefined);
   const [leakedNames, setLeakedNames] = useState<string[]>([]);
@@ -130,7 +129,6 @@ export default function SharedReportView({ id, loggedIn, isOwner, initialPrivate
 
         if (alive) {
           setContent(payload.content);
-          setIcons(payload.icons ?? {});
           setAnonymized(payload.anonymized);
           const inner = payload.content.kind === 'encounter'
             ? (payload.content as { encounter: { addonVersion?: string } }).encounter
@@ -163,7 +161,7 @@ export default function SharedReportView({ id, loggedIn, isOwner, initialPrivate
 
   return (
     <BuffIconContext.Provider value={buffResolver}>
-    <ItemIconContext.Provider value={(itemId: number) => icons[itemId] ?? `/icons/icon_${itemId}.png`}>
+    <ItemIconContext.Provider value={(itemId: number) => `/icons/icon_${itemId}.png`}>
       <main className="max-w-6xl mx-auto px-4 py-8">
         {state === 'error' && (
           <div className="text-gray-300 bg-surface border border-white/10 rounded-xl p-10 text-center mt-6">

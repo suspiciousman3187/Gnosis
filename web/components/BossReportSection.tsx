@@ -705,16 +705,14 @@ export function BossReportSection({ name, entityId, displayName, report, jobMap,
                     .filter(t => t.player === entry.name)
                     .sort((a, b) => a.elapsed - b.elapsed);
                   const tpForWs = (ws: ActionLogEntry): number | null => {
+                    let peak = -1;
+                    for (const s of tpSeries) {
+                      if (s.elapsed < ws.elapsed - 2) continue;
+                      if (s.elapsed > ws.elapsed) break;
+                      if (s.tp > peak) peak = s.tp;
+                    }
+                    if (peak >= 0) return Math.max(1000, peak);
                     if (typeof ws.tp === 'number') return Math.max(1000, ws.tp);
-                    if (tpSeries.length === 0) return null;
-                    let bestIdx = -1;
-                    for (let i = 0; i < tpSeries.length; i++) {
-                      if (tpSeries[i].elapsed <= ws.elapsed) bestIdx = i; else break;
-                    }
-                    if (bestIdx < 0) return null;
-                    for (let i = bestIdx; i >= 0; i--) {
-                      if (tpSeries[i].tp >= 1000) return tpSeries[i].tp;
-                    }
                     return null;
                   };
                   const wsTpSamples: number[] = [];

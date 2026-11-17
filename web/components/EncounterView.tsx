@@ -533,7 +533,7 @@ export default function EncounterView({ enc: encInput, headerAction, enemyHistor
         )}
 
         {active === 'stats' && hasStats && (
-          <CombatStatsTab combatStats={combatStats} party={party} durationSeconds={enc.durationSeconds} actionLog={actionLogQ} partyHpLog={enc.partyHpLog} partyMaxHp={enc.partyMaxHp ?? null} contentDef={contentDef} />
+          <CombatStatsTab combatStats={combatStats} party={party} durationSeconds={enc.durationSeconds} actionLog={actionLogQ} partyHpLog={enc.partyHpLog} partyTpLog={enc.partyTpLog} partyMaxHp={enc.partyMaxHp ?? null} contentDef={contentDef} />
         )}
 
         {active === 'status' && hasBuffs && (

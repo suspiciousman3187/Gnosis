@@ -387,6 +387,7 @@ export default function RunTabs({ run: r, isAdmin = false, header, preTabContent
             durationSeconds={enc.durationSeconds}
             actionLog={enc.actionLog}
             partyHpLog={enc.partyHpLog}
+            partyTpLog={enc.partyTpLog}
             partyMaxHp={enc.partyMaxHp ?? null}
             contentDef={contentById('sortie')}
           />

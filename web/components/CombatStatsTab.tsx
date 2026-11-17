@@ -14,6 +14,7 @@ import type {
   PartyMember,
   ActionLogEntry,
   PartyHpEntry,
+  PartyTpEntry,
 } from '@/lib/types';
 
 function fmtClock(elapsed: number): string {
@@ -1764,6 +1765,7 @@ export default function CombatStatsTab({
   durationSeconds,
   actionLog,
   partyHpLog,
+  partyTpLog,
   partyMaxHp,
   contentDef,
 }: {
@@ -1772,6 +1774,7 @@ export default function CombatStatsTab({
   durationSeconds?: number;
   actionLog?: ActionLogEntry[] | null;
   partyHpLog?: PartyHpEntry[] | null;
+  partyTpLog?: PartyTpEntry[] | null;
   partyMaxHp?: Record<string, number> | null;
   contentDef?: ContentDef | null;
 }) {
@@ -1846,9 +1849,30 @@ export default function CombatStatsTab({
     return span;
   }, [selectedMob, actionLog, durationSeconds]);
 
+  const tpSeriesByPlayer = useMemo<Map<string, PartyTpEntry[]>>(() => {
+    const m = new Map<string, PartyTpEntry[]>();
+    for (const s of partyTpLog ?? []) {
+      if (typeof s.tp !== 'number' || !s.player) continue;
+      (m.get(s.player) ?? m.set(s.player, []).get(s.player)!).push(s);
+    }
+    for (const arr of m.values()) arr.sort((a, b) => a.elapsed - b.elapsed);
+    return m;
+  }, [partyTpLog]);
+
   const wsTpByPlayer = useMemo<Record<string, { avg: number; count: number }>>(() => {
     const acc: Record<string, { sum: number; count: number }> = {};
     if (!actionLog) return {};
+    const preWsTp = (player: string, elapsed: number, baked?: number): number | null => {
+      let peak = -1;
+      for (const s of tpSeriesByPlayer.get(player) ?? []) {
+        if (s.elapsed < elapsed - 2) continue;
+        if (s.elapsed > elapsed) break;
+        if (s.tp > peak) peak = s.tp;
+      }
+      if (peak >= 0) return Math.max(1000, peak);
+      if (typeof baked === 'number') return Math.max(1000, baked);
+      return null;
+    };
     for (const e of actionLog) {
       if (e.type !== 'ws') continue;
       if (typeof e.tp !== 'number') continue;
@@ -1856,8 +1880,10 @@ export default function CombatStatsTab({
         const tgts = e.targets ?? (e.mob ? [{ mob: e.mob }] : []);
         if (!tgts.some(t => t.mob === selectedMob)) continue;
       }
+      const tp = preWsTp(e.player, e.elapsed, e.tp);
+      if (tp == null) continue;
       const a = acc[e.player] ?? { sum: 0, count: 0 };
-      a.sum += Math.max(1000, e.tp);
+      a.sum += tp;
       a.count += 1;
       acc[e.player] = a;
     }
@@ -1866,7 +1892,7 @@ export default function CombatStatsTab({
       if (count > 0) out[p] = { avg: sum / count, count };
     }
     return out;
-  }, [actionLog, selectedMob]);
+  }, [actionLog, selectedMob, tpSeriesByPlayer]);
 
   const RESERVED_KEYS = new Set([
     'total_damage', 'melee', 'ranged', 'category', 'other', 'defense', 'multi',
